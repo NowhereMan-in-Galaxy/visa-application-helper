@@ -1,0 +1,15 @@
+# 真实材料/个人数据——这个仓库永远不应包含这些内容（见 AGENTS.md 第 3 条）
+materials/
+data/raw/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+!docs/**/*.png
+
+# 常见系统与工具产物
+.DS_Store
+__pycache__/
+*.pyc
+node_modules/
+.env
