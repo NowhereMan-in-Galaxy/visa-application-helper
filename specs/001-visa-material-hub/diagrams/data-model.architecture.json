@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "材料资料库 + 办签证智能清单 — 数据模型",
+    "subtitle": "对应 specs/001-visa-material-hub/spec.md 的 5 个关键实体与核心库/Agent 层边界",
+    "visual_preset": "signal-flow",
+    "viewBox": [1080, 760]
+  },
+  "components": [
+    { "id": "ui", "type": "frontend", "label": "材料资料库 UI", "sublabel": "按签证申请浏览材料", "pos": [250, 30], "size": [170, 60] },
+
+    { "id": "personal_profile", "type": "database", "label": "PersonalProfile", "sublabel": "结构化个人信息 + travel history", "pos": [60, 170], "size": [160, 64] },
+    { "id": "material_record", "type": "database", "label": "MaterialRecord", "sublabel": "5 大类材料记录", "tag": "护照/财务/职业/证件照/个人信息", "pos": [250, 170], "size": [170, 64] },
+    { "id": "visa_application", "type": "database", "label": "VisaApplication", "sublabel": "国家 + 类型 + DDL", "pos": [460, 170], "size": [160, 64] },
+    { "id": "material_checklist", "type": "database", "label": "MaterialChecklist", "sublabel": "属于某次申请", "pos": [660, 170], "size": [160, 64] },
+    { "id": "checklist_item", "type": "database", "label": "ChecklistItem", "sublabel": "已匹配 / 缺失", "pos": [850, 170], "size": [160, 64] },
+
+    { "id": "status_engine", "type": "backend", "label": "状态计算", "sublabel": "核心库 · 确定性判断", "pos": [250, 330], "size": [170, 60] },
+    { "id": "folder_scaffold", "type": "backend", "label": "空文件夹生成", "sublabel": "核心库 · 确定性判断", "pos": [850, 330], "size": [160, 60] },
+
+    { "id": "requirement_extractor", "type": "external", "label": "材料需求提取", "sublabel": "Agent 层 · 文字/图片 → 结构化", "pos": [440, 490], "size": [200, 64] },
+    { "id": "matcher", "type": "backend", "label": "材料匹配", "sublabel": "Agent 层 · 清单 ↔ 已有材料", "pos": [700, 490], "size": [170, 64] },
+
+    { "id": "materials_root", "type": "external", "label": "材料根目录", "sublabel": "本地 / 云盘，路径可配置", "pos": [800, 650], "size": [220, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "核心库（确定性判断，不调用模型）— SPEC-mvp §2", "wraps": ["personal_profile", "material_record", "visa_application", "material_checklist", "checklist_item", "status_engine", "folder_scaffold"], "pad": 26 },
+    { "kind": "security-group", "label": "Agent 层（需要模型判断）— SPEC-mvp §2", "wraps": ["requirement_extractor", "matcher"], "pad": 22 }
+  ],
+  "connections": [
+    { "id": "ui-material", "from": "ui", "to": "material_record", "label": "浏览材料状态", "variant": "emphasis", "labelDy": 24 },
+
+    { "id": "material-app", "from": "material_record", "to": "visa_application", "label": "belongs_to · FR-002", "labelAt": [440, 166] },
+    { "id": "material-specialize", "from": "material_record", "to": "personal_profile", "label": "category=personal_info", "variant": "dashed", "labelAt": [235, 166] },
+
+    { "id": "material-status", "from": "material_record", "to": "status_engine", "label": "obtained_date+validity_rule → 状态 · FR-003", "labelDy": 24 },
+
+    { "id": "app-extractor", "from": "visa_application", "to": "requirement_extractor", "label": "国家+类型+DDL · FR-004/005", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "extractor-checklist", "from": "requirement_extractor", "to": "material_checklist", "label": "生成清单 · FR-006", "variant": "emphasis", "fromSide": "top", "toSide": "bottom" },
+    { "id": "checklist-item", "from": "material_checklist", "to": "checklist_item", "label": "包含" },
+
+    { "id": "matcher-item", "from": "matcher", "to": "checklist_item", "label": "标注已匹配/缺失 · FR-007", "fromSide": "top", "toSide": "bottom" },
+
+    { "id": "item-scaffold", "from": "checklist_item", "to": "folder_scaffold", "label": "缺失时触发 · FR-008", "variant": "emphasis", "labelDy": 24, "labelDx": 55 },
+    { "id": "scaffold-root", "from": "folder_scaffold", "to": "materials_root", "label": "创建空文件夹 · FR-009", "fromSide": "bottom", "toSide": "top", "labelDy": -24 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "分层原则（已锁定）",
+      "items": [
+        "核心库：存储/查询/状态判断/建空文件夹，无需模型，可独立测试",
+        "Agent 层：材料需求提取、清单匹配，探索结果应能沉淀复用"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "本轮已确认的 3 个决定",
+      "items": [
+        "财务快照按用途分组，组内按时间排列",
+        "DDL 是整次申请统一的提交截止日期，不与材料自身 validity_rule 混淆",
+        "缺失材料只建空文件夹，不生成模板内容"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全约束",
+      "items": [
+        "仓库只存结构化索引，不存真实材料文件",
+        "材料根目录路径可配置，不硬编码个人路径（MaterialRecord.file_ref 是相对路径引用）"
+      ]
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 本文档记录截至目前对话中已经达成共识、可以当作后续实现依据的决定，以及明确留给下一轮架构讨论解决的开放问题。**已锁定部分应被后续 Agent 当作约束遵守，除非项目主明确推翻；待决问题部分不应被下一个 Agent 擅自替项目主决定，应先提出方案讨论。**
 
+> **更新方式变化**：本项目从这一轮讨论开始引入 [Spec Kit](https://github.com/github/spec-kit)（`.specify/` 目录、`/speckit-*` 命令）作为写 spec 的工具。"材料数据库"这一条已被正式扩容为独立的 feature spec，见 [`../specs/001-visa-material-hub/spec.md`](../specs/001-visa-material-hub/spec.md)，之后关于这个 feature 的细节以那份文档为准；本文件保留作为项目级别的总体范围记录（MVP 有哪几件事、架构边界、安全约束这些跨 feature 的原则），不逐条搬空。
+
 ## 1. MVP 范围（已锁定）
 
 只做以下两件事，不做更多：
