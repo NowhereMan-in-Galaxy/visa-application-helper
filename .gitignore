@@ -13,3 +13,6 @@ __pycache__/
 *.pyc
 node_modules/
 .env
+
+# spec-kit 的 Claude Code 集成目录，可能缓存凭证/私有产物（工具自身安装时提示）
+.claude/
