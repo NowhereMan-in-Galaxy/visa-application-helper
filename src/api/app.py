@@ -28,6 +28,7 @@ from core.profile_storage import load_personal_profile, save_personal_profile
 from core.status import compute_status
 from core.storage import (
     RecordIdConflictError,
+    load_material_records,
     load_materials_for_application,
     load_visa_applications,
     save_material_record,
@@ -88,30 +89,35 @@ def list_visa_applications() -> list[VisaApplication]:
     response_model=list[MaterialView],
 )
 def list_materials(application_id: str) -> list[MaterialView]:
+    """给"办事材料准备" tab 用——只看挂在这次申请下的材料（financial_snapshot / employment_doc）。"""
     _require_application(application_id)
     records = load_materials_for_application(MATERIALS_INDEX_DIR, application_id)
     today = date.today()
     return [_to_material_view(record, today) for record in records]
 
 
-@app.post(
-    "/api/visa-applications/{application_id}/materials",
-    response_model=MaterialView,
-)
-async def create_material(
-    application_id: str,
-    category: MaterialCategory = Form(...),
-    type: str = Form(...),  # noqa: A002 - 跟前端表单字段名对齐
-    obtained_date: date = Form(...),
-    sublabel: str | None = Form(None),
-    validity_days: int | None = Form(None),
-    recommended_update_interval_days: int | None = Form(None),
-    recommended_update_day_of_month: int | None = Form(None),
-    file: UploadFile | None = File(None),
-) -> MaterialView:
-    """User Story 4（FR-012）：前端新增一条材料记录，可选附带上传文件。"""
-    _require_application(application_id)
+@app.get("/api/materials", response_model=list[MaterialView])
+def list_all_materials(category: MaterialCategory | None = None) -> list[MaterialView]:
+    """给"个人材料" tab 用——不看 belongs_to，跨所有申请聚合展示（证件类本来就不该按申请分）。"""
+    records = load_material_records(MATERIALS_INDEX_DIR)
+    if category is not None:
+        records = [r for r in records if r.category == category]
+    today = date.today()
+    return [_to_material_view(record, today) for record in records]
 
+
+async def _create_material(
+    *,
+    belongs_to: str | None,
+    category: MaterialCategory,
+    type_: str,
+    obtained_date: date,
+    sublabel: str | None,
+    validity_days: int | None,
+    recommended_update_interval_days: int | None,
+    recommended_update_day_of_month: int | None,
+    file: UploadFile | None,
+) -> MaterialView:
     # 用 "类别-日期-随机后缀" 做 id：日期方便人眼在 materials_index/records/ 里按时间找到它，
     # 随机后缀保证不会跟已有记录撞 id（撞了 save_material_record 也会拒绝，不会覆盖）。
     record_id = f"{category.value}-{obtained_date.isoformat()}-{uuid4().hex[:8]}"
@@ -129,8 +135,8 @@ async def create_material(
     record = MaterialRecord(
         id=record_id,
         category=category,
-        type=type,
-        belongs_to=application_id,
+        type=type_,
+        belongs_to=belongs_to,
         obtained_date=obtained_date,
         sublabel=sublabel,
         validity_days=validity_days,
@@ -144,6 +150,61 @@ async def create_material(
         raise HTTPException(status_code=409, detail=str(error)) from error
 
     return _to_material_view(record, date.today())
+
+
+@app.post(
+    "/api/visa-applications/{application_id}/materials",
+    response_model=MaterialView,
+)
+async def create_material(
+    application_id: str,
+    category: MaterialCategory = Form(...),
+    type: str = Form(...),  # noqa: A002 - 跟前端表单字段名对齐
+    obtained_date: date = Form(...),
+    sublabel: str | None = Form(None),
+    validity_days: int | None = Form(None),
+    recommended_update_interval_days: int | None = Form(None),
+    recommended_update_day_of_month: int | None = Form(None),
+    file: UploadFile | None = File(None),
+) -> MaterialView:
+    """User Story 4（FR-012）："办事材料准备" tab 新增一条挂在这次申请下的材料记录。"""
+    _require_application(application_id)
+    return await _create_material(
+        belongs_to=application_id,
+        category=category,
+        type_=type,
+        obtained_date=obtained_date,
+        sublabel=sublabel,
+        validity_days=validity_days,
+        recommended_update_interval_days=recommended_update_interval_days,
+        recommended_update_day_of_month=recommended_update_day_of_month,
+        file=file,
+    )
+
+
+@app.post("/api/materials", response_model=MaterialView)
+async def create_personal_material(
+    category: MaterialCategory = Form(...),
+    type: str = Form(...),  # noqa: A002
+    obtained_date: date = Form(...),
+    sublabel: str | None = Form(None),
+    validity_days: int | None = Form(None),
+    recommended_update_interval_days: int | None = Form(None),
+    recommended_update_day_of_month: int | None = Form(None),
+    file: UploadFile | None = File(None),
+) -> MaterialView:
+    """"个人材料" tab 新增一条不挂靠任何具体申请的材料记录（证件类）。"""
+    return await _create_material(
+        belongs_to=None,
+        category=category,
+        type_=type,
+        obtained_date=obtained_date,
+        sublabel=sublabel,
+        validity_days=validity_days,
+        recommended_update_interval_days=recommended_update_interval_days,
+        recommended_update_day_of_month=recommended_update_day_of_month,
+        file=file,
+    )
 
 
 @app.get("/api/personal-profile", response_model=PersonalProfile)

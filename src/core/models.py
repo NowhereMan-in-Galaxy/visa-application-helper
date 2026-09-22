@@ -46,7 +46,13 @@ class MaterialRecord(BaseModel):
     id: str
     category: MaterialCategory
     type: str  # 人类可读的材料类型名称，例如"银行流水"
-    belongs_to: str  # 所属 VisaApplication 的 id
+
+    # 所属 VisaApplication 的 id；留空表示这条材料属于个人材料库，不挂靠任何具体申请
+    # （例如证件类——护照、身份证、户口本——是长期积累的个人资产，不是为某一次申请单独
+    # 准备的，参考 PersonalProfile 已经确立的"申请人级别、不挂 belongs_to"模式）。
+    # financial_snapshot / employment_doc 这两类目前实践上仍然会填具体申请 id，
+    # 但字段本身不强制——要不要让它们也支持"不挂靠"，留给以后再评估。
+    belongs_to: str | None = None
 
     # obtained_date 为空表示"这条材料还没拿到手，只是先占个位置"，对应状态"待补"。
     obtained_date: date | None = None
