@@ -82,6 +82,7 @@
   - 证件照（每条记录需标注拍摄/生成日期）
 - **FR-002**: 材料记录 MUST 关联到具体的签证申请（`belongs_to`，沿用已锁定字段），且一份材料理论上 SHOULD 能被多个签证申请引用而不需要重复录入（见 Edge Cases 的"一对多匹配"问题）。
 - **FR-003**: 系统 MUST 提供一个 UI，能够按签证申请浏览上述五类材料，并直接看到每条记录的状态（已备齐 / 待补 / 即将过期 / 已过期），状态计算逻辑复用 `docs/SPEC-mvp.md` 第 4 条已锁定的"核心库确定性判断"，不需要模型参与。
+- **FR-003a**: 系统 MUST 主动引导用户当前应该上传/更新哪些材料，而不是只被动展示状态、等用户自己发现缺口。对存在"建议更新频率"的材料类别（例如财务快照——即使还没过期，也可能因为太久没同步新的一份而需要提醒），系统 MUST 显示距离建议的下次更新还有多久；这个"建议更新频率"是独立于 `validity_rule`（有效期规则，判断过不过期）的另一个字段，两者不能混用同一套判断逻辑。
 - **FR-004**: 系统 MUST 支持用户选择目标国家和签证类型、并填写本次申请的提交截止日期（DDL），作为一次新签证申请（`VisaApplication`）的起点；该 DDL 由本次申请下所有 checklist 项共享。
 - **FR-005**: 系统 MUST 支持用户以自然语言文本或图片形式描述该签证所需材料。
 - **FR-006**: 系统 MUST 基于用户提供的描述生成结构化 checklist，每一项包含：材料描述、以及与现有材料库的匹配状态（已匹配 / 缺失）。DDL（截止日期）是整个 `VisaApplication` 唯一的提交截止日期，由用户在创建签证申请时给定，所有 checklist 项共享同一个 DDL；单份材料自身的有效期要求（例如"银行流水须在近 3 个月内"）由已锁定的 `validity_rule` 字段承载，不与 DDL 混淆。
@@ -94,7 +95,7 @@
 ### Key Entities *(include if feature involves data)*
 
 - **PersonalProfile**：结构化个人信息，字段参考澳大利亚签证申请表（姓名、出生日期、国籍等常见字段），并包含 `travel_history`（出行记录列表，每条含国家/日期/目的等）。
-- **MaterialRecord**：`docs/SPEC-mvp.md` 已锁定字段的扩展版本，新增 `category`（枚举：`personal_info` / `passport_scan` / `financial_snapshot` / `employment_doc` / `id_photo`）区分五大类，`passport_scan` 类下再区分"盖章页/visa page"等子类型。
+- **MaterialRecord**：`docs/SPEC-mvp.md` 已锁定字段的扩展版本，新增 `category`（枚举：`personal_info` / `passport_scan` / `financial_snapshot` / `employment_doc` / `id_photo`）区分五大类，`passport_scan` 类下再区分"盖章页/visa page"等子类型；新增 `recommended_update_interval`（建议更新频率，可选字段，例如财务快照可设为"每月"），与已有的 `validity_rule`（判断过不过期）是两个独立维度，互不替代（见 FR-003a）。
 - **VisaApplication**：一次具体的签证申请，含目标国家、签证类型、提交截止日期（DDL，本次申请下所有 checklist 项共享同一个值），关联一组 `MaterialRecord` 和一份 `MaterialChecklist`。
 - **MaterialChecklist**：由 User Story 2 生成，属于某个 `VisaApplication`，包含若干 `ChecklistItem`。
 - **ChecklistItem**：清单中的一项，含材料描述、匹配状态（已匹配时关联到具体 `MaterialRecord`，缺失时关联到 User Story 3 生成的空文件夹路径）。DDL 不在 `ChecklistItem` 上单独存储，读取所属 `VisaApplication` 的 DDL 即可。
