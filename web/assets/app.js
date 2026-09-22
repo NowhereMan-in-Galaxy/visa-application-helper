@@ -113,7 +113,7 @@ function renderPersonalMaterials(materials) {
     section.appendChild(heading);
 
     for (const material of byCategory.get(category)) {
-      section.appendChild(renderMaterialRow(material));
+      section.appendChild(renderMaterialRow(material, loadPersonalMaterials));
     }
 
     section.appendChild(
@@ -136,15 +136,16 @@ function renderTaskMaterials(materials) {
     heading.textContent = CATEGORY_LABELS[category] ?? category;
     section.appendChild(heading);
 
+    const refreshTask = () => loadMaterialsFor(currentApplicationId);
     for (const material of byCategory.get(category)) {
-      section.appendChild(renderMaterialRow(material));
+      section.appendChild(renderMaterialRow(material, refreshTask));
     }
 
     section.appendChild(
       buildAddMaterialForm(
         category,
         `/api/visa-applications/${currentApplicationId}/materials`,
-        () => loadMaterialsFor(currentApplicationId)
+        refreshTask
       )
     );
 
@@ -152,7 +153,51 @@ function renderTaskMaterials(materials) {
   }
 }
 
-function renderMaterialRow(material) {
+function buildAppendPageForm(material, onAppended) {
+  const form = document.createElement("form");
+  form.className = "inline-form append-page-form";
+
+  const label = document.createElement("label");
+  label.textContent = "新的一页（图片或 PDF）";
+  const input = document.createElement("input");
+  input.type = "file";
+  input.name = "file";
+  input.accept = ".pdf,.jpg,.jpeg,.png";
+  input.required = true;
+  label.appendChild(input);
+  form.appendChild(label);
+
+  const actions = document.createElement("div");
+  actions.className = "form-actions";
+  const saveButton = document.createElement("button");
+  saveButton.type = "submit";
+  saveButton.textContent = "追加";
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.textContent = "取消";
+  cancelButton.addEventListener("click", () => form.remove());
+  actions.appendChild(saveButton);
+  actions.appendChild(cancelButton);
+  form.appendChild(actions);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    try {
+      await fetchJSON(`/api/materials/${material.id}/append-page`, {
+        method: "POST",
+        body: formData,
+      });
+      await onAppended();
+    } catch (error) {
+      alert(`追加失败：${error.message}`);
+    }
+  });
+
+  return form;
+}
+
+function renderMaterialRow(material, onChanged) {
   const row = document.createElement("div");
   row.className = "material-row";
 
@@ -185,6 +230,24 @@ function renderMaterialRow(material) {
   fileRef.className = "file-ref";
   fileRef.textContent = material.file_ref ? material.file_ref : "（还没有对应文件）";
   row.appendChild(fileRef);
+
+  // 只有已经有 PDF 文件的记录才能"追加新页"——单页图片、还没上传文件的记录都不显示这个入口，
+  // 后端 append-page 接口对这两种情况本来就会拒绝（见 src/api/app.py）。
+  if (material.file_ref && material.file_ref.toLowerCase().endsWith(".pdf")) {
+    const appendButton = document.createElement("button");
+    appendButton.type = "button";
+    appendButton.className = "edit-link";
+    appendButton.textContent = "+ 追加新页";
+    appendButton.addEventListener("click", () => {
+      const existingForm = row.querySelector("form");
+      if (existingForm) {
+        existingForm.remove();
+        return;
+      }
+      row.appendChild(buildAppendPageForm(material, onChanged));
+    });
+    row.appendChild(appendButton);
+  }
 
   return row;
 }

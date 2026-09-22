@@ -63,3 +63,14 @@ def save_material_record(materials_index_dir: Path, record: MaterialRecord) -> P
     with path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(record.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False)
     return path
+
+
+def overwrite_material_record(materials_index_dir: Path, record: MaterialRecord) -> Path:
+    """更新一条*已经存在*的材料记录——跟 save_material_record 反过来：这里就是要覆盖。
+
+    目前唯一的调用场景是"追加新页之后把 obtained_date 更新成今天"，record.id 不变。
+    """
+    path = materials_index_dir / "records" / f"{record.id}.yaml"
+    with path.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(record.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False)
+    return path

@@ -25,12 +25,14 @@ from core.models import (
     VisaApplication,
 )
 from core.profile_storage import load_personal_profile, save_personal_profile
+from core.pdf_merge import UnsupportedPageFormatError, append_page
 from core.status import compute_status
 from core.storage import (
     RecordIdConflictError,
     load_material_records,
     load_materials_for_application,
     load_visa_applications,
+    overwrite_material_record,
     save_material_record,
 )
 from core.update_cadence import compute_update_reminder
@@ -205,6 +207,42 @@ async def create_personal_material(
         recommended_update_day_of_month=recommended_update_day_of_month,
         file=file,
     )
+
+
+@app.post("/api/materials/{material_id}/append-page", response_model=MaterialView)
+async def append_material_page(material_id: str, file: UploadFile = File(...)) -> MaterialView:
+    """把新扫描的一页（图片或 PDF）追加进这条材料记录已有的 PDF 末尾。
+
+    典型场景：护照盖章页那份 PDF 已经有好几页旧章，出国一趟回来又盖了新章，拍照/扫描
+    上传新的这一页，追加进同一份文件——不新建一条记录，也不需要用户自己去合并 PDF。
+    """
+    all_records = load_material_records(MATERIALS_INDEX_DIR)
+    record = next((r for r in all_records if r.id == material_id), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"没有找到材料记录：{material_id}")
+    if record.file_ref is None:
+        raise HTTPException(
+            status_code=400, detail="这条记录还没有对应文件，没法追加页——先新建一条记录并上传文件"
+        )
+    if not record.file_ref.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="只能给 PDF 文件追加页，这条记录对应的不是 PDF")
+
+    existing_path = get_materials_root() / record.file_ref
+    if not existing_path.is_file():
+        raise HTTPException(status_code=404, detail=f"索引指向的文件在材料根目录下不存在：{record.file_ref}")
+
+    content = await file.read()
+    try:
+        append_page(existing_path, file.filename or "", content)
+    except UnsupportedPageFormatError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    # 追加了新页，obtained_date 更新成今天——代表这条材料"最新一次更新"的时间，
+    # 跟着这个日期算出来的状态/更新提醒也会跟着重新走一遍（见 core/status.py、update_cadence.py）。
+    record.obtained_date = date.today()
+    overwrite_material_record(MATERIALS_INDEX_DIR, record)
+
+    return _to_material_view(record, date.today())
 
 
 @app.get("/api/personal-profile", response_model=PersonalProfile)
