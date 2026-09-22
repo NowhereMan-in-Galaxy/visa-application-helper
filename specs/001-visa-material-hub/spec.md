@@ -63,6 +63,21 @@
 
 ---
 
+### User Story 4 - 出国后自主更新护照页和出行记录 (Priority: P2)
+
+项目主出国一趟回来，需要把新盖的护照页扫描件加进资料库，同时在 `travel_history` 里补一条这次出行的记录（国家、出入境日期），不需要手动改 YAML 文件、也不需要记住材料索引的目录结构。
+
+**Why this priority**：这是项目主自己点名的"最烦人""核心需求"的场景——材料库如果不能被日常维护，很快就会和真实情况脱节，User Story 1 的"查看状态"价值也会跟着打折扣。优先级排在 User Story 2/3（AI 生成清单、自动建文件夹）之上，是因为那两个功能依赖材料库数据本身是新鲜的，而这个故事恰恰是让数据保持新鲜的手段。
+
+**Independent Test**：不依赖 User Story 2/3，直接在前端表单里新增一条护照扫描记录（含上传文件）和一条 `travel_history` 条目，刷新页面后两者都应该出现在对应位置，且没有覆盖任何已有数据。
+
+**Acceptance Scenarios**：
+
+1. **Given** 材料库里已有若干护照扫描记录，**When** 项目主通过前端表单上传一张新的护照页扫描件并填写日期，**Then** 材料库里新增一条对应记录，原有记录不受影响，上传的文件被保存到材料根目录下，`materials_index/` 里只多出一条指向它的记录（file_ref）。
+2. **Given** PersonalProfile 的 `travel_history` 里已有若干条记录，**When** 项目主通过前端表单新增一条出行记录，**Then** 这条记录被追加进 `travel_history`，不影响已有条目，写入的是材料根目录下的 PersonalProfile 文件（见 FR-011），不是 `materials_index/`。
+
+---
+
 ### Edge Cases
 
 - 财务状态这类"随时间持续更新"的材料，某一份快照文件被删除或替换后，历史记录要不要保留？（影响 User Story 1 的状态展示是否需要区分"当前有效快照"和"历史快照"）
@@ -74,14 +89,13 @@
 
 ### Functional Requirements
 
-- **FR-001**: 系统 MUST 支持记录以下五类材料，并保留 `docs/SPEC-mvp.md` 第 4 条已有字段（`id`/`type`/`belongs_to`/`obtained_date`/`validity_rule`/`status`/`file_ref`）作为每条记录的基础属性：
-  - 结构化个人信息（字段集合需覆盖澳大利亚签证申请表常见字段，并显式包含 travel history 列表）
+- **FR-001**: 系统 MUST 支持记录以下四类材料（`MaterialRecord`），并保留 `docs/SPEC-mvp.md` 第 4 条已有字段（`id`/`type`/`belongs_to`/`obtained_date`/`validity_rule`/`status`/`file_ref`）作为每条记录的基础属性；**结构化个人信息**（含 travel history）不算在这四类里，走 FR-011 描述的独立 `PersonalProfile` 机制，不经过 `MaterialRecord`：
   - 护照扫描页（区分"盖章页"与"visa page"等子类型）
   - 财务状态（本质是随时间新增的多份快照，而非单一文件——按材料用途分组存放，例如"工资流水""存款证明"各自单独建一条时间序列，组内按时间排列；每种用途各自判断"是否有近期有效快照"，互不影响）
   - 职业材料（营业执照、工作经历，需支持多段工作经历）
   - 证件照（每条记录需标注拍摄/生成日期）
 - **FR-002**: 材料记录 MUST 关联到具体的签证申请（`belongs_to`，沿用已锁定字段），且一份材料理论上 SHOULD 能被多个签证申请引用而不需要重复录入（见 Edge Cases 的"一对多匹配"问题）。
-- **FR-003**: 系统 MUST 提供一个 UI，能够按签证申请浏览上述五类材料，并直接看到每条记录的状态（已备齐 / 待补 / 即将过期 / 已过期），状态计算逻辑复用 `docs/SPEC-mvp.md` 第 4 条已锁定的"核心库确定性判断"，不需要模型参与。
+- **FR-003**: 系统 MUST 提供一个 UI，能够按签证申请浏览上述四类 `MaterialRecord` 材料 + PersonalProfile，并直接看到每条记录的状态（已备齐 / 待补 / 即将过期 / 已过期），状态计算逻辑复用 `docs/SPEC-mvp.md` 第 4 条已锁定的"核心库确定性判断"，不需要模型参与；除了状态，UI MUST 让用户能看清每条材料对应的实际文件位置（`file_ref`），不只是一个抽象的状态标签。
 - **FR-003a**: 系统 MUST 主动引导用户当前应该上传/更新哪些材料，而不是只被动展示状态、等用户自己发现缺口。对存在"建议更新频率"的材料类别（例如财务快照——即使还没过期，也可能因为太久没同步新的一份而需要提醒），系统 MUST 显示距离建议的下次更新还有多久；这个"建议更新频率"是独立于 `validity_rule`（有效期规则，判断过不过期）的另一个字段，两者不能混用同一套判断逻辑。
 - **FR-004**: 系统 MUST 支持用户选择目标国家和签证类型、并填写本次申请的提交截止日期（DDL），作为一次新签证申请（`VisaApplication`）的起点；该 DDL 由本次申请下所有 checklist 项共享。
 - **FR-005**: 系统 MUST 支持用户以自然语言文本或图片形式描述该签证所需材料。
@@ -90,11 +104,15 @@
 - **FR-008**: 对 checklist 中标记为"缺失"的每一项，系统 MUST 在材料根目录下自动创建遵循统一命名规范的空文件夹（不生成任何占位文件内容），命名信息 MUST 包含材料类型和所属签证申请，用户后续把实际材料放进对应文件夹即可。
 - **FR-009**: 系统 MUST NOT 在自动创建文件夹/文件时覆盖材料根目录下已存在的同名内容；出现命名冲突时 MUST 提示用户，而不是静默覆盖或静默跳过。
 - **FR-010**: 材料根目录路径 MUST 保持可配置（复用 `docs/SPEC-mvp.md` 第 3 条已锁定的原则），本 spec 新增的五类材料存储位置不能硬编码。
-- **FR-011**: 本仓库范围内 MUST NOT 存储任何真实材料文件或真实个人信息（复用 `AGENTS.md` 第 3 条安全约束），结构化个人信息库的示例/测试数据 MUST 使用虚构值。
+- **FR-011**: 本仓库范围内 MUST NOT 存储任何真实材料文件或真实个人信息（复用 `AGENTS.md` 第 3 条安全约束），结构化个人信息库的示例/测试数据 MUST 使用虚构值。`PersonalProfile` 的实际内容（姓名、出生日期、`travel_history` 等）属于"真实个人信息"，MUST 存储在材料根目录下的文件里，不能写进 `materials_index/`（仓库会追踪的部分）。`PersonalProfile` 是申请人级别的单一文档（不像其他材料按 `belongs_to` 挂在某次具体签证申请下——同一个人的出行记录本来就该被多次申请复用，不需要为每次申请单独存一份），因此不经过 `MaterialRecord`/`belongs_to` 这套按材料条目管理的机制，走独立的读写接口。
+- **FR-012**（本轮新增）：系统 MUST 允许用户通过前端界面新增材料记录并上传对应文件，至少覆盖护照扫描页这一类（用户出国后补扫新的盖章页是高频操作，见 User Story 4）；上传的文件 MUST 保存到材料根目录下，`materials_index/` 里只新增一条指向它的记录，不在仓库内存文件内容本身。
+- **FR-013**（本轮新增）：系统 MUST 允许用户通过前端界面查看和新增 `travel_history` 条目（出行记录），编辑结果写回 FR-011 所述的、材料根目录下的 `PersonalProfile` 文件。
+- **FR-014**（本轮新增）：材料的"建议更新频率"（FR-003a）除了"每 N 天"这种滚动周期，MUST 还支持"每月固定第几天"这种日历周期（例如发薪日是每月 15 号，工资流水这类材料按发薪日提醒比按"上次更新后 N 天"更准确）；一条材料记录的这两种模式互斥，只能二选一。
 
 ### Key Entities *(include if feature involves data)*
 
-- **PersonalProfile**：结构化个人信息，字段参考澳大利亚签证申请表（姓名、出生日期、国籍等常见字段），并包含 `travel_history`（出行记录列表，每条含国家/日期/目的等）。
+- **PersonalProfile**：结构化个人信息，字段参考澳大利亚签证申请表（姓名、出生日期、国籍等常见字段），并包含 `travel_history`（`TravelHistoryEntry` 列表）。申请人级别的单一文档，不挂在某个具体 `VisaApplication` 下；实际内容存储在材料根目录下的文件里，不进 `materials_index/`（见 FR-011）。
+- **TravelHistoryEntry**：一条出行记录，含国家、入境/离境日期、目的等字段。
 - **MaterialRecord**：`docs/SPEC-mvp.md` 已锁定字段的扩展版本，新增 `category`（枚举：`personal_info` / `passport_scan` / `financial_snapshot` / `employment_doc` / `id_photo`）区分五大类，`passport_scan` 类下再区分"盖章页/visa page"等子类型；新增 `recommended_update_interval`（建议更新频率，可选字段，例如财务快照可设为"每月"），与已有的 `validity_rule`（判断过不过期）是两个独立维度，互不替代（见 FR-003a）。
 - **VisaApplication**：一次具体的签证申请，含目标国家、签证类型、提交截止日期（DDL，本次申请下所有 checklist 项共享同一个值），关联一组 `MaterialRecord` 和一份 `MaterialChecklist`。
 - **MaterialChecklist**：由 User Story 2 生成，属于某个 `VisaApplication`，包含若干 `ChecklistItem`。
