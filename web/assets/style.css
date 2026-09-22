@@ -65,6 +65,13 @@ header {
   margin-bottom: 1.5rem;
 }
 
+.application-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
 h1 {
   font-size: 1.4rem;
   margin: 0;

@@ -9,8 +9,6 @@
 <body>
   <header>
     <h1>材料资料库</h1>
-    <label for="application-select">签证申请：</label>
-    <select id="application-select"></select>
   </header>
 
   <section class="tab-panel" data-tab-panel="personal">
@@ -36,6 +34,10 @@
   </section>
 
   <section class="tab-panel" data-tab-panel="task" hidden>
+    <div class="application-picker">
+      <label for="application-select">签证申请：</label>
+      <select id="application-select"></select>
+    </div>
     <main id="material-groups-task"></main>
     <p id="empty-state" hidden>这次申请下还没有材料记录——用下面的表单加一条，或者直接在 <code>materials_index/records/</code> 里加一个 YAML 文件。</p>
   </section>

@@ -1,30 +1,22 @@
 const CATEGORY_LABELS = {
-  passport_scan: "护照扫描件",
+  passport_scan: "证件", // 护照 / 身份证 / 户口本都归在这一类——用户的原话是"这几个算一类证件"
   financial_snapshot: "财务状态",
   employment_doc: "职业材料",
   id_photo: "证件照",
 };
 
-// 渲染顺序固定，跟 spec.md FR-001 里列出的顺序一致，每次打开页面材料分组的顺序不会跳来跳去。
-const CATEGORY_ORDER = ["passport_scan", "financial_snapshot", "employment_doc", "id_photo"];
+// "个人材料" tab：跟"我是谁"相关、不属于任何具体一次申请的长期资产，belongs_to 为空
+// （见 src/core/models.py 的 MaterialRecord.belongs_to 注释），走 GET/POST /api/materials，
+// 不看是哪次签证申请。
+const PERSONAL_CATEGORIES = ["passport_scan", "id_photo"];
 
-// 哪个类别放在哪个 tab 下——"个人材料"是跟"我是谁"相关的东西，"办事材料准备"是这次
-// 申请要交的证明材料。注意：数据模型层面这四类材料现在都还是挂在某次具体签证申请下
-// （belongs_to 必填，见 spec.md FR-002），"个人材料"这个 tab 名字暗示的"跟申请无关"
-// 目前只是展示层面的归类，底层还没有真正做到应用无关——这是已知的粗糙点，下一轮如果
-// 要让护照/证件照跨申请复用，需要单独一次数据模型调整。
-const CATEGORY_TAB = {
-  passport_scan: "personal",
-  id_photo: "personal",
-  financial_snapshot: "task",
-  employment_doc: "task",
-};
+// "办事材料准备" tab：这次申请要交的证明材料，仍然挂在某个具体 VisaApplication 下
+// （belongs_to = 申请 id），走 GET/POST /api/visa-applications/{id}/materials。
+const TASK_CATEGORIES = ["financial_snapshot", "employment_doc"];
 
 const selectEl = document.getElementById("application-select");
-const groupsElByTab = {
-  personal: document.getElementById("material-groups-personal"),
-  task: document.getElementById("material-groups-task"),
-};
+const personalGroupsEl = document.getElementById("material-groups-personal");
+const taskGroupsEl = document.getElementById("material-groups-task");
 const emptyStateEl = document.getElementById("empty-state");
 const addMaterialTemplate = document.getElementById("add-material-template");
 
@@ -58,7 +50,7 @@ function formatUpdateReminder(material) {
 
 // ---------- 材料列表 ----------
 
-function buildAddMaterialForm(category, onSaved) {
+function buildAddMaterialForm(category, submitUrl, onSaved) {
   const fragment = addMaterialTemplate.content.cloneNode(true);
   const wrapper = document.createElement("div");
   wrapper.className = "add-material-block";
@@ -85,10 +77,7 @@ function buildAddMaterialForm(category, onSaved) {
     }
 
     try {
-      await fetchJSON(`/api/visa-applications/${currentApplicationId}/materials`, {
-        method: "POST",
-        body: formData,
-      });
+      await fetchJSON(submitUrl, { method: "POST", body: formData });
       form.reset();
       form.hidden = true;
       await onSaved();
@@ -100,22 +89,22 @@ function buildAddMaterialForm(category, onSaved) {
   return wrapper;
 }
 
-function renderMaterials(materials) {
-  for (const el of Object.values(groupsElByTab)) {
-    el.innerHTML = "";
-  }
-
+function groupByCategory(materials, categories) {
   const byCategory = new Map();
-  for (const category of CATEGORY_ORDER) {
+  for (const category of categories) {
     byCategory.set(category, []);
   }
   for (const material of materials) {
     byCategory.get(material.category)?.push(material);
   }
+  return byCategory;
+}
 
-  for (const category of CATEGORY_ORDER) {
-    const items = byCategory.get(category);
+function renderPersonalMaterials(materials) {
+  personalGroupsEl.innerHTML = "";
+  const byCategory = groupByCategory(materials, PERSONAL_CATEGORIES);
 
+  for (const category of PERSONAL_CATEGORIES) {
     const section = document.createElement("section");
     section.className = "category-group";
 
@@ -123,15 +112,43 @@ function renderMaterials(materials) {
     heading.textContent = CATEGORY_LABELS[category] ?? category;
     section.appendChild(heading);
 
-    for (const material of items) {
+    for (const material of byCategory.get(category)) {
       section.appendChild(renderMaterialRow(material));
     }
 
     section.appendChild(
-      buildAddMaterialForm(category, () => loadMaterialsFor(currentApplicationId))
+      buildAddMaterialForm(category, "/api/materials", loadPersonalMaterials)
     );
 
-    groupsElByTab[CATEGORY_TAB[category]].appendChild(section);
+    personalGroupsEl.appendChild(section);
+  }
+}
+
+function renderTaskMaterials(materials) {
+  taskGroupsEl.innerHTML = "";
+  const byCategory = groupByCategory(materials, TASK_CATEGORIES);
+
+  for (const category of TASK_CATEGORIES) {
+    const section = document.createElement("section");
+    section.className = "category-group";
+
+    const heading = document.createElement("h2");
+    heading.textContent = CATEGORY_LABELS[category] ?? category;
+    section.appendChild(heading);
+
+    for (const material of byCategory.get(category)) {
+      section.appendChild(renderMaterialRow(material));
+    }
+
+    section.appendChild(
+      buildAddMaterialForm(
+        category,
+        `/api/visa-applications/${currentApplicationId}/materials`,
+        () => loadMaterialsFor(currentApplicationId)
+      )
+    );
+
+    taskGroupsEl.appendChild(section);
   }
 }
 
@@ -175,7 +192,12 @@ function renderMaterialRow(material) {
 async function loadMaterialsFor(applicationId) {
   currentApplicationId = applicationId;
   const materials = await fetchJSON(`/api/visa-applications/${applicationId}/materials`);
-  renderMaterials(materials);
+  renderTaskMaterials(materials);
+}
+
+async function loadPersonalMaterials() {
+  const materials = await fetchJSON("/api/materials");
+  renderPersonalMaterials(materials);
 }
 
 // ---------- 个人信息 & 出行记录 ----------
@@ -327,7 +349,10 @@ function setupTabs() {
 
 async function init() {
   setupTabs();
+
+  // "个人材料" tab 不依赖任何签证申请，哪怕下面申请列表是空的，这块也应该正常显示。
   await loadPersonalProfile();
+  await loadPersonalMaterials();
 
   const applications = await fetchJSON("/api/visa-applications");
   if (applications.length === 0) {
