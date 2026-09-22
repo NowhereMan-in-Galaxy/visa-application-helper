@@ -1,4 +1,4 @@
-"""对应 specs/001-visa-material-hub/spec.md 的 Key Entities（本轮只实现 User Story 1 用到的两个）。
+"""对应 specs/001-visa-material-hub/spec.md 的 Key Entities。
 
 有效期（validity）和更新提醒（recommended update）都用整数天数表示，不用"几个月"这种日历单位——
 天数加减法没有歧义（每个月天数不一样，"3 个月后"这种说法本身就模糊），FR-003a 已经把这两个字段
@@ -14,9 +14,8 @@ from pydantic import BaseModel
 
 
 class MaterialCategory(str, Enum):
-    """spec.md FR-001 锁定的五大类。"""
+    """spec.md FR-001 锁定的四大类（结构化个人信息不算在内，走 PersonalProfile，见 FR-011）。"""
 
-    PERSONAL_INFO = "personal_info"
     PASSPORT_SCAN = "passport_scan"
     FINANCIAL_SNAPSHOT = "financial_snapshot"
     EMPLOYMENT_DOC = "employment_doc"
@@ -57,10 +56,39 @@ class MaterialRecord(BaseModel):
     validity_days: int | None = None
 
     # 建议更新频率：与 validity_days 是两个独立维度（FR-003a），例如财务快照即使没过期，
-    # 也可能因为太久没同步新的一份而需要提醒。留空表示这类材料不需要主动提醒更新。
+    # 也可能因为太久没同步新的一份而需要提醒。这里有两种互斥的表达方式（FR-014），一条记录
+    # 只能用其中一种：
+    #   - recommended_update_interval_days：滚动周期，"每隔 N 天"（例如证件照每 180 天）
+    #   - recommended_update_day_of_month：日历周期，"每月固定第几天"（例如发薪日是 15 号，
+    #     工资流水按这个提醒比"上次更新后 N 天"更准，因为每个月天数不一样，滚动周期会慢慢偏移）
+    # 两个都留空表示这类材料不需要主动提醒更新。
     recommended_update_interval_days: int | None = None
+    recommended_update_day_of_month: int | None = None
 
     # 相对于"材料根目录"（见 src/config.py）的相对路径，不存文件内容本身。
     file_ref: str | None = None
 
     sublabel: str | None = None
+
+
+class TravelHistoryEntry(BaseModel):
+    """PersonalProfile.travel_history 里的一条出行记录（spec.md Key Entities）。"""
+
+    country: str
+    entry_date: date
+    exit_date: date | None = None  # 还在境外、尚未返回时留空
+    purpose: str | None = None
+
+
+class PersonalProfile(BaseModel):
+    """申请人级别的结构化个人信息，不挂在某次具体签证申请下（spec.md FR-011）。
+
+    这份数据本身就是"真实个人信息"，实际内容 MUST NOT 出现在 materials_index/（仓库会追踪
+    的部分）——存储位置见 src/core/profile_storage.py 的说明。
+    """
+
+    full_name: str | None = None
+    date_of_birth: date | None = None
+    nationality: str | None = None
+    passport_number: str | None = None
+    travel_history: list[TravelHistoryEntry] = []

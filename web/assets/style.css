@@ -9,6 +9,8 @@
   --status-expiring: #b7791f;
   --status-expired: #c0392b;
   --status-needed: #6b7280;
+
+  --accent: #2563eb;
 }
 
 * { box-sizing: border-box; }
@@ -77,6 +79,17 @@ select {
   font-size: 0.85rem;
 }
 
+.file-ref {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
 .status-badge {
   font-size: 0.8rem;
   font-weight: 600;
@@ -103,4 +116,102 @@ select {
 
 #empty-state {
   color: var(--text-muted);
+}
+
+.profile-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-panel h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+}
+
+#travel-history-list {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+#travel-history-list li {
+  padding: 0.15rem 0;
+}
+
+.empty-hint {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+
+.add-button {
+  border: 1px dashed var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.add-button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.add-material-block {
+  margin-top: 0.75rem;
+}
+
+.inline-form[hidden] {
+  display: none;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.inline-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.inline-form input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-actions button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.form-actions button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }

@@ -1,5 +1,4 @@
 const CATEGORY_LABELS = {
-  personal_info: "个人信息",
   passport_scan: "护照扫描件",
   financial_snapshot: "财务状态",
   employment_doc: "职业材料",
@@ -7,22 +6,25 @@ const CATEGORY_LABELS = {
 };
 
 // 渲染顺序固定，跟 spec.md FR-001 里列出的顺序一致，每次打开页面材料分组的顺序不会跳来跳去。
-const CATEGORY_ORDER = [
-  "personal_info",
-  "passport_scan",
-  "financial_snapshot",
-  "employment_doc",
-  "id_photo",
-];
+const CATEGORY_ORDER = ["passport_scan", "financial_snapshot", "employment_doc", "id_photo"];
 
 const selectEl = document.getElementById("application-select");
 const groupsEl = document.getElementById("material-groups");
 const emptyStateEl = document.getElementById("empty-state");
+const addMaterialTemplate = document.getElementById("add-material-template");
 
-async function fetchJSON(url) {
-  const response = await fetch(url);
+const travelHistoryListEl = document.getElementById("travel-history-list");
+const travelHistoryEmptyEl = document.getElementById("travel-history-empty");
+const travelHistoryToggleEl = document.getElementById("travel-history-toggle");
+const travelHistoryFormEl = document.getElementById("travel-history-form");
+
+let currentApplicationId = null;
+
+async function fetchJSON(url, options) {
+  const response = await fetch(url, options);
   if (!response.ok) {
-    throw new Error(`请求 ${url} 失败：HTTP ${response.status}`);
+    const body = await response.text();
+    throw new Error(`请求 ${url} 失败：HTTP ${response.status} ${body}`);
   }
   return response.json();
 }
@@ -38,26 +40,65 @@ function formatUpdateReminder(material) {
   return `距建议更新还有 ${days} 天`;
 }
 
+// ---------- 材料列表 ----------
+
+function buildAddMaterialForm(category, onSaved) {
+  const fragment = addMaterialTemplate.content.cloneNode(true);
+  const wrapper = document.createElement("div");
+  wrapper.className = "add-material-block";
+  wrapper.appendChild(fragment);
+
+  const toggleButton = wrapper.querySelector("[data-add-material]");
+  const form = wrapper.querySelector("[data-material-form]");
+  const cancelButton = form.querySelector("[data-cancel]");
+
+  toggleButton.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+  });
+  cancelButton.addEventListener("click", () => {
+    form.reset();
+    form.hidden = true;
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    formData.set("category", category);
+    if (!formData.get("file")?.name) {
+      formData.delete("file"); // 没选文件的话别把空文件字段一起发过去
+    }
+
+    try {
+      await fetchJSON(`/api/visa-applications/${currentApplicationId}/materials`, {
+        method: "POST",
+        body: formData,
+      });
+      form.reset();
+      form.hidden = true;
+      await onSaved();
+    } catch (error) {
+      alert(`保存失败：${error.message}`);
+    }
+  });
+
+  return wrapper;
+}
+
 function renderMaterials(materials) {
   groupsEl.innerHTML = "";
-
-  if (materials.length === 0) {
-    emptyStateEl.hidden = false;
-    return;
-  }
-  emptyStateEl.hidden = true;
 
   const byCategory = new Map();
   for (const category of CATEGORY_ORDER) {
     byCategory.set(category, []);
   }
   for (const material of materials) {
-    byCategory.get(material.category).push(material);
+    byCategory.get(material.category)?.push(material);
   }
+
+  emptyStateEl.hidden = materials.length !== 0;
 
   for (const category of CATEGORY_ORDER) {
     const items = byCategory.get(category);
-    if (items.length === 0) continue;
 
     const section = document.createElement("section");
     section.className = "category-group";
@@ -67,49 +108,118 @@ function renderMaterials(materials) {
     section.appendChild(heading);
 
     for (const material of items) {
-      const row = document.createElement("div");
-      row.className = "material-row";
-
-      const name = document.createElement("span");
-      name.className = "material-name";
-      name.textContent = material.type;
-      row.appendChild(name);
-
-      if (material.sublabel) {
-        const sublabel = document.createElement("span");
-        sublabel.className = "material-sublabel";
-        sublabel.textContent = material.sublabel;
-        row.appendChild(sublabel);
-      }
-
-      const badge = document.createElement("span");
-      badge.className = `status-badge status-${material.status}`;
-      badge.textContent = material.status;
-      row.appendChild(badge);
-
-      const reminderText = formatUpdateReminder(material);
-      if (reminderText) {
-        const reminder = document.createElement("span");
-        reminder.className = "update-reminder" + (material.update_overdue ? " overdue" : "");
-        reminder.textContent = reminderText;
-        row.appendChild(reminder);
-      }
-
-      section.appendChild(row);
+      section.appendChild(renderMaterialRow(material));
     }
+
+    section.appendChild(
+      buildAddMaterialForm(category, () => loadMaterialsFor(currentApplicationId))
+    );
 
     groupsEl.appendChild(section);
   }
 }
 
+function renderMaterialRow(material) {
+  const row = document.createElement("div");
+  row.className = "material-row";
+
+  const name = document.createElement("span");
+  name.className = "material-name";
+  name.textContent = material.type;
+  row.appendChild(name);
+
+  if (material.sublabel) {
+    const sublabel = document.createElement("span");
+    sublabel.className = "material-sublabel";
+    sublabel.textContent = material.sublabel;
+    row.appendChild(sublabel);
+  }
+
+  const badge = document.createElement("span");
+  badge.className = `status-badge status-${material.status}`;
+  badge.textContent = material.status;
+  row.appendChild(badge);
+
+  const reminderText = formatUpdateReminder(material);
+  if (reminderText) {
+    const reminder = document.createElement("span");
+    reminder.className = "update-reminder" + (material.update_overdue ? " overdue" : "");
+    reminder.textContent = reminderText;
+    row.appendChild(reminder);
+  }
+
+  const fileRef = document.createElement("span");
+  fileRef.className = "file-ref";
+  fileRef.textContent = material.file_ref ? material.file_ref : "（还没有对应文件）";
+  row.appendChild(fileRef);
+
+  return row;
+}
+
 async function loadMaterialsFor(applicationId) {
+  currentApplicationId = applicationId;
   const materials = await fetchJSON(`/api/visa-applications/${applicationId}/materials`);
   renderMaterials(materials);
 }
 
-async function init() {
-  const applications = await fetchJSON("/api/visa-applications");
+// ---------- 个人信息 & 出行记录 ----------
 
+function renderTravelHistory(profile) {
+  travelHistoryListEl.innerHTML = "";
+  const entries = profile.travel_history ?? [];
+  travelHistoryEmptyEl.hidden = entries.length !== 0;
+
+  for (const entry of entries) {
+    const li = document.createElement("li");
+    const range = entry.exit_date ? `${entry.entry_date} ~ ${entry.exit_date}` : `${entry.entry_date} ~ 至今`;
+    const purpose = entry.purpose ? `（${entry.purpose}）` : "";
+    li.textContent = `${entry.country}：${range}${purpose}`;
+    travelHistoryListEl.appendChild(li);
+  }
+}
+
+async function loadPersonalProfile() {
+  const profile = await fetchJSON("/api/personal-profile");
+  renderTravelHistory(profile);
+}
+
+travelHistoryToggleEl.addEventListener("click", () => {
+  travelHistoryFormEl.hidden = !travelHistoryFormEl.hidden;
+});
+travelHistoryFormEl.querySelector("[data-cancel]").addEventListener("click", () => {
+  travelHistoryFormEl.reset();
+  travelHistoryFormEl.hidden = true;
+});
+travelHistoryFormEl.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(travelHistoryFormEl);
+  const payload = {
+    country: formData.get("country"),
+    entry_date: formData.get("entry_date"),
+    exit_date: formData.get("exit_date") || null,
+    purpose: formData.get("purpose") || null,
+  };
+
+  try {
+    await fetchJSON("/api/personal-profile/travel-history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    travelHistoryFormEl.reset();
+    travelHistoryFormEl.hidden = true;
+    await loadPersonalProfile();
+  } catch (error) {
+    alert(`保存失败：${error.message}`);
+  }
+});
+
+// ---------- 初始化 ----------
+
+async function init() {
+  await loadPersonalProfile();
+
+  const applications = await fetchJSON("/api/visa-applications");
   if (applications.length === 0) {
     emptyStateEl.textContent = "还没有任何签证申请——在 materials_index/applications/ 里加一个 YAML 文件就会出现在这里。";
     emptyStateEl.hidden = false;

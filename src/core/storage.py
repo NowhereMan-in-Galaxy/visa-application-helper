@@ -8,8 +8,9 @@
 （子目录特意不叫 materials——那样会跟"材料根目录"materials/ 撞名，容易搞混，
 也会被 .gitignore 里那条 `materials/` 规则意外忽略掉。）
 
-这一版只做"读"，不做"写"——User Story 1 的验收标准是"手工录入一批材料记录，能在 UI 里看到状态"，
-记录本身先靠直接编辑 YAML 文件完成；等做到"引导上传"的 UI 交互时，再补写入的接口。
+User Story 1 只需要"读"；User Story 4（前端自主新增材料，见 FR-012）加上了"写"——
+`save_material_record` 只管把一条已经构造好的 MaterialRecord 写成 YAML 文件，
+不重复利用已有 id、不覆盖已有文件（FR-009 的"不能静默覆盖"原则），文件放哪由调用方决定。
 """
 
 from __future__ import annotations
@@ -19,6 +20,10 @@ from pathlib import Path
 import yaml
 
 from core.models import MaterialRecord, VisaApplication
+
+
+class RecordIdConflictError(Exception):
+    """已经存在同名的材料记录，调用方应该换一个 id 或者提示用户。"""
 
 
 def _load_yaml_files(directory: Path) -> list[dict]:
@@ -46,3 +51,15 @@ def load_materials_for_application(
 ) -> list[MaterialRecord]:
     all_records = load_material_records(materials_index_dir)
     return [r for r in all_records if r.belongs_to == application_id]
+
+
+def save_material_record(materials_index_dir: Path, record: MaterialRecord) -> Path:
+    """把一条材料记录写成 YAML 文件。id 已存在时报错，而不是静默覆盖（呼应 FR-009 的原则）。"""
+    records_dir = materials_index_dir / "records"
+    records_dir.mkdir(parents=True, exist_ok=True)
+    path = records_dir / f"{record.id}.yaml"
+    if path.exists():
+        raise RecordIdConflictError(f"材料记录 id 已存在：{record.id}")
+    with path.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(record.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False)
+    return path
