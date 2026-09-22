@@ -72,9 +72,13 @@ class MaterialRecord(BaseModel):
 
 
 class TravelHistoryEntry(BaseModel):
-    """PersonalProfile.travel_history 里的一条出行记录（spec.md Key Entities）。"""
+    """PersonalProfile.travel_history 里的一条出行记录（spec.md Key Entities）。
 
-    country: str
+    country 可以留空：从出入境记录能推出"这段时间出境了"，但推不出具体去了哪个国家时
+    （比如只有出发口岸、没有目的地信息），应该让用户自己补，而不是猜一个可能错的国家。
+    """
+
+    country: str | None = None
     entry_date: date
     exit_date: date | None = None  # 还在境外、尚未返回时留空
     purpose: str | None = None

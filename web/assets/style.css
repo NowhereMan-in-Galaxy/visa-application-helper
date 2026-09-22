@@ -138,7 +138,32 @@ select {
 }
 
 #travel-history-list li {
-  padding: 0.15rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+#travel-history-list li.needs-country > span:first-child {
+  color: var(--status-expiring);
+}
+
+#travel-history-list li form {
+  flex-basis: 100%;
+}
+
+.edit-link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.edit-link:hover {
+  text-decoration: underline;
 }
 
 .empty-hint {

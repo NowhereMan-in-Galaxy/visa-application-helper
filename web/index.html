@@ -20,7 +20,7 @@
 
     <button id="travel-history-toggle" class="add-button" type="button">+ 添加出行记录</button>
     <form id="travel-history-form" class="inline-form" hidden>
-      <label>国家 <input type="text" name="country" required /></label>
+      <label>国家（不确定可以先留空，之后再补） <input type="text" name="country" /></label>
       <label>入境日期 <input type="date" name="entry_date" required /></label>
       <label>离境日期（还没回国可以留空） <input type="date" name="exit_date" /></label>
       <label>目的 <input type="text" name="purpose" placeholder="旅游 / 出差 / ……" /></label>
@@ -30,6 +30,19 @@
       </div>
     </form>
   </section>
+
+  <template id="edit-travel-history-template">
+    <form class="inline-form" data-edit-form>
+      <label>国家 <input type="text" name="country" /></label>
+      <label>入境日期 <input type="date" name="entry_date" required /></label>
+      <label>离境日期（还没回国可以留空） <input type="date" name="exit_date" /></label>
+      <label>目的 <input type="text" name="purpose" placeholder="旅游 / 出差 / ……" /></label>
+      <div class="form-actions">
+        <button type="submit">保存</button>
+        <button type="button" data-cancel>取消</button>
+      </div>
+    </form>
+  </template>
 
   <main id="material-groups"></main>
 

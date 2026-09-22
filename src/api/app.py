@@ -152,7 +152,7 @@ def get_personal_profile() -> PersonalProfile:
 
 
 class TravelHistoryCreate(BaseModel):
-    country: str
+    country: str | None = None
     entry_date: date
     exit_date: date | None = None
     purpose: str | None = None
@@ -164,6 +164,22 @@ def add_travel_history_entry(entry: TravelHistoryCreate) -> PersonalProfile:
     materials_root = get_materials_root()
     profile = load_personal_profile(materials_root)
     profile.travel_history.append(TravelHistoryEntry(**entry.model_dump()))
+    save_personal_profile(materials_root, profile)
+    return profile
+
+
+@app.put("/api/personal-profile/travel-history/{index}", response_model=PersonalProfile)
+def update_travel_history_entry(index: int, entry: TravelHistoryCreate) -> PersonalProfile:
+    """补充/修正一条已有出行记录——典型场景：批量导入时国家留了空，用户现在把它填上。
+
+    `index` 是这条记录在 travel_history 列表里的位置（从 0 开始，按 materials_root/
+    personal-profile.yaml 里存的顺序，不是前端排序展示后的顺序——前端负责把原始位置带回来）。
+    """
+    materials_root = get_materials_root()
+    profile = load_personal_profile(materials_root)
+    if not 0 <= index < len(profile.travel_history):
+        raise HTTPException(status_code=404, detail=f"没有第 {index} 条出行记录")
+    profile.travel_history[index] = TravelHistoryEntry(**entry.model_dump())
     save_personal_profile(materials_root, profile)
     return profile
 
