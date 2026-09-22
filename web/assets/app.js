@@ -8,8 +8,23 @@ const CATEGORY_LABELS = {
 // 渲染顺序固定，跟 spec.md FR-001 里列出的顺序一致，每次打开页面材料分组的顺序不会跳来跳去。
 const CATEGORY_ORDER = ["passport_scan", "financial_snapshot", "employment_doc", "id_photo"];
 
+// 哪个类别放在哪个 tab 下——"个人材料"是跟"我是谁"相关的东西，"办事材料准备"是这次
+// 申请要交的证明材料。注意：数据模型层面这四类材料现在都还是挂在某次具体签证申请下
+// （belongs_to 必填，见 spec.md FR-002），"个人材料"这个 tab 名字暗示的"跟申请无关"
+// 目前只是展示层面的归类，底层还没有真正做到应用无关——这是已知的粗糙点，下一轮如果
+// 要让护照/证件照跨申请复用，需要单独一次数据模型调整。
+const CATEGORY_TAB = {
+  passport_scan: "personal",
+  id_photo: "personal",
+  financial_snapshot: "task",
+  employment_doc: "task",
+};
+
 const selectEl = document.getElementById("application-select");
-const groupsEl = document.getElementById("material-groups");
+const groupsElByTab = {
+  personal: document.getElementById("material-groups-personal"),
+  task: document.getElementById("material-groups-task"),
+};
 const emptyStateEl = document.getElementById("empty-state");
 const addMaterialTemplate = document.getElementById("add-material-template");
 
@@ -86,7 +101,9 @@ function buildAddMaterialForm(category, onSaved) {
 }
 
 function renderMaterials(materials) {
-  groupsEl.innerHTML = "";
+  for (const el of Object.values(groupsElByTab)) {
+    el.innerHTML = "";
+  }
 
   const byCategory = new Map();
   for (const category of CATEGORY_ORDER) {
@@ -95,8 +112,6 @@ function renderMaterials(materials) {
   for (const material of materials) {
     byCategory.get(material.category)?.push(material);
   }
-
-  emptyStateEl.hidden = materials.length !== 0;
 
   for (const category of CATEGORY_ORDER) {
     const items = byCategory.get(category);
@@ -116,7 +131,7 @@ function renderMaterials(materials) {
       buildAddMaterialForm(category, () => loadMaterialsFor(currentApplicationId))
     );
 
-    groupsEl.appendChild(section);
+    groupsElByTab[CATEGORY_TAB[category]].appendChild(section);
   }
 }
 
@@ -287,9 +302,31 @@ travelHistoryFormEl.addEventListener("submit", async (event) => {
   }
 });
 
+// ---------- Tab 切换 ----------
+
+function setupTabs() {
+  const buttons = document.querySelectorAll(".tab-button");
+  const panels = document.querySelectorAll("[data-tab-panel]");
+
+  for (const button of buttons) {
+    button.addEventListener("click", () => {
+      const targetTab = button.dataset.tab;
+      for (const b of buttons) {
+        b.classList.toggle("active", b === button);
+      }
+      for (const panel of panels) {
+        panel.hidden = panel.dataset.tabPanel !== targetTab;
+      }
+    });
+  }
+
+  buttons[0]?.classList.add("active");
+}
+
 // ---------- 初始化 ----------
 
 async function init() {
+  setupTabs();
   await loadPersonalProfile();
 
   const applications = await fetchJSON("/api/visa-applications");

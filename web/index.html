@@ -13,23 +13,43 @@
     <select id="application-select"></select>
   </header>
 
-  <section class="profile-panel">
-    <h2>个人信息 &amp; 出行记录</h2>
-    <ul id="travel-history-list"></ul>
-    <p id="travel-history-empty" class="empty-hint" hidden>还没有出行记录，出国回来之后在这里补一条。</p>
+  <section class="tab-panel" data-tab-panel="personal">
+    <section class="profile-panel">
+      <h2>个人信息 &amp; 出行记录</h2>
+      <ul id="travel-history-list"></ul>
+      <p id="travel-history-empty" class="empty-hint" hidden>还没有出行记录，出国回来之后在这里补一条。</p>
 
-    <button id="travel-history-toggle" class="add-button" type="button">+ 添加出行记录</button>
-    <form id="travel-history-form" class="inline-form" hidden>
-      <label>国家（不确定可以先留空，之后再补） <input type="text" name="country" /></label>
-      <label>入境日期 <input type="date" name="entry_date" required /></label>
-      <label>离境日期（还没回国可以留空） <input type="date" name="exit_date" /></label>
-      <label>目的 <input type="text" name="purpose" placeholder="旅游 / 出差 / ……" /></label>
-      <div class="form-actions">
-        <button type="submit">保存</button>
-        <button type="button" data-cancel>取消</button>
-      </div>
-    </form>
+      <button id="travel-history-toggle" class="add-button" type="button">+ 添加出行记录</button>
+      <form id="travel-history-form" class="inline-form" hidden>
+        <label>国家（不确定可以先留空，之后再补） <input type="text" name="country" /></label>
+        <label>入境日期 <input type="date" name="entry_date" required /></label>
+        <label>离境日期（还没回国可以留空） <input type="date" name="exit_date" /></label>
+        <label>目的 <input type="text" name="purpose" placeholder="旅游 / 出差 / ……" /></label>
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" data-cancel>取消</button>
+        </div>
+      </form>
+    </section>
+
+    <main id="material-groups-personal"></main>
   </section>
+
+  <section class="tab-panel" data-tab-panel="task" hidden>
+    <main id="material-groups-task"></main>
+    <p id="empty-state" hidden>这次申请下还没有材料记录——用下面的表单加一条，或者直接在 <code>materials_index/records/</code> 里加一个 YAML 文件。</p>
+  </section>
+
+  <section class="tab-panel" data-tab-panel="career" hidden>
+    <p class="empty-hint">周报和简历还没做——这个 tab 先占个位置，内容和怎么存留到下一轮再定。</p>
+  </section>
+
+  <!-- 固定在页面底部，像手机 App 的底部标签栏 -->
+  <nav class="tab-bar" id="tab-bar">
+    <button class="tab-button" type="button" data-tab="personal">个人材料</button>
+    <button class="tab-button" type="button" data-tab="task">办事材料准备</button>
+    <button class="tab-button" type="button" data-tab="career">工作经历和简历</button>
+  </nav>
 
   <template id="edit-travel-history-template">
     <form class="inline-form" data-edit-form>
@@ -43,10 +63,6 @@
       </div>
     </form>
   </template>
-
-  <main id="material-groups"></main>
-
-  <p id="empty-state" hidden>这次申请下还没有材料记录——用下面的表单加一条，或者直接在 <code>materials_index/records/</code> 里加一个 YAML 文件。</p>
 
   <template id="add-material-template">
     <button class="add-button" type="button" data-add-material>+ 添加这一类材料</button>
