@@ -1,0 +1,8 @@
+# 示例数据，虚构。
+id: example-passport-bio-page
+category: passport_scan
+type: 护照个人信息页
+sublabel: 护照本身有效期到 2030
+belongs_to: example-australia-visitor-2026
+obtained_date: 2025-01-10
+file_ref: 护照/bio-page.pdf

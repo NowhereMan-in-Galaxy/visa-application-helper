@@ -29,12 +29,30 @@
 
 ```
 personal-assistant/
-  README.md          # 本文件
-  AGENTS.md           # 协作与学习规则
+  README.md              # 本文件
+  AGENTS.md               # 协作与学习规则
   docs/
-    SPEC-mvp.md        # 已锁定的 MVP 范围、架构边界、数据结构草案、验收标准、待决问题
-    BACKLOG.md          # 明确推迟的扩展想法
+    SPEC-mvp.md            # 已锁定的 MVP 范围、架构边界、数据结构草案、验收标准、待决问题
+    BACKLOG.md              # 明确推迟的扩展想法
+  specs/001-visa-material-hub/
+    spec.md                  # 这一轮功能的详细规格（用 spec-kit 写的）
+    plan.md                   # 技术方案：语言/存储/目录结构怎么选的
+    diagrams/                  # 数据模型图
+  src/                       # 实现代码（见下面"本地跑起来"）
+  web/                        # 前端静态页面
+  materials_index/             # 材料记录的结构化索引（只存元数据，不存真实文件）
+  tests/                      # pytest 单元测试
   .gitignore
 ```
 
-尚未创建实现代码——按计划，具体技术栈和目录组织将在下一轮架构讨论后确定，避免过早写死语言和框架选择。
+## 本地跑起来
+
+依赖用 [uv](https://docs.astral.sh/uv/) 管理，第一次跑之前先装好 uv，然后在仓库根目录：
+
+```bash
+uv sync                # 装依赖（第一次跑，或者 pyproject.toml 变了之后）
+uv run pytest tests/    # 跑单元测试
+uv run uvicorn api.app:app --app-dir src --reload   # 启动本地服务
+```
+
+启动之后浏览器打开 <http://127.0.0.1:8000>，会看到一份**虚构的示例数据**（`materials_index/` 里 `example-` 开头的文件），确认能跑通之后把这些示例删掉、换成自己的真实申请信息（记住只填元数据，真实文件本体放在 `materials_root` 配置指向的目录——复制 `config.example.yaml` 为 `config.yaml` 后按需修改）。

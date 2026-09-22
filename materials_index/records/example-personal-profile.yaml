@@ -1,0 +1,8 @@
+# 示例数据，虚构。PersonalProfile 的完整结构化字段（travel_history 等）留到下一轮再实现，
+# 这里先用最基础的 MaterialRecord 占位，category=personal_info。
+id: example-personal-profile
+category: personal_info
+type: 个人信息表
+sublabel: 参考签证申请表字段整理
+belongs_to: example-australia-visitor-2026
+obtained_date: 2026-01-05

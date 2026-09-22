@@ -1,0 +1,6 @@
+# 复制这份文件为 config.yaml（已被 .gitignore 排除，不会被提交），按需修改后再改内容。
+#
+# materials_root：存放真实材料文件（护照扫描件、银行流水等）的目录。
+# 可以是项目内的相对路径（默认 materials/，已被 .gitignore 排除），
+# 也可以是绝对路径，指向项目外任意位置，例如你自己的 iCloud / Google Drive 同步目录。
+materials_root: materials

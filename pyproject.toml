@@ -1,0 +1,20 @@
+[project]
+name = "personal-assistant"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.141.1",
+    "pydantic>=2.13.5",
+    "pyyaml>=6.0.3",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+# 源码在 src/ 下（不带 src. 前缀导入），这样测试文件和 uvicorn 启动时的
+# `--app-dir src` 用同一套 import 路径，import 语句不用因为"谁来跑"而写两套。
+pythonpath = ["src"]

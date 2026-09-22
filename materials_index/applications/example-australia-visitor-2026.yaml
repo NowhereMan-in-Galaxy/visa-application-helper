@@ -1,0 +1,5 @@
+# 示例数据，字段全部虚构，仅用来演示格式——确认页面能跑起来之后可以删掉，换成你自己的申请。
+id: example-australia-visitor-2026
+country: 澳大利亚
+visa_type: 访客签证（Visitor visa, subclass 600）
+deadline: 2026-12-01

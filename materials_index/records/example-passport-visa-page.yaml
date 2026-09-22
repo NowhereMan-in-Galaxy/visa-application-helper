@@ -1,0 +1,5 @@
+# 示例数据，虚构。obtained_date 留空，代表这份材料还没拿到手，只是先占个位置——对应"待补"状态。
+id: example-passport-visa-page
+category: passport_scan
+type: 护照签证页
+belongs_to: example-australia-visitor-2026

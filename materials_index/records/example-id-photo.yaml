@@ -1,0 +1,9 @@
+# 示例数据，虚构。没有 validity_days（证件照不强制过期），但有 recommended_update_interval_days。
+id: example-id-photo
+category: id_photo
+type: 证件照
+sublabel: 白底 2 寸
+belongs_to: example-australia-visitor-2026
+obtained_date: 2026-06-01
+recommended_update_interval_days: 180
+file_ref: 证件照/2026-06-01.jpg

@@ -1,0 +1,106 @@
+:root {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --border: #e2e5ea;
+  --text: #1f2430;
+  --text-muted: #6b7280;
+
+  --status-complete: #1f9d55;
+  --status-expiring: #b7791f;
+  --status-expired: #c0392b;
+  --status-needed: #6b7280;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+select {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 0.95rem;
+}
+
+.category-group {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.category-group h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+}
+
+.material-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.material-row:first-of-type {
+  border-top: none;
+}
+
+.material-name {
+  font-weight: 600;
+  min-width: 10rem;
+}
+
+.material-sublabel {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.status-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.status-已备齐 { background: var(--status-complete); }
+.status-即将过期 { background: var(--status-expiring); }
+.status-已过期 { background: var(--status-expired); }
+.status-待补 { background: var(--status-needed); }
+
+.update-reminder {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.update-reminder.overdue {
+  color: var(--status-expiring);
+  font-weight: 600;
+}
+
+#empty-state {
+  color: var(--text-muted);
+}

@@ -1,0 +1,9 @@
+# 示例数据，虚构。刻意选的日期会显示"已过期"。
+id: example-employment-letter
+category: employment_doc
+type: 在职证明
+sublabel: HR 开具
+belongs_to: example-australia-visitor-2026
+obtained_date: 2026-08-15
+validity_days: 30
+file_ref: 职业/在职证明-2026-08.pdf

@@ -1,0 +1,10 @@
+# 示例数据，虚构。90 天有效期 + 30 天建议更新频率，刻意选的日期会显示"即将过期"+"建议更新已过期"。
+id: example-bank-statement
+category: financial_snapshot
+type: 银行流水
+sublabel: 工资卡
+belongs_to: example-australia-visitor-2026
+obtained_date: 2026-07-01
+validity_days: 90
+recommended_update_interval_days: 30
+file_ref: 财务/工资卡/2026-07.pdf
