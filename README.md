@@ -13,12 +13,14 @@
 
 ## 现在所处的阶段
 
-**这是一份 MVP 阶段的意图与规格记录，架构还没有最终定稿。** 项目负责人（下称"项目主"）目前正在学习版本管理和软件工程实践，本仓库的第一批文档由 Claude（Sonnet 5）在讨论中协助整理，记录到目前为止在对话中达成共识的决定；具体技术选型和详细架构，计划下一步请一个更强的模型通读本仓库后再深化设计。
+项目负责人（下称"项目主"）几乎没有计算机基础，正在通过这个项目学习版本管理和软件工程实践；本仓库的文档和代码由 Claude（Sonnet 5）在多轮讨论中协助整理和实现。**"材料资料库 + 办签证智能清单"这个 feature（`specs/001-visa-material-hub/`）已经进入实现阶段，不再只是规格记录**——本地能跑起来，能看真实数据。
 
-在读这份 README 的 Agent（不论强弱）：
-- 请先读 [`AGENTS.md`](./AGENTS.md)，了解协作规则，尤其是版本管理和安全相关的约定。
-- 已经锁定的范围和数据结构草案在 [`docs/SPEC-mvp.md`](./docs/SPEC-mvp.md)。
-- 明确推迟、暂不实现的想法在 [`docs/BACKLOG.md`](./docs/BACKLOG.md)——看到这些想法时不要主动开始实现，除非项目主明确要求把某一项从 backlog 移进 MVP 范围。
+在读这份 README 的 Agent（不论强弱），按顺序读：
+1. [`AGENTS.md`](./AGENTS.md)——协作规则，尤其是版本管理和安全相关的约定，**必读，优先级最高**。
+2. [`docs/SPEC-mvp.md`](./docs/SPEC-mvp.md)——项目级别锁定的范围、架构边界、安全约束。
+3. [`specs/001-visa-material-hub/spec.md`](./specs/001-visa-material-hub/spec.md) + [`plan.md`](./specs/001-visa-material-hub/plan.md)——这个 feature 的详细需求和技术方案。
+4. [`specs/001-visa-material-hub/STATUS.md`](./specs/001-visa-material-hub/STATUS.md)——**当前实现进度**：哪些 User Story 做完了、哪些没做、已知的粗糙点/技术债，接手的 Agent 从这份文档开始定位"接下来该做什么"，不用去翻聊天记录。
+5. [`docs/BACKLOG.md`](./docs/BACKLOG.md)——明确推迟、暂不实现的想法，看到这些想法时不要主动开始实现，除非项目主明确要求把某一项从 backlog 移进范围。
 
 ## 项目主的背景（供协作的 Agent 参考）
 
