@@ -94,6 +94,10 @@ types:
     name: 退休金流水
     category: financial_snapshot
     aliases: [退休金流水, 养老金流水]
+  - key: individual_tax_record
+    name: 个人所得税纳税记录
+    category: financial_snapshot
+    aliases: [个人所得税纳税记录, 个人所得税缴纳记录, 个税纳税记录, 个税缴纳记录, 完税证明, 纳税证明]
   - key: funding_declaration
     name: 资金来源声明
     category: financial_snapshot
