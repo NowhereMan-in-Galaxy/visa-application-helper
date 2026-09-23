@@ -1,45 +1,38 @@
-# 抽取试验 #1 的产出（见同目录 README.md）。
-# 输入：https://github.com/EndlessBlueWJL/schengen-visa-guide 的 references/checklist.md（commit 780b004）
-#       该项目为 MIT License，Copyright (c) 2025 EndlessBlueWJL；此处只摘录不超过 60 字的原话作为 evidence。
-# 执行者：Claude Code 按 prompt.md 手动抽取；词表用的是抽取当时的 materials_index/material_types.yaml。
-# 不含任何个人信息，所以可以放在仓库里当测试样本。
+# 申根短期旅游签流程攻略。
+# 整理自 https://github.com/EndlessBlueWJL/schengen-visa-guide 的 references/checklist.md（commit 780b004），
+# 原项目为 MIT License，Copyright (c) 2025 EndlessBlueWJL；evidence 只摘录不超过 60 字的原话。
+# 整理过程和发现的问题见 specs/002-guide-to-track/trials/README.md（试验 #1）。
 
-id: trial-schengen-tourist
+id: schengen-tourist
 title: 申根短期旅游签证（中国大陆护照）
 category: 签证
-status: draft
-deadline: null
-application_id: null
+summary: 持中国大陆护照、按身份（学生/在职/退休/自由职业/无业）准备申根 C 类旅游签的材料和步骤
+maintainers: []
+updated: 2026-09-23
 
 sources:
   - id: g1
     title: schengen-visa-guide · 申根签证材料清单
     url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/checklist.md
-    guide_ref: null
     as_of: 2025-07-01
 
 facts:
   identity:
     question: 你目前的身份是？
     options: [在校学生, 在职, 退休, 自由职业, 无业]
-    value: null
   minor:
     question: 申请人是否未满 18 岁？
     options: [是, 否]
-    value: null
   married:
     question: 是否已婚？
     options: [是, 否]
-    value: null
   sponsored:
     question: 这次旅行是否由父母/配偶或其他人出资？
     options: [是, 否]
-    value: null
   sponsor_same_hukou:
     question: 出资人和你在同一本户口本上吗？
     options: [是, 否]
     ask_if: [{fact: sponsored, in: [是]}]
-    value: null
 
 requirements:
   # ---- 证件类（所有身份）----
@@ -51,8 +44,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 有效期需超过离开申根区日期至少 3 个月；至少 2 页空白签证页；签发不超过 10 年。不需复印空白页，原件递签当天带
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "有效期需超过离开申根区日期至少 3 个月，至少有 2 页空白签证页，且签发时间不超过 10 年"}]
   - id: r-old-passport
     kind: obtain
@@ -62,8 +53,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 复印个人信息页 + 签证页 + 出入境盖章页
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "如有旧护照，复印个人信息页 + 签证页 + 出入境盖章页。没有旧护照可跳过"}]
   - id: r-id-card
     kind: obtain
@@ -73,8 +62,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 正反面复印在同一面
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "正反面复印在同一面"}]
   - id: r-hukou
     kind: obtain
@@ -84,8 +71,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 从封面到最后一页全部复印，不要只印自己那一页
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "从封面到最后一页全部复印，不要只印自己那一页"}]
   - id: r-photo
     kind: obtain
@@ -95,8 +80,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 签证中心可现场拍；自带需为近期照片
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "签证中心现场拍 35 块也行，自己带的话要近期"}]
 
   # ---- 身份证明：在校学生 ----
@@ -108,8 +91,6 @@ requirements:
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
     note: 学校教务处开具，需老师签字 + 学校公章
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "学校教务处开具，需老师签字 + 学校公章"}]
   - id: r-student-card
     kind: obtain
@@ -119,8 +100,6 @@ requirements:
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
     note: 原件递签当天带
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "学生证原件 + 复印件 | 原件递签当天带过去"}]
   - id: r-chsi
     kind: obtain
@@ -130,8 +109,6 @@ requirements:
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
     note: 学信网在线申请，下载中英文版
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "学信网（www.chsi.com.cn）在线申请，下载中英文版"}]
 
   # ---- 身份证明：在职 ----
@@ -143,8 +120,6 @@ requirements:
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
     note: 公司抬头纸，含公司名称/地址/电话/传真，体现姓名、职务、薪资、入职年限、准假日期；法人或人事签字 + 公章
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "需公司法人或人事签字 + 公司公章"}]
   - id: r-business-license
     kind: obtain
@@ -154,8 +129,6 @@ requirements:
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
     note: 加盖公司公章
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "营业执照副本复印件 | 加盖公司公章"}]
   - id: r-salary
     kind: obtain
@@ -165,8 +138,6 @@ requirements:
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
     note: 银行打印，体现每月固定收入
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "银行打印，体现每月固定收入"}]
 
   # ---- 身份证明：退休 ----
@@ -178,8 +149,6 @@ requirements:
     applies_if: [{fact: identity, in: [退休]}]
     freshness_days: null
     note: null
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "退休证原件 + 复印件"}]
   - id: r-pension
     kind: obtain
@@ -189,8 +158,6 @@ requirements:
     applies_if: [{fact: identity, in: [退休]}]
     freshness_days: null
     note: 近 3-6 个月，体现每月退休金到账
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "近 3-6 个月，体现每月退休金到账"}]
 
   # ---- 身份证明：自由职业 / 无业 ----
@@ -202,21 +169,17 @@ requirements:
     applies_if: [{fact: identity, in: [自由职业, 无业]}]
     freshness_days: null
     note: 写在解释信里，附相关证明（稿费、投资收益、freelance 合同等）；无业需额外强调回国约束力
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "解释信里详细说明收入来源（如稿费、投资收益、freelance 合同等），附相关证明"}]
 
   # ---- 出资人（任何身份，有人出资时）----
   - id: r-sponsor-docs
     kind: obtain
-    material_type: null
+    material_type: sponsor_documents
     raw_name: 出资人材料（出资人流水 + 出资人在职证明/身份证复印件）
     optional: false
     applies_if: [{fact: sponsored, in: [是]}]
     freshness_days: null
     note: 在职身份写的是"出资人流水 + 出资人在职证明"；自由职业/无业写的是"出资人银行流水 + 出资人身份证复印件"
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "父母/配偶出资：另需出资人流水 + 出资人在职证明"}]
   - id: r-kinship-notary
     kind: obtain
@@ -226,8 +189,6 @@ requirements:
     applies_if: [{fact: sponsored, in: [是]}, {fact: sponsor_same_hukou, in: [否]}]
     freshness_days: null
     note: null
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "不在同一户口本还需亲属关系公证 + 海牙认证"}]
 
   # ---- 未成年人 ----
@@ -239,8 +200,6 @@ requirements:
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
     note: 中国自 2023-11-07 起加入海牙公约，办「公证 + 海牙认证」即可，无需双认证
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "涉外公证书办「公证 + 海牙认证」即可，无需再办双认证"}]
   - id: r-parental-consent
     kind: obtain
@@ -250,8 +209,6 @@ requirements:
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
     note: 父母双方签字；一方不能到场需出具同意书；离异/单亲附相关法律文件
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "父母双方签字；若一方不能到场，需出具同意书"}]
   - id: r-parents-docs
     kind: obtain
@@ -261,8 +218,6 @@ requirements:
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
     note: 父母身份证/护照复印件、结婚证或亲属关系公证 + 海牙认证
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "父母双方身份证/护照复印件、父母结婚证或亲属关系公证 + 海牙认证"}]
 
   # ---- 旅行保障 / 资金 ----
@@ -274,8 +229,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 保额至少 3 万欧元，覆盖整个申根区；彩色打印前两页；出签前别退
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "保额至少 3 万欧元，覆盖整个申根区。彩色打印前两页"}]
   - id: r-bank
     kind: obtain
@@ -285,8 +238,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 余额需覆盖整个行程；实操参考 ≤15 天 ¥2,000×天数，>15 天 ¥30,000+¥4,000×(天数−15)，非硬门槛；不要临时大额转账凑数
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "余额需覆盖整个行程，按下方预算测算公式估算"}]
   - id: r-property
     kind: obtain
@@ -296,8 +247,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 加分项，只交复印件不交原件
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "有的话提供，是加分项。只交复印件，不交原件。没有可跳过"}]
 
   # ---- 行程与机酒 ----
@@ -309,8 +258,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 可用「行程助手」app 或让 AI 生成；一天 3-4 个景点，别太赶
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "可用「行程助手」app 或让 AI 直接生成。申请国天数写最长"}]
   - id: r-flight
     kind: obtain
@@ -320,8 +267,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: trip.com 预订，不付款即可打印；德国等部分领区有时要求已付款机票
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "trip.com（携程海外版）预订，不用付款就能打印"}]
   - id: r-hotel
     kind: obtain
@@ -331,8 +276,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 携程 / Agoda / Booking 均可，选免费取消或先用后付
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "选\"免费取消\"或\"先用后付\"，下单后下载确认单"}]
 
   # ---- 已婚 / 解释信 / 预约凭证 ----
@@ -344,8 +287,6 @@ requirements:
     applies_if: [{fact: married, in: [是]}]
     freshness_days: null
     note: null
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "已婚者必须提供。未婚/离异跳过"}]
   - id: r-cover-letter
     kind: generate
@@ -355,8 +296,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 英文；讲清资金来源 + 回国约束力 + 旅行目的
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "需解释三件事：资金来源 + 回国约束力 + 旅行目的"}]
   - id: r-application-form
     kind: output
@@ -366,8 +305,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: 申请国签证官网填写后生成的 PDF，打印
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "在申请国签证官网上填写后生成的 PDF，打印出来"}]
   - id: r-appointment
     kind: output
@@ -377,8 +314,6 @@ requirements:
     applies_if: []
     freshness_days: null
     note: TLScontact / VFS / BLS 预约后生成，打印
-    matched_records: []
-    match_confirmed: false
     evidence: [{source: g1, quote: "在 TLScontact/VFS/BLS 预约后生成的确认单，打印出来"}]
 
 steps:
@@ -390,7 +325,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "选申请国 → 网上预约 → 准备证件"}]
   - id: s-appointment
     title: 网上填申请表并预约签证中心
@@ -400,7 +334,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "打印之前填表和预约时生成的 PDF"}]
   - id: s-copy-ids
     title: 复印证件、拍证件照
@@ -410,7 +343,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "证件类（1-5） — 复印拍照，基础活"}]
   - id: s-student-docs
     title: 找教务处开在读证明、下载学信网学籍证明
@@ -420,7 +352,6 @@ steps:
     applies_if: [{fact: identity, in: [在校学生]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "在职的找公司开证明，学生跑教务处"}]
   - id: s-employer-docs
     title: 找公司开在职证明、要营业执照复印件
@@ -430,7 +361,6 @@ steps:
     applies_if: [{fact: identity, in: [在职]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "在职的找公司开证明，学生跑教务处"}]
   - id: s-retiree-docs
     title: 复印退休证
@@ -440,7 +370,6 @@ steps:
     applies_if: [{fact: identity, in: [退休]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "退休证原件 + 复印件"}]
   - id: s-sponsor-docs
     title: 准备出资人材料（不在同一户口本还要办亲属关系公证）
@@ -450,7 +379,6 @@ steps:
     applies_if: [{fact: sponsored, in: [是]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "不在同一户口本还需亲属关系公证 + 海牙认证"}]
   - id: s-minor-docs
     title: 办未成年人公证材料（出生证明、出行同意书、父母关系）
@@ -460,7 +388,6 @@ steps:
     applies_if: [{fact: minor, in: [是]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "父母双方签字；若一方不能到场，需出具同意书"}]
   - id: s-insurance
     title: 买申根旅行保险
@@ -470,7 +397,6 @@ steps:
     applies_if: []
     estimate: 5 分钟
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "保险（9） — 京东/支付宝 5 分钟，日期覆盖行程"}]
   - id: s-bank
     title: 去银行打流水
@@ -480,7 +406,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "银行打流水，按预算公式确认余额够，记得别临时大额转账"}]
   - id: s-itinerary
     title: 做行程单
@@ -490,7 +415,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "行程单（12） — 申请国天数最长，一天 3-4 景点，别特种兵"}]
   - id: s-flight
     title: 订机票预订单（不付款）
@@ -500,7 +424,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "trip.com 不付款，出入境呼应行程"}]
   - id: s-hotel
     title: 订酒店预订单（可免费取消）
@@ -510,7 +433,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "城市和日期跟行程对齐"}]
   - id: s-marriage
     title: 准备结婚证复印件和英文翻译件
@@ -520,7 +442,6 @@ steps:
     applies_if: [{fact: married, in: [是]}]
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "结婚证（15） — 已婚的准备，未婚跳过"}]
   - id: s-cover-letter
     title: 写解释信
@@ -530,7 +451,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "最后写，因为要解释前面材料的情况"}]
   - id: s-submit
     title: 去签证中心递签（现场录指纹）
@@ -540,7 +460,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: null
-    done: false
     evidence: [{source: g1, quote: "写解释信 → 递签（现场录指纹）→ 等出签"}]
   - id: s-wait
     title: 等出签
@@ -550,7 +469,6 @@ steps:
     applies_if: []
     estimate: null
     duration_days: {typical: 15, max: 45}
-    done: false
     evidence: [{source: g1, quote: "递签后通常 15 天左右出签，最长可能 45 天"}]
 
 checks:
