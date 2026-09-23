@@ -260,3 +260,15 @@ form.pick button { padding: 3px 10px; font-size: 12px; }
 .chips.small { margin: 0; gap: 6px; }
 .chips.small .chip { font-size: 12px; padding: 2px 10px; cursor: pointer; }
 .file-list { font: 12px ui-monospace, Menlo, monospace; }
+
+/* ---- 右侧核对清单 ---- */
+.sticky { max-height: calc(100vh - 40px); overflow-y: auto; }
+.check.pit { align-items: center; }
+.check.pit label { flex: 1; cursor: pointer; }
+.check.pit.done label { color: var(--muted); text-decoration: line-through; }
+.icon-btn { border: 0; background: transparent; padding: 0 4px; font-size: 16px; line-height: 1; color: var(--muted); }
+.icon-btn:hover { background: transparent; color: var(--danger); }
+form.pit-add { display: flex; gap: 6px; margin-top: 10px; }
+form.pit-add input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 13px; }
+form.pit-add button { padding: 4px 10px; font-size: 12px; }
+@media (max-width: 1000px) { .sticky { max-height: none; overflow: visible; } }

@@ -54,12 +54,13 @@
         else node.setAttribute(k, v === true ? "" : String(v));
       });
     }
-    for (var i = 2; i < arguments.length; i++) {
-      var child = arguments[i];
-      if (child === null || child === undefined || child === false) continue;
-      if (Array.isArray(child)) child.forEach(function (c) { if (c) node.append(c); });
-      else node.append(typeof child === "string" ? document.createTextNode(child) : child);
-    }
+    // 子节点可以是字符串、元素、空值或（任意层嵌套的）数组：数组逐层展开，空值跳过。
+    // 原生 append 会把数组 / null 变成 "[object ...]" / "null" 文字，所以一律经过这里。
+    (function add(child) {
+      if (child === null || child === undefined || child === false) return;
+      if (Array.isArray(child)) { child.forEach(add); return; }
+      node.append(typeof child === "string" || typeof child === "number" ? document.createTextNode(String(child)) : child);
+    })(Array.prototype.slice.call(arguments, 2));
     return node;
   }
 

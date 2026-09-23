@@ -39,12 +39,13 @@
         else node.setAttribute(k, v === true ? "" : String(v));
       });
     }
-    for (var i = 2; i < arguments.length; i++) {
-      var child = arguments[i];
-      if (child === null || child === undefined || child === false) continue;
-      if (Array.isArray(child)) child.forEach(function (c) { if (c) node.append(c); });
-      else node.append(typeof child === "string" ? document.createTextNode(child) : child);
-    }
+    // 子节点可以是字符串、元素、空值或（任意层嵌套的）数组：数组逐层展开，空值跳过。
+    // 原生 append 会把数组 / null 变成 "[object ...]" / "null" 文字，所以一律经过这里。
+    (function add(child) {
+      if (child === null || child === undefined || child === false) return;
+      if (Array.isArray(child)) { child.forEach(add); return; }
+      node.append(typeof child === "string" || typeof child === "number" ? document.createTextNode(String(child)) : child);
+    })(Array.prototype.slice.call(arguments, 2));
     return node;
   }
 
@@ -612,40 +613,19 @@
       )
     );
 
-    // --- 最终核对 ---
-    if (v.checks.length) {
-      main.append(
-        el(
-          "section",
-          { class: "panel" },
-          el("div", { class: "panel-head" }, el("h2", { text: "递交前最后核对" }), el("small", { text: "材料之间必须对得上的地方" })),
-          el(
-            "div",
-            { class: "checks" },
-            v.checks.map(function (c) {
-              var box = el("input", {
-                type: "checkbox",
-                id: "chk-" + c.id,
-                disabled: readonly,
-                onchange: function () { update(v, "/checks/" + encodeURIComponent(c.id), { done: box.checked }); },
-              });
-              box.checked = c.done;
-              return el("label", { class: "check" + (c.done ? " done" : ""), for: "chk-" + c.id }, box, el("span", { text: c.text }));
-            })
-          )
-        )
-      );
-    }
-
     // --- 侧栏 ---
     var side = el("div", { class: "sticky" });
     if (opts.aside) side.append(opts.aside);
+    side.append(checklistPanel(v, readonly));
     side.append(materialSummary(v));
-    side.append(sourcesPanel(v, reqById, stepById));
-
     if (!readonly) side.append(exportPanel(v));
 
-    return el("div", null, phaseBar(v, stepById), el("div", { class: "layout" }, main, el("div", null, side)));
+    // 原来的"来源与提醒"栏已去掉（2026-09-23 项目主要求）；只保留一条最关键的提醒：依据的资料太旧
+    var staleNote = v.stale_sources.length
+      ? el("p", { class: "notice warn", text: "这份攻略依据的资料已超过一年，要求可能有变化，递交前请以官网为准。" })
+      : null;
+
+    return el("div", null, phaseBar(v, stepById), staleNote, el("div", { class: "layout" }, main, el("div", null, side)));
   }
 
   var MODE_LABEL = { online: "线上", offline: "线下" };
@@ -1100,38 +1080,73 @@
     );
   }
 
-  function sourcesPanel(v, reqById, stepById) {
-    var stale = {};
-    v.stale_sources.forEach(function (id) { stale[id] = true; });
-    var items = v.sources.map(function (s) {
-      var link = s.url && /^https?:\/\//.test(s.url) ? el("a", { href: s.url, target: "_blank", rel: "noopener noreferrer", text: s.title }) : el("span", { text: s.title });
+  // 右侧核对清单：攻略里"材料之间必须对得上"的核对项 + 用户自己记的避坑点
+  function checklistPanel(v, readonly) {
+    var checks = v.checks.map(function (c) {
+      var box = el("input", {
+        type: "checkbox",
+        id: "chk-" + c.id,
+        disabled: readonly,
+        onchange: function () { update(v, "/checks/" + encodeURIComponent(c.id), { done: box.checked }); },
+      });
+      box.checked = c.done;
+      return el("label", { class: "check" + (c.done ? " done" : ""), for: "chk-" + c.id }, box, el("span", { text: c.text }));
+    });
+
+    var pits = (v.pitfalls || []).map(function (p) {
+      var box = el("input", {
+        type: "checkbox",
+        id: "pit-" + p.id,
+        onchange: function () { update(v, "/pitfalls/" + encodeURIComponent(p.id), { done: box.checked }); },
+      });
+      box.checked = p.done;
       return el(
-        "li",
-        null,
-        link,
-        s.as_of ? el("small", { text: " · 信息截至 " + s.as_of }) : null,
-        stale[s.id] ? el("div", { class: "blocked", text: "这份资料已超过一年，要求可能变了，请以官网为准。" }) : null
+        "div",
+        { class: "check pit" + (p.done ? " done" : "") },
+        box,
+        el("label", { for: "pit-" + p.id, text: p.text }),
+        el("button", {
+          type: "button",
+          class: "icon-btn",
+          text: "×",
+          "aria-label": "删除避坑点：" + p.text,
+          onclick: function () {
+            showError("");
+            request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/pitfalls/" + encodeURIComponent(p.id))
+              .then(drawTrack)
+              .catch(function (e) { showError(e.message); });
+          },
+        })
       );
     });
-    var uncertain = v.uncertain.map(function (path) {
-      var id = path.split(".")[0];
-      var target = reqById[id] ? reqById[id].name : stepById[id] ? stepById[id].title : id;
-      return el("li", { text: target });
-    });
-    var conflicts = v.conflicts.map(function (k) {
-      return el("li", null, k.about + "：", k.claims.map(function (c, i) { return el("span", null, i ? " / " : "", "“" + c.quote + "”"); }));
-    });
+
+    var addForm = null;
+    if (!readonly) {
+      var input = el("input", { type: "text", maxlength: "300", placeholder: "例如：流水要柜台打印并盖章", "aria-label": "新的避坑点" });
+      addForm = el("form", { class: "pit-add" }, input, el("button", { type: "submit", text: "添加" }));
+      addForm.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (!input.value.trim()) return;
+        showError("");
+        request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/pitfalls", { text: input.value })
+          .then(drawTrack)
+          .catch(function (e) { showError(e.message); });
+      });
+    }
+
+    var doneCount = v.checks.filter(function (c) { return c.done; }).length + (v.pitfalls || []).filter(function (p) { return p.done; }).length;
+    var total = v.checks.length + (v.pitfalls || []).length;
     return el(
       "section",
       { class: "panel" },
-      el("div", { class: "panel-head" }, el("h2", { text: "来源与提醒" })),
+      el("div", { class: "panel-head" }, el("h2", { text: "核对清单" }), total ? el("small", { text: doneCount + " / " + total }) : null),
       el(
         "div",
-        { class: "sources" },
-        el("ul", null, items),
-        conflicts.length ? [el("strong", { text: "资料之间说法不一：" }), el("ul", null, conflicts)] : null,
-        uncertain.length ? [el("strong", { text: "整理者没把握、建议你核实：" }), el("ul", null, uncertain)] : null,
-        el("p", { class: "muted", text: "攻略是经验总结，所有要求最终以官网为准。" })
+        { class: "checks" },
+        checks.length ? [el("div", { class: "summary-group", text: "递交前核对（攻略）" }), checks] : null,
+        el("div", { class: "summary-group", text: "我的避坑点" }),
+        pits.length ? pits : el("p", { class: "muted", text: readonly ? "开始办之后，可以把自己从攻略里看到的坑记在这里。" : "看到攻略、帖子里提到的坑，随手记在这里。" }),
+        addForm
       )
     );
   }
