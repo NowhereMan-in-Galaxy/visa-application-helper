@@ -11,3 +11,5 @@
 - **面向多用户的复用形式**——这条拆成两档，轻的那档已经在 `specs/001-visa-material-hub/` 这一轮讨论中正式采纳，不再算 backlog：
   - **（已采纳，不再是 backlog）个人自部署开源**：把这个"壳子"开源到 GitHub，让其他人各自在自己电脑上装一份、用自己的材料根目录，互不相干，每人一份独立本地实例。核心库接口参数化、不硬编码个人场景（见 SPEC-mvp.md 第 2 条），具体约束见 `.specify/memory/constitution.md`。
   - **（仍是 backlog）托管式多租户服务**：打包成一个大家共用的托管服务/开放 API，一套后端服务多个用户。这会把项目性质从"个人工具"变成"要对他人敏感数据负责的产品"，涉及认证、数据隔离、隐私合规等全新的设计维度，当前不做。
+- **Track 模板 vs 实例**（2026-09-23 提出，来自对 schengen-visa-guide 的调研）：把"某类事要做什么"（模板，不含个人信息，可以分享、开源、由社区贡献）和"我这一次办这件事"（实例，挂着我的材料和进度）分开。好处是别人写好的攻略可以直接变成模板，不用每个人都重新抽取一遍。现在的 `specs/002-guide-to-track/` 只有实例，等 Phase A/B 跑通、积累几个 Track 之后再评估要不要拆。
+- **PersonalProfile 字段扩展参考 visa-form-copilot**（2026-09-23）：[huaxialucaicaizi/visa-form-copilot](https://github.com/huaxialucaicaizi/visa-form-copilot) 的 `references/profile-schema.md` 给出了一份跨美签/英签/申根/澳签复用的申请人档案结构（身份、护照、联系方式、家庭、工作、教育、出行和签证历史、拒签记录等），其中"未知一律填 null，绝不当成否"的原则值得照搬。等做 MVP 第 2 项"表单代填"时再参考。注意：该仓库没有开源许可证，只借鉴思路，不复制内容。
