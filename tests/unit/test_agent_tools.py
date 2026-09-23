@@ -131,3 +131,31 @@ def test_validate_community_matches_cli_shape():
     schengen = next(g for g in result["guides"] if g["id"] == "schengen-tourist")
     assert schengen["valid"] is True
     assert isinstance(schengen["unresolved_types"], list)
+
+
+# ---- 个人调整工具 ----
+
+def test_mcp_adjustment_tools(monkeypatch, tmp_path):
+    import config
+    from agent_tools import tools
+    from core.guides import load_guide  # noqa: F401  确保 core 可导入
+    monkeypatch.setattr(config, "get_materials_root", lambda: tmp_path)
+    from core.tracks import create_track
+    from core.material_types import load_vocabulary
+    from core.guides import load_all_guides
+    vocab = load_vocabulary(config.COMMUNITY_DIR / "material_types.yaml")
+    guide = next(r.guide for r in load_all_guides(config.COMMUNITY_DIR / "guides", vocab) if r.path.stem == "schengen-tourist")
+    tid = create_track(tmp_path, guide, date(2026, 9, 23)).id
+    v = tools.set_hidden(tid, "step", "s-insurance", True)
+    assert any(h["id"] == "s-insurance" for h in v["hidden_items"])
+    v = tools.set_note(tid, "requirement", "r-bank", "要盖章")
+    assert next(r for r in v["requirements"] if r["id"] == "r-bank")["user_note"] == "要盖章"
+    v = tools.add_custom_step(tid, "办存款证明", phase="p-materials")
+    cs = next(s for s in v["steps"] if s["custom"])
+    assert tools.set_step_done(tid, cs["id"], True)  # 自己加的步骤也能勾
+    v = tools.add_custom_material(tid, "银行流水", cs["id"])
+    assert next(r for r in v["requirements"] if r["custom"])["material_type"] == "bank_statement"
+    v = tools.add_pitfall(tid, "流水要柜台打印")
+    assert v["pitfalls"][0]["text"] == "流水要柜台打印"
+    with pytest.raises(ValueError):
+        tools.set_hidden(tid, "phase", "p-online", True)

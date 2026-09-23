@@ -72,6 +72,31 @@ def validate_community() -> dict:
     return tools.validate_community()
 
 
+@mcp.tool(description='隐藏或恢复一件办事里的步骤（kind="step"）或材料（kind="requirement"）；只影响个人进度，不改共享攻略。写之前先向用户复述并征得同意')
+def set_hidden(track_id: str, kind: str, item_id: str, hidden: bool) -> dict:
+    return tools.set_hidden(track_id, kind, item_id, hidden)
+
+
+@mcp.tool(description='给步骤（kind="step"）或材料（kind="requirement"）写个人备注，note 为空表示删除备注')
+def set_note(track_id: str, kind: str, item_id: str, note: str | None) -> dict:
+    return tools.set_note(track_id, kind, item_id, note)
+
+
+@mcp.tool(description="在一件办事里加一个自己的步骤（phase=阶段 id，after=插在哪个步骤后面，都可省略）；只存在个人区")
+def add_custom_step(track_id: str, title: str, phase: str | None = None, after: str | None = None, where: str | None = None) -> dict:
+    return tools.add_custom_step(track_id, title, phase, after, where)
+
+
+@mcp.tool(description="在一件办事的某个步骤下加一项自己的材料；名字能被词表认出时自动匹配材料库")
+def add_custom_material(track_id: str, name: str, step: str, material_type: str | None = None, optional: bool = False) -> dict:
+    return tools.add_custom_material(track_id, name, step, material_type, optional)
+
+
+@mcp.tool(description="把一条避坑点记到办事页右侧的核对清单里（1–300 字）")
+def add_pitfall(track_id: str, text: str) -> dict:
+    return tools.add_pitfall(track_id, text)
+
+
 def main() -> None:
     mcp.run("stdio")
 

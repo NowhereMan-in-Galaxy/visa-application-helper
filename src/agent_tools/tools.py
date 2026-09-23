@@ -25,8 +25,12 @@ import config
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.storage import load_material_records
+import core.adjustments as adj
+from core.adjustments import AdjustmentError
 from core.tracks import (
+    Pitfall,
     Track,
+    apply_adjustments,
     TrackNotFoundError,
     TrackView,
     compute_track_view,
@@ -261,8 +265,8 @@ def set_step_done(
 
     track = _load_track_or_raise(track_id, materials_root)
     _, guide = _find_valid_guide(track.guide, community_dir)
-    if not any(s.id == step_id for s in guide.steps):
-        raise ValueError(f"这份攻略没有步骤 {step_id}")
+    if not any(s.id == step_id for s in apply_adjustments(guide, track).steps):
+        raise ValueError(f"这件办事里没有步骤 {step_id}")
     remaining = [s for s in track.done_steps if s != step_id]
     track.done_steps = remaining + [step_id] if done else remaining
     view = _save_track_and_view(track, materials_root, community_dir, materials_index_dir, today)
@@ -335,3 +339,92 @@ def validate_community(*, community_dir: Path | None = None) -> dict:
         "vocabulary": {"valid": True, "error": None, "type_count": len(vocab.types)},
         "guides": guides,
     }
+
+
+# ---------- 个人调整（与网页 API 共用 core/adjustments.py；不提供删除） ----------
+
+
+def _adjust(track_id: str, action, materials_root, community_dir, materials_index_dir, today) -> dict:
+    materials_root = _materials_root(materials_root)
+    community_dir = _community_dir(community_dir)
+    materials_index_dir = _materials_index_dir(materials_index_dir)
+    today = today or date.today()
+    track = _load_track_or_raise(track_id, materials_root)
+    vocab, guide = _find_valid_guide(track.guide, community_dir)
+    try:
+        action(guide, track, vocab)
+    except AdjustmentError as e:
+        raise ValueError(str(e)) from e
+    return _save_track_and_view(track, materials_root, community_dir, materials_index_dir, today).model_dump(mode="json")
+
+
+def set_hidden(
+    track_id: str, kind: str, item_id: str, hidden: bool, *,
+    materials_root: Path | None = None, community_dir: Path | None = None,
+    materials_index_dir: Path | None = None, today: date | None = None,
+) -> dict:
+    """隐藏/恢复一个步骤（kind="step"）或一项材料（kind="requirement"）。"""
+    if kind == "step":
+        fn = lambda g, t, v: adj.set_step_hidden(g, t, item_id, hidden)  # noqa: E731
+    elif kind == "requirement":
+        fn = lambda g, t, v: adj.set_requirement_hidden(g, t, item_id, hidden)  # noqa: E731
+    else:
+        raise ValueError('kind 只能是 "step" 或 "requirement"')
+    return _adjust(track_id, fn, materials_root, community_dir, materials_index_dir, today)
+
+
+def set_note(
+    track_id: str, kind: str, item_id: str, note: str | None, *,
+    materials_root: Path | None = None, community_dir: Path | None = None,
+    materials_index_dir: Path | None = None, today: date | None = None,
+) -> dict:
+    """给步骤（kind="step"）或材料（kind="requirement"）写个人备注；note 为空表示删除备注。"""
+    if kind == "step":
+        fn = lambda g, t, v: adj.set_step_note(g, t, item_id, note)  # noqa: E731
+    elif kind == "requirement":
+        fn = lambda g, t, v: adj.set_requirement_note(g, t, item_id, note)  # noqa: E731
+    else:
+        raise ValueError('kind 只能是 "step" 或 "requirement"')
+    return _adjust(track_id, fn, materials_root, community_dir, materials_index_dir, today)
+
+
+def add_custom_step(
+    track_id: str, title: str, phase: str | None = None, after: str | None = None, where: str | None = None, *,
+    materials_root: Path | None = None, community_dir: Path | None = None,
+    materials_index_dir: Path | None = None, today: date | None = None,
+) -> dict:
+    """在这件办事里加一个自己的步骤（只存在个人区，不改共享攻略）。"""
+    return _adjust(
+        track_id, lambda g, t, v: adj.add_custom_step(g, t, title, phase, after, where),
+        materials_root, community_dir, materials_index_dir, today,
+    )
+
+
+def add_custom_material(
+    track_id: str, name: str, step: str, material_type: str | None = None, optional: bool = False, *,
+    materials_root: Path | None = None, community_dir: Path | None = None,
+    materials_index_dir: Path | None = None, today: date | None = None,
+) -> dict:
+    """在某个步骤下加一项自己的材料；名字能被词表认出时会自动匹配材料库。"""
+    return _adjust(
+        track_id, lambda g, t, v: adj.add_custom_material(g, t, v, name, step, material_type, optional),
+        materials_root, community_dir, materials_index_dir, today,
+    )
+
+
+def add_pitfall(
+    track_id: str, text: str, *,
+    materials_root: Path | None = None, community_dir: Path | None = None,
+    materials_index_dir: Path | None = None, today: date | None = None,
+) -> dict:
+    """记一条避坑点到这件办事右侧的核对清单（1–300 字）。"""
+    from uuid import uuid4
+
+    clean = (text or "").strip()
+    if not clean or len(clean) > 300:
+        raise ValueError("避坑点要 1–300 字")
+
+    def fn(g, t, v):
+        t.pitfalls.append(Pitfall(id=f"p-{uuid4().hex[:8]}", text=clean))
+
+    return _adjust(track_id, fn, materials_root, community_dir, materials_index_dir, today)
