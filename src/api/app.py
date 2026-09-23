@@ -365,6 +365,10 @@ class DoneUpdate(BaseModel):
     done: bool
 
 
+class DeadlineUpdate(BaseModel):
+    deadline: date | None
+
+
 class MatchUpdate(BaseModel):
     confirmed: bool
 
@@ -487,6 +491,14 @@ def create_track_endpoint(payload: TrackCreate) -> TrackView:
 @app.get("/api/tracks/{track_id}", response_model=TrackView)
 def get_track(track_id: str) -> TrackView:
     return _track_view(_load_track_or_404(track_id))
+
+
+@app.put("/api/tracks/{track_id}/deadline", response_model=TrackView)
+def update_track_deadline(track_id: str, payload: DeadlineUpdate) -> TrackView:
+    """设置或清除这件事的截止日期（倒排时间的输入）；见 core.tracks 的"状态计算"。"""
+    track = _load_track_or_404(track_id)
+    track.deadline = payload.deadline
+    return _save_track(track)
 
 
 @app.put("/api/tracks/{track_id}/facts/{fact}", response_model=TrackView)
