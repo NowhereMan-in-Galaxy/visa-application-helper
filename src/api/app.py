@@ -15,7 +15,19 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from config import MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
+from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
+from core.guides import Guide, GuideLoadResult, load_all_guides
+from core.material_types import Vocabulary, VocabularyError, load_vocabulary
+from core.tracks import (
+    Track,
+    TrackNotFoundError,
+    TrackView,
+    compute_track_view,
+    create_track,
+    load_track,
+    load_tracks,
+    save_track,
+)
 from core.models import (
     MaterialCategory,
     MaterialRecord,
@@ -281,6 +293,222 @@ def update_travel_history_entry(index: int, entry: TravelHistoryCreate) -> Perso
     profile.travel_history[index] = TravelHistoryEntry(**entry.model_dump())
     save_personal_profile(materials_root, profile)
     return profile
+
+
+# ---------- 流程攻略（共享区）+ 我的办事（个人区），见 specs/002-guide-to-track ----------
+#
+# 攻略、词表、Track 每次请求都重新读文件：文件都很小，这样改完 YAML 刷新页面就能看到效果，
+# 不用重启服务——这对"大家共同维护攻略"的贡献者尤其重要。
+
+
+class GuideSummary(BaseModel):
+    id: str
+    file: str
+    title: str | None
+    category: str | None
+    summary: str | None
+    updated: date | None
+    requirement_count: int
+    step_count: int
+    valid: bool
+    errors: list[str]
+
+
+class GuideDetail(BaseModel):
+    summary: GuideSummary
+    # 用一个"空的、没保存的 Track"算出来的预览：还没开始办，就能看到你已经有哪些材料
+    preview: TrackView | None
+
+
+class TrackSummary(BaseModel):
+    id: str
+    title: str
+    guide_id: str
+    created: date
+    deadline: date | None
+    progress_ready: int | None
+    progress_total: int | None
+    next_step_title: str | None
+    error: str | None
+
+
+class TrackCreate(BaseModel):
+    guide: str
+    title: str | None = None
+    deadline: date | None = None
+
+
+class FactUpdate(BaseModel):
+    value: str | None
+
+
+class DoneUpdate(BaseModel):
+    done: bool
+
+
+class MatchUpdate(BaseModel):
+    confirmed: bool
+
+
+def _vocabulary() -> Vocabulary:
+    try:
+        return load_vocabulary(COMMUNITY_DIR / "material_types.yaml")
+    except VocabularyError as e:
+        raise HTTPException(status_code=500, detail=f"共享词表有错误：{e}") from e
+
+
+def _guide_results() -> tuple[Vocabulary, list[GuideLoadResult]]:
+    vocab = _vocabulary()
+    return vocab, load_all_guides(COMMUNITY_DIR / "guides", vocab)
+
+
+def _summarize(result: GuideLoadResult) -> GuideSummary:
+    g = result.guide
+    return GuideSummary(
+        id=g.id if g else result.path.stem,
+        file=f"community/guides/{result.path.name}",
+        title=g.title if g else None,
+        category=g.category if g else None,
+        summary=g.summary if g else None,
+        updated=g.updated if g else None,
+        requirement_count=len(g.requirements) if g else 0,
+        step_count=len(g.steps) if g else 0,
+        valid=result.valid,
+        errors=result.errors,
+    )
+
+
+def _valid_guide(guide_id: str) -> tuple[Vocabulary, Guide]:
+    vocab, results = _guide_results()
+    for r in results:
+        if r.path.stem == guide_id:
+            if not r.valid:
+                raise HTTPException(status_code=422, detail=f"攻略 {guide_id} 没有通过校验：" + "；".join(r.errors))
+            return vocab, r.guide
+    raise HTTPException(status_code=404, detail=f"没有找到攻略：{guide_id}")
+
+
+def _track_view(track: Track) -> TrackView:
+    vocab, guide = _valid_guide(track.guide)
+    records = load_material_records(MATERIALS_INDEX_DIR)
+    return compute_track_view(guide, track, records, vocab, date.today())
+
+
+def _load_track_or_404(track_id: str) -> Track:
+    try:
+        return load_track(get_materials_root(), track_id)
+    except TrackNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"没有找到这件办事：{track_id}") from e
+
+
+@app.get("/api/guides", response_model=list[GuideSummary])
+def list_guides() -> list[GuideSummary]:
+    _, results = _guide_results()
+    return [_summarize(r) for r in results]
+
+
+@app.get("/api/guides/{guide_id}", response_model=GuideDetail)
+def get_guide(guide_id: str) -> GuideDetail:
+    vocab, results = _guide_results()
+    for r in results:
+        if r.path.stem == guide_id:
+            preview = None
+            if r.valid:
+                blank = Track(id="preview", guide=r.guide.id, title=r.guide.title, created=date.today())
+                records = load_material_records(MATERIALS_INDEX_DIR)
+                preview = compute_track_view(r.guide, blank, records, vocab, date.today())
+            return GuideDetail(summary=_summarize(r), preview=preview)
+    raise HTTPException(status_code=404, detail=f"没有找到攻略：{guide_id}")
+
+
+@app.get("/api/tracks", response_model=list[TrackSummary])
+def list_tracks() -> list[TrackSummary]:
+    summaries = []
+    for track in load_tracks(get_materials_root()):
+        base = dict(id=track.id, title=track.title, guide_id=track.guide, created=track.created, deadline=track.deadline)
+        try:
+            view = _track_view(track)
+        except HTTPException as e:
+            # 攻略被删了或改坏了：这件办事照样列出来，只是标上原因，不让它从列表里"凭空消失"
+            summaries.append(TrackSummary(**base, progress_ready=None, progress_total=None, next_step_title=None, error=e.detail))
+            continue
+        next_title = next((s.title for s in view.steps if s.id == view.next_step), None)
+        summaries.append(TrackSummary(
+            **base, progress_ready=view.progress_ready, progress_total=view.progress_total,
+            next_step_title=next_title, error=None,
+        ))
+    return summaries
+
+
+@app.post("/api/tracks", response_model=TrackView)
+def create_track_endpoint(payload: TrackCreate) -> TrackView:
+    _, guide = _valid_guide(payload.guide)
+    title = payload.title.strip() if payload.title and payload.title.strip() else None
+    track = create_track(get_materials_root(), guide, date.today(), title=title, deadline=payload.deadline)
+    return _track_view(track)
+
+
+@app.get("/api/tracks/{track_id}", response_model=TrackView)
+def get_track(track_id: str) -> TrackView:
+    return _track_view(_load_track_or_404(track_id))
+
+
+@app.put("/api/tracks/{track_id}/facts/{fact}", response_model=TrackView)
+def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackView:
+    track = _load_track_or_404(track_id)
+    _, guide = _valid_guide(track.guide)
+    if fact not in guide.facts:
+        raise HTTPException(status_code=404, detail=f"这份攻略没有问题 {fact}")
+    if payload.value is None:
+        track.facts.pop(fact, None)
+    elif payload.value not in guide.facts[fact].options:
+        raise HTTPException(status_code=422, detail=f"{payload.value!r} 不是这个问题的选项")
+    else:
+        track.facts[fact] = payload.value
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.put("/api/tracks/{track_id}/steps/{step}", response_model=TrackView)
+def update_track_step(track_id: str, step: str, payload: DoneUpdate) -> TrackView:
+    track = _load_track_or_404(track_id)
+    _, guide = _valid_guide(track.guide)
+    if not any(s.id == step for s in guide.steps):
+        raise HTTPException(status_code=404, detail=f"这份攻略没有步骤 {step}")
+    done = [s for s in track.done_steps if s != step]
+    track.done_steps = done + [step] if payload.done else done
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.put("/api/tracks/{track_id}/checks/{check}", response_model=TrackView)
+def update_track_check(track_id: str, check: str, payload: DoneUpdate) -> TrackView:
+    track = _load_track_or_404(track_id)
+    _, guide = _valid_guide(track.guide)
+    if not any(c.id == check for c in guide.checks):
+        raise HTTPException(status_code=404, detail=f"这份攻略没有核对项 {check}")
+    done = [c for c in track.done_checks if c != check]
+    track.done_checks = done + [check] if payload.done else done
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.put("/api/tracks/{track_id}/matches/{requirement}", response_model=TrackView)
+def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) -> TrackView:
+    """confirmed=true：把当前候选记录写进 matches；false：取消确认。候选由核心库算，前端不能随便指定记录。"""
+    track = _load_track_or_404(track_id)
+    if not payload.confirmed:
+        track.matches.pop(requirement, None)
+    else:
+        view = _track_view(track)
+        req = next((r for r in view.requirements if r.id == requirement), None)
+        if req is None:
+            raise HTTPException(status_code=404, detail=f"这份攻略没有需求 {requirement}")
+        if not req.records:
+            raise HTTPException(status_code=422, detail="材料库里还没有能满足这条需求的记录")
+        track.matches[requirement] = [r.id for r in req.records]
+    save_track(get_materials_root(), track)
+    return _track_view(track)
 
 
 # 前端静态页面：web/index.html 等。放在所有 /api/... 路由之后注册，
