@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
+from core.export import export_track
 from core.tracks import (
     Track,
     TrackNotFoundError,
@@ -131,6 +132,7 @@ async def _create_material(
     recommended_update_interval_days: int | None,
     recommended_update_day_of_month: int | None,
     file: UploadFile | None,
+    material_type: str | None = None,
 ) -> MaterialView:
     # 用 "类别-日期-随机后缀" 做 id：日期方便人眼在 materials_index/records/ 里按时间找到它，
     # 随机后缀保证不会跟已有记录撞 id（撞了 save_material_record 也会拒绝，不会覆盖）。
@@ -157,6 +159,7 @@ async def _create_material(
         recommended_update_interval_days=recommended_update_interval_days,
         recommended_update_day_of_month=recommended_update_day_of_month,
         file_ref=file_ref,
+        material_type=material_type,
     )
     try:
         save_material_record(MATERIALS_INDEX_DIR, record)
@@ -509,6 +512,78 @@ def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) ->
         track.matches[requirement] = [r.id for r in req.records]
     save_track(get_materials_root(), track)
     return _track_view(track)
+
+
+class ExportResponse(BaseModel):
+    folder: str
+    copied: list[str]
+    missing_files: list[str]
+    pending: list[str]
+
+
+@app.post("/api/tracks/{track_id}/requirements/{requirement}/upload", response_model=TrackView)
+async def upload_for_requirement(
+    track_id: str,
+    requirement: str,
+    file: UploadFile = File(...),
+    obtained_date: date | None = Form(None),
+    part: str | None = Form(None),
+    sublabel: str | None = Form(None),
+) -> TrackView:
+    """在办事页面直接为一条缺失/过期的需求上传材料：新建一条材料记录（进个人材料库，别的办事也能复用），
+    并在材料凑齐时自动确认给这条需求。组合类型（例如护照全部页）要用 part 指明上传的是哪一部分。"""
+    track = _load_track_or_404(track_id)
+    vocab, _ = _valid_guide(track.guide)
+    view = _track_view(track)
+    req = next((r for r in view.requirements if r.id == requirement), None)
+    if req is None:
+        raise HTTPException(status_code=404, detail=f"这份攻略没有需求 {requirement}")
+    if req.state == "not_applicable":
+        raise HTTPException(status_code=422, detail="这条材料对你不适用，不需要上传")
+    if req.material_type is None:
+        raise HTTPException(status_code=422, detail="词表还不认识这种材料，暂时没法归档；请先补充 community/material_types.yaml")
+    parts = vocab.types[req.material_type].parts
+    if parts:
+        if part not in parts:
+            raise HTTPException(status_code=422, detail=f"这是组合材料，请指明上传的是哪一部分：{', '.join(parts)}")
+        target_type = part
+    else:
+        target_type = req.material_type
+    mtype = vocab.types[target_type]
+
+    await _create_material(
+        belongs_to=None,
+        category=mtype.category or MaterialCategory.OTHER,
+        type_=mtype.name,
+        obtained_date=obtained_date or date.today(),
+        sublabel=sublabel.strip() if sublabel and sublabel.strip() else None,
+        validity_days=None,
+        recommended_update_interval_days=None,
+        recommended_update_day_of_month=None,
+        file=file,
+        material_type=target_type,
+    )
+
+    # 刚上传的是最新的一份：丢掉旧的确认，按最新候选重新判断；凑齐了就直接确认给这条需求
+    track.matches.pop(requirement, None)
+    refreshed = next(r for r in _track_view(track).requirements if r.id == requirement)
+    if refreshed.state == "unconfirmed":
+        track.matches[requirement] = [r.id for r in refreshed.records]
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.post("/api/tracks/{track_id}/export", response_model=ExportResponse)
+def export_track_materials(track_id: str) -> ExportResponse:
+    """把已确认（状态为"已有"）的材料复制到 <材料根目录>/exports/<办事 id>-<时间>/，附一份清单。"""
+    track = _load_track_or_404(track_id)
+    view = _track_view(track)
+    records = load_material_records(MATERIALS_INDEX_DIR)
+    result = export_track(view, records, get_materials_root(), datetime.now())
+    return ExportResponse(
+        folder=str(result.folder), copied=result.copied,
+        missing_files=result.missing_files, pending=result.pending,
+    )
 
 
 # 前端静态页面：web/index.html 等。放在所有 /api/... 路由之后注册，

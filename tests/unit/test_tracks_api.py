@@ -59,3 +59,43 @@ def test_confirm_without_candidate_rejected(client):
     tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
     # 旅行保险是材料库里不会有的东西，没有候选就不能"确认"
     assert c.put(f"/api/tracks/{tid}/matches/r-insurance", json={"confirmed": True}).status_code == 422
+
+
+@pytest.fixture
+def isolated(tmp_path, monkeypatch):
+    """材料根目录和材料索引都换成临时目录，上传不会写进真实数据。"""
+    root, index = tmp_path / "root", tmp_path / "index"
+    (index / "records").mkdir(parents=True)
+    monkeypatch.setattr(app_module, "get_materials_root", lambda: root)
+    monkeypatch.setattr(app_module, "MATERIALS_INDEX_DIR", index)
+    return TestClient(app_module.app), root, index
+
+
+def test_upload_creates_record_and_confirms(isolated):
+    c, root, index = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    v = c.post(f"/api/tracks/{tid}/requirements/r-insurance/upload",
+               files={"file": ("policy.pdf", b"%PDF x", "application/pdf")}).json()
+    r = next(q for q in v["requirements"] if q["id"] == "r-insurance")
+    assert r["state"] == "ready"
+    assert len(list((index / "records").glob("*.yaml"))) == 1
+    assert list((root / "other").glob("*.pdf"))  # 保险不属于四大类，归到 other/
+
+
+def test_upload_composite_needs_part(isolated):
+    c, _, _ = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    url = f"/api/tracks/{tid}/requirements/r-passport/upload"
+    assert c.post(url, files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 422
+    v = c.post(url, data={"part": "passport_bio_page"}, files={"file": ("a.pdf", b"x", "application/pdf")}).json()
+    r = next(q for q in v["requirements"] if q["id"] == "r-passport")
+    assert r["state"] == "missing" and {p["key"] for p in r["missing_parts"]} == {"passport_visa_page", "passport_stamped_pages"}
+
+
+def test_export_endpoint(isolated):
+    c, root, _ = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    c.post(f"/api/tracks/{tid}/requirements/r-insurance/upload", files={"file": ("p.pdf", b"%PDF x", "application/pdf")})
+    r = c.post(f"/api/tracks/{tid}/export").json()
+    assert r["copied"] == ["01-旅行保险.pdf"]
+    assert r["folder"].startswith(str(root / "exports"))
