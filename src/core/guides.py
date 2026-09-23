@@ -106,6 +106,8 @@ class Link(_Strict):
     form: str | None = None  # 填表指南 id，对应 community/forms/<id>.yaml；和 url 二选一
     applies_if: list[Condition] = []  # 例如只有"申请国 = 法国"时才显示法国官网
     evidence: list[Evidence] = []
+    # 最近一次有人（或 Agent 带浏览器）实际打开、确认是官方站点且内容对得上的日期；没核实过就留空
+    verified: date | None = None
 
 
 class Step(_Strict):

@@ -198,6 +198,14 @@ def test_link_url_scheme():
     assert_rejected(d, "http:// 或 https://")
 
 
+def test_link_verified_is_optional_date():
+    d = guide_dict(); d["steps"][0]["links"] = [{"title": "x", "url": "https://a.example", "verified": "2026-09-23"}]
+    assert Guide.model_validate(d).steps[0].links[0].verified.isoformat() == "2026-09-23"
+    d["steps"][0]["links"][0]["verified"] = "上周"
+    with pytest.raises(ValidationError):
+        Guide.model_validate(d)
+
+
 def test_link_form_must_exist_when_forms_known():
     d = guide_dict(); d["steps"][0]["links"] = [{"title": "x", "kind": "form_guide", "form": "nope"}]
     errors = validate_guide(Guide.model_validate(d), VOCAB, file_stem="demo-guide", form_ids={"other"})

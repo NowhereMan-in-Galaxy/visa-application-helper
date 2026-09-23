@@ -870,6 +870,7 @@
           href: internal ? "#/form/" + encodeURIComponent(l.form) : l.url,
           target: internal ? null : "_blank",
           rel: internal ? null : "noopener noreferrer",
+          title: internal ? null : (l.verified ? l.verified + " 已核实能打开、是官方站点" : "这个链接尚未核实，打开后请确认是官方网站"),
           text: (LINK_ICON[l.kind] || "🔗") + " " + l.title + (internal ? "" : " ↗"),
         });
       }),

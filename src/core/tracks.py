@@ -329,6 +329,7 @@ def _link_views(guide: Guide, answers: dict[str, str], step) -> list[dict]:
         views.append({
             "title": link.title, "kind": link.kind, "url": link.url, "form": link.form,
             "applies": applies, "conditions": [{"fact": c.fact, "in": c.in_} for c in link.applies_if],
+            "verified": link.verified.isoformat() if link.verified else None,
         })
     return views
 
