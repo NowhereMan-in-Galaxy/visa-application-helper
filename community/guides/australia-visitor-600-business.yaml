@@ -1,0 +1,310 @@
+# 澳大利亚 600 访客签证 · 商务类（ImmiAccount 网申 DIY）流程攻略。
+# 整理自两份资料（试验 #2，见 specs/002-guide-to-track/trials/README.md）：
+#   g1 小红书帖子「澳洲签证DIY下签🎉」——一位申请者的亲身经历（主要来源）；
+#   g2 小红书 AI 搜索对 27 篇相关帖子的总结——二手概括，可信度低一档，只用来补充 g1 没写到的内容，
+#      凡是只有 g2 支持的条目都列进 uncertain。
+# evidence 只摘录不超过 60 字的原话；不含作者或任何人的个人信息（帖子配图是作者的签证批准通知，未读取）。
+
+id: australia-visitor-600-business
+title: 澳大利亚 600 访客签证 · 商务类（网申 DIY）
+category: 签证
+summary: 持中国护照、为商务目的（开会、拜访客户、考察）申请澳洲 600 访客签证商务类，全程在 ImmiAccount 网上递交。
+maintainers: []
+updated: 2026-09-23
+timeline: 全程线上。有人提交后 2 天下签、有人 5 个工作日，时间不固定，建议提前申请；签几年由签证官决定，自己不能选。
+
+sources:
+  - id: g1
+    title: 小红书 · 澳洲签证DIY下签🎉（亲身经历）
+    url: https://www.xiaohongshu.com/explore/69a50340000000001a02331c
+    as_of: 2026-03-06
+  - id: g2
+    title: 小红书 AI 搜索总结（概括 27 篇帖子，二手资料）
+    as_of: 2026-09-23
+
+phases:
+  - id: p-account
+    title: 注册 ImmiAccount
+    mode: online
+    summary: 在澳洲内政部官网注册账号，需要邮箱验证，每次登录要输验证码。
+    evidence: [{source: g1, quote: "所有步骤都在澳洲内政部官网完成"}]
+  - id: p-materials
+    title: 准备材料
+    summary: 证件扫描、公司材料、流水和纳税记录、客户邀请函、航班和会议行程单。全部用彩色扫描件。
+    evidence: [{source: g1, quote: "以上用彩色扫描件提交PDF或jpg.图片"}]
+  - id: p-apply
+    title: 网上填表、上传、缴费
+    mode: online
+    summary: 新建 600 签证申请并选商务目的，全英文填写约 21 页表格，上传材料，在线缴费。
+    evidence: [{source: g1, quote: "如实全英文填写21页材料后，提交证明材料"}]
+  - id: p-wait
+    title: 等结果
+    mode: online
+    summary: 等待审核；第一次申请澳洲签证的人可能会被通知去采集指纹。
+    evidence: [{source: g2, quote: "但具体时间不固定，建议提前申请"}]
+
+facts:
+  first_time:
+    question: 这是你第一次申请澳洲签证吗？
+    options: [是, 否]
+  married:
+    question: 是否已婚？
+    options: [是, 否]
+  companions:
+    question: 有同行人和你一起申请吗？
+    options: [是, 否]
+
+requirements:
+  # ---- 证件 ----
+  - id: r-id-card
+    kind: obtain
+    material_type: national_id
+    raw_name: 身份证
+    note: 正反面彩色扫描
+    evidence:
+      - {source: g1, quote: "1️⃣身份证"}
+      - {source: g2, quote: "身份证明：身份证正反面、户口本整本的彩色扫描件"}
+  - id: r-hukou
+    kind: obtain
+    material_type: household_register
+    raw_name: 户口薄（整本）
+    note: 整本扫描，不要只扫自己那一页
+    evidence: [{source: g1, quote: "2️⃣户口薄（整本！、再额外填一个form54提交）"}]
+  - id: r-form54
+    kind: obtain
+    material_type: null
+    raw_name: form54
+    note: 和户口本一起提交的一张表；原资料没说明具体填法，建议核实
+    evidence: [{source: g1, quote: "再额外填一个form54提交"}]
+  - id: r-passport
+    kind: obtain
+    material_type: passport_full_copy
+    raw_name: 护照和其他国家或地区的签证及出入境盖章页
+    note: 护照有效期至少 6 个月、有空白页（这一条来自 g2）
+    evidence:
+      - {source: g1, quote: "3️⃣护照和其他国家或地区的签证及出入境盖章页"}
+      - {source: g2, quote: "护照：有效期至少6个月，有空白页"}
+  - id: r-old-passport
+    kind: obtain
+    material_type: old_passport_copy
+    raw_name: 旧护照的签证页、出入境章页
+    optional: true
+    evidence: [{source: g2, quote: "新旧护照的签证页、出入境章页都需要扫描"}]
+  - id: r-photo
+    kind: obtain
+    material_type: id_photo
+    raw_name: 白底彩色证件照
+    freshness_days: 180
+    note: 近 6 个月内拍摄
+    evidence: [{source: g2, quote: "照片：近6个月内拍摄的白底彩色证件照"}]
+  - id: r-marriage
+    kind: obtain
+    material_type: marriage_certificate
+    raw_name: 结婚证
+    optional: true
+    applies_if: [{fact: married, in: [是]}]
+    note: 用来说明国内有家庭牵挂、没有逗留意图；上传时在描述里写明
+    evidence: [{source: g1, quote: "如我帮已婚同事DIY的，上传了结婚证"}]
+
+  # ---- 公司与资金 ----
+  - id: r-employment-letter
+    kind: obtain
+    material_type: employment_letter
+    raw_name: 在职证明（英文版）
+    note: g2 称为"英文派遣函"：公司抬头纸、负责人签字和公章，写明职位、收入、准假时间、出行目的、费用承担方，并保证遵守澳洲法律按时回国
+    evidence:
+      - {source: g1, quote: "4️⃣在职证明（英文版）"}
+      - {source: g2, quote: "必须使用公司抬头纸打印，有负责人签字和公章"}
+  - id: r-business-license
+    kind: obtain
+    material_type: employer_business_license
+    raw_name: 公司营业执照副本
+    note: 加盖公章
+    evidence: [{source: g1, quote: "9️⃣公司营业执照副本，加盖公章"}]
+  - id: r-bank
+    kind: obtain
+    material_type: bank_statement
+    raw_name: 工作卡半年流水
+    note: 近 6 个月；建议留 5 万元或以上存款；看重稳定性，不要临时大额存入
+    evidence:
+      - {source: g1, quote: "5️⃣工作卡半年流水（留5W或以上存款）"}
+      - {source: g2, quote: "近6个月的个人银行流水，建议余额在5万元以上"}
+  - id: r-tax
+    kind: obtain
+    material_type: null
+    raw_name: 个人所得税纳税记录
+    evidence: [{source: g1, quote: "6️⃣个人所得税纳税记录"}]
+
+  # ---- 澳方与行程 ----
+  - id: r-invitation
+    kind: obtain
+    material_type: null
+    raw_name: 客户发的邀请函（英文）
+    note: 澳洲公司没有公章；内容要具体到开什么会、见谁、考察什么项目，不要只写"商务往来"
+    evidence:
+      - {source: g1, quote: "🔟客户发的邀请函（英文，另外澳洲没有公章）"}
+      - {source: g2, quote: "避免使用“商务往来”这类模糊的措辞"}
+  - id: r-business-proof
+    kind: obtain
+    material_type: null
+    raw_name: 商务活动证明（会议/展会确认函、注册凭证）
+    optional: true
+    evidence: [{source: g2, quote: "商务活动证明：如会议/展会确认函、注册凭证等"}]
+  - id: r-flight-itinerary
+    kind: generate
+    material_type: null
+    raw_name: 往返航班的itinerary
+    note: 英文；按大概的出发、返回日期，参考订票网站的航班信息写航班号、时间、起降航站楼
+    evidence: [{source: g1, quote: "编一个往返航班的itinerary"}]
+  - id: r-meeting-itinerary
+    kind: generate
+    material_type: itinerary
+    raw_name: 和各位客户约会议时间的itinerary
+    note: 英文，写好大概安排即可，可以让 AI 帮写
+    evidence: [{source: g1, quote: "8️⃣和各位客户约会议时间的itinerary（英文、写好大概信息，请DeepSeek帮写）"}]
+  - id: r-translations
+    kind: obtain
+    material_type: null
+    raw_name: 中文材料的英文翻译件
+    note: 只有 g2（AI 总结）提到，g1 作者没提，建议核实是否需要
+    evidence: [{source: g2, quote: "户口本、身份证等中文材料，需要提供英文翻译件"}]
+
+steps:
+  # ---- 注册 ----
+  - id: s-register
+    title: 注册 ImmiAccount 账号
+    phase: p-account
+    where: 澳洲内政部官网（ImmiAccount）
+    estimate: 需要邮箱验证；每次登录要输验证码，可以用 Authenticator 类 App
+    links:
+      - {title: ImmiAccount 登录 / 注册, kind: official, url: "https://online.immi.gov.au/lusc/login", evidence: [{source: g1, quote: "地址是：https://online.immi.gov.au/lusc/login"}]}
+      - {title: ImmiAccount 网申指南, kind: form_guide, form: immiaccount-600}
+    evidence: [{source: g1, quote: "创建一个 ImmiAccount 账号，需要邮箱验证，每次登录需要输入验证码"}]
+
+  # ---- 准备材料 ----
+  - id: s-scan-ids
+    title: 彩色扫描身份证、户口本、护照和证件照
+    phase: p-materials
+    where: 家里 / 打印店
+    requirements: [r-id-card, r-hukou, r-passport, r-old-passport, r-photo, r-marriage]
+    evidence: [{source: g1, quote: "以上用彩色扫描件提交PDF或jpg.图片"}]
+  - id: s-form54
+    title: 填写 form54
+    phase: p-materials
+    requirements: [r-form54]
+    evidence: [{source: g1, quote: "再额外填一个form54提交"}]
+  - id: s-employer-docs
+    title: 找公司开英文在职证明、要盖章的营业执照副本
+    phase: p-materials
+    where: 公司
+    requirements: [r-employment-letter, r-business-license]
+    evidence: [{source: g1, quote: "4️⃣在职证明（英文版）"}]
+  - id: s-bank
+    title: 打工资卡近半年流水
+    phase: p-materials
+    where: 银行
+    requirements: [r-bank]
+    evidence: [{source: g1, quote: "5️⃣工作卡半年流水（留5W或以上存款）"}]
+  - id: s-tax
+    title: 导出个人所得税纳税记录
+    phase: p-materials
+    requirements: [r-tax]
+    evidence: [{source: g1, quote: "6️⃣个人所得税纳税记录"}]
+  - id: s-invitation
+    title: 请澳洲客户出具英文邀请函
+    phase: p-materials
+    where: 澳方邀请公司
+    requirements: [r-invitation, r-business-proof]
+    evidence: [{source: g1, quote: "🔟客户发的邀请函（英文，另外澳洲没有公章）"}]
+  - id: s-itineraries
+    title: 写往返航班行程和会议行程（英文，可让 AI 帮写）
+    phase: p-materials
+    requirements: [r-flight-itinerary, r-meeting-itinerary]
+    depends_on: [s-invitation]
+    evidence: [{source: g1, quote: "编一个往返航班的itinerary"}]
+  - id: s-translate
+    title: 准备中文材料的英文翻译件
+    phase: p-materials
+    requirements: [r-translations]
+    depends_on: [s-scan-ids]
+    evidence: [{source: g2, quote: "所有中文材料需配翻译"}]
+
+  # ---- 网申 ----
+  - id: s-new-application
+    title: 新建申请：Visitor Visa (600)，选商务目的
+    phase: p-apply
+    where: ImmiAccount → New Application
+    depends_on: [s-register]
+    links:
+      - {title: ImmiAccount 网申指南, kind: form_guide, form: immiaccount-600}
+    evidence: [{source: g1, quote: "找到“Visitor Visa (600)”，并选择business目的"}]
+  - id: s-fill-form
+    title: 全英文如实填写申请表（约 21 页）
+    phase: p-apply
+    where: ImmiAccount
+    depends_on: [s-new-application]
+    evidence: [{source: g1, quote: "如实全英文填写21页材料后，提交证明材料"}]
+  - id: s-group
+    title: 为同行人用同一账号提交申请并关联 group
+    phase: p-apply
+    where: ImmiAccount
+    applies_if: [{fact: companions, in: [是]}]
+    depends_on: [s-fill-form]
+    evidence: [{source: g1, quote: "如有同行人，用一个账号提交多份申请即可"}]
+  - id: s-upload
+    title: 上传证明材料
+    phase: p-apply
+    where: ImmiAccount
+    estimate: 文件名照抄系统自带的名字；描述里写上自己没有逗留意图的理由
+    depends_on: [s-fill-form, s-scan-ids, s-form54, s-employer-docs, s-bank, s-tax, s-invitation, s-itineraries, s-translate]
+    evidence: [{source: g1, quote: "文件名按系统自带的名字照抄，描述写自己无逗留意图的话"}]
+  - id: s-pay
+    title: 在线缴费
+    phase: p-apply
+    where: ImmiAccount
+    estimate: 原帖作者付了 200 澳币，以官网当时价格为准
+    depends_on: [s-upload]
+    evidence: [{source: g1, quote: "费用200澳币"}]
+
+  # ---- 等结果 ----
+  - id: s-biometrics
+    title: 如收到通知，去指定地点采集指纹和照片
+    phase: p-wait
+    applies_if: [{fact: first_time, in: [是]}]
+    depends_on: [s-pay]
+    evidence: [{source: g2, quote: "如果你是第一次申请澳洲签证，可能会收到邮件通知"}]
+  - id: s-wait
+    title: 等待下签（电子签证）
+    phase: p-wait
+    where: 无需操作，留意邮箱
+    depends_on: [s-pay]
+    evidence:
+      - {source: g1, quote: "2月25提交27号下签"}
+      - {source: g2, quote: "有用户分享5个工作日就下签了"}
+
+checks:
+  - id: c-letters
+    text: 在职证明（派遣函）和澳方邀请函里的访问目的、时间、人物必须完全对得上
+    involves: [r-employment-letter, r-invitation]
+    evidence: [{source: g2, quote: "中方派遣函和澳方邀请函的内容（如访问目的、时间、人物）必须完全对得上"}]
+  - id: c-itineraries
+    text: 航班行程、会议行程和邀请函上的日期要能相互印证
+    involves: [r-flight-itinerary, r-meeting-itinerary, r-invitation]
+    evidence: [{source: g2, quote: "派遣函、邀请函、行程单等文件的信息要能相互印证"}]
+  - id: c-bank
+    text: 流水里不要有为申请签证临时存入的大额款项
+    involves: [r-bank]
+    evidence: [{source: g2, quote: "不要为了申请签证而临时大额转账或存款"}]
+  - id: c-no-stay
+    text: 上传材料的描述里写清楚自己没有逗留意图（工作、家庭等回国理由）
+    involves: [r-employment-letter, r-marriage]
+    evidence: [{source: g1, quote: "描述写自己无逗留意图的话"}]
+
+conflicts: []
+
+uncertain:
+  - r-form54.note            # form54 是什么、怎么填，原帖只有一句话
+  - r-translations           # 只有 AI 总结提到需要翻译件，原帖作者没提
+  - r-photo                  # 证件照只有 AI 总结提到，原帖清单里没有
+  - s-biometrics             # "可能会收到通知"，来自 AI 总结
+  - s-pay.estimate           # 费用会调整，以官网为准
