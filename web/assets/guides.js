@@ -598,6 +598,9 @@
           (function () {
             var phaseById = {};
             v.phases.forEach(function (p, i) { phaseById[p.id] = { p: p, i: i }; });
+            // 每个阶段最后一个可见步骤的 id：给该阶段的"＋ 加一步"当 after，让新步骤总是插到这个阶段末尾
+            var lastStepInPhase = {};
+            visibleSteps.forEach(function (s) { if (s.phase) lastStepInPhase[s.phase] = s.id; });
             var items = [];
             var lastPhase = null;
             visibleSteps.forEach(function (s) {
@@ -607,15 +610,25 @@
                   "li",
                   { class: "phase-heading", id: "phase-" + ph.p.id },
                   el("span", { text: "第 " + (ph.i + 1) + " 阶段 · " + ph.p.title }),
-                  MODE_LABEL[ph.p.mode] ? el("span", { class: "mode " + ph.p.mode, text: MODE_LABEL[ph.p.mode] }) : null
+                  MODE_LABEL[ph.p.mode] ? el("span", { class: "mode " + ph.p.mode, text: MODE_LABEL[ph.p.mode] }) : null,
+                  readonly ? null : addStepButton(v, ph.p.id, lastStepInPhase[ph.p.id])
                 ));
                 lastPhase = s.phase;
               }
               items.push(stepItem(s, v, { readonly: readonly, reqById: reqById, stepById: stepById, factsByKey: factsByKey, anchored: anchored }));
             });
+            // 没有阶段的攻略：在整个步骤列表末尾放同样的"＋ 加一步"
+            if (!v.phases.length && !readonly) {
+              items.push(el(
+                "li",
+                { class: "add-row" },
+                addStepButton(v, null, visibleSteps.length ? visibleSteps[visibleSteps.length - 1].id : null)
+              ));
+            }
             return items;
           })()
-        )
+        ),
+        readonly ? null : hiddenItemsBlock(v)
       )
     );
 
@@ -877,6 +890,271 @@
     return bits;
   }
 
+  // ---------- 个人调整：⋯ 菜单 / 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏 ----------
+  // （specs/002-guide-to-track/tasks-parallel-3.md 任务 F；只在办事页出现，攻略预览页 readonly 时不构造这些控件）
+
+  // 关闭所有已展开的 ⋯ 菜单；同时把"确认删除？"重置回原文字。挂在 document 上，点菜单之外的任何地方都会触发。
+  function closeAllMenus() {
+    document.querySelectorAll(".menu").forEach(function (m) {
+      resetConfirms(m);
+      m.hidden = true;
+    });
+  }
+
+  function resetConfirms(menu) {
+    menu.querySelectorAll("[data-confirming]").forEach(function (b) {
+      delete b.dataset.confirming;
+      b.textContent = b.dataset.label;
+    });
+  }
+
+  // 一个 "⋯" 按钮 + 一份下拉菜单；同一时间只开一个（点开时先关掉别的），点菜单外任意处会经冒泡关闭。
+  function kebabMenu(items) {
+    var menu = el("div", { class: "menu", hidden: true }, items);
+    var toggle = el("button", {
+      type: "button",
+      class: "kebab",
+      "aria-haspopup": "true",
+      "aria-expanded": "false",
+      "aria-label": "更多操作",
+      text: "⋯",
+      onclick: function (ev) {
+        ev.stopPropagation(); // 否则这次点击会冒泡到 document，立刻把刚打开的菜单又关掉
+        var opening = menu.hidden;
+        closeAllMenus();
+        menu.hidden = !opening;
+        toggle.setAttribute("aria-expanded", opening ? "true" : "false");
+      },
+    });
+    return el("div", { class: "menu-wrap" }, toggle, menu);
+  }
+
+  function menuButton(label, onclick) {
+    return el("button", { type: "button", class: "menu-item", text: label, onclick: function () { onclick(); } });
+  }
+
+  // "删除"按钮：第一次点变成"确认删除？"，第二次点才真的发请求；不用 window.confirm。
+  function confirmDeleteButton(label, doDelete) {
+    var btn = el("button", { type: "button", class: "menu-item danger", text: label });
+    btn.dataset.label = label;
+    btn.addEventListener("click", function (ev) {
+      ev.stopPropagation(); // 第一次点击不能让它冒泡到 document 把"确认删除？"状态重置掉
+      if (!btn.dataset.confirming) {
+        btn.dataset.confirming = "1";
+        btn.textContent = "确认删除？";
+        return;
+      }
+      btn.disabled = true;
+      showError("");
+      doDelete()
+        .then(drawTrack)
+        .catch(function (e) {
+          showError(e.message);
+          btn.disabled = false;
+          delete btn.dataset.confirming;
+          btn.textContent = label;
+        });
+    });
+    return btn;
+  }
+
+  // 步骤/材料的个人备注：浅色便签，点它或点菜单里的"加备注"进入编辑；保存空内容 = 删除备注。
+  // kind 是 "steps" 或 "requirements"，对应 PUT /api/tracks/{id}/notes/<kind>/<id>。
+  function noteBlock(v, kind, id, note) {
+    var display = el("button", { type: "button", class: "note-chip", hidden: !note }, "我的备注：" + (note || ""));
+    var input = el("input", { type: "text", maxlength: "500", value: note || "", "aria-label": "备注内容" });
+    var form = el(
+      "form",
+      {
+        class: "note-edit",
+        hidden: true,
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          update(v, "/notes/" + kind + "/" + encodeURIComponent(id), { note: input.value });
+        },
+      },
+      input,
+      el("button", { type: "submit", text: "保存" }),
+      el("button", { type: "button", text: "取消", onclick: function () { closeEdit(); } })
+    );
+    function openEdit() {
+      input.value = note || "";
+      display.hidden = true;
+      form.hidden = false;
+      input.focus();
+    }
+    function closeEdit() {
+      form.hidden = true;
+      display.hidden = !note;
+    }
+    display.addEventListener("click", openEdit);
+    return { node: el("div", { class: "note-wrap" }, display, form), open: openEdit };
+  }
+
+  // 自己加的步骤/材料的"改名"：行内输入框 + 保存/取消。field 是 "title"（步骤）或 "name"（材料）。
+  function renameBlock(v, path, field, current) {
+    var input = el("input", { type: "text", maxlength: "100", value: current, "aria-label": "新名称" });
+    var form = el(
+      "form",
+      {
+        class: "rename-edit",
+        hidden: true,
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          if (!input.value.trim()) return;
+          var body = {};
+          body[field] = input.value;
+          update(v, path, body);
+        },
+      },
+      input,
+      el("button", { type: "submit", text: "保存" }),
+      el("button", { type: "button", text: "取消", onclick: function () { form.hidden = true; } })
+    );
+    return {
+      node: form,
+      open: function () {
+        input.value = current;
+        form.hidden = false;
+        input.focus();
+      },
+    };
+  }
+
+  // 阶段末尾/无阶段攻略末尾的"＋ 加一步"：点开行内表单，提交 POST /custom-steps。
+  function addStepButton(v, phaseId, afterId) {
+    var titleInput = el("input", { type: "text", required: true, maxlength: "100", placeholder: "步骤名称", "aria-label": "新步骤名称" });
+    var whereInput = el("input", { type: "text", maxlength: "100", placeholder: "地点（可选）", "aria-label": "地点" });
+    var submit = el("button", { type: "submit", text: "添加" });
+    var toggle;
+    var form = el(
+      "form",
+      {
+        class: "add-inline",
+        hidden: true,
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          if (!titleInput.value.trim()) return;
+          submit.disabled = true;
+          showError("");
+          request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-steps", {
+            title: titleInput.value,
+            phase: phaseId || null,
+            after: afterId || null,
+            where: whereInput.value.trim() || null,
+          })
+            .then(drawTrack)
+            .catch(function (e) {
+              submit.disabled = false;
+              showError(e.message);
+            });
+        },
+      },
+      titleInput,
+      whereInput,
+      submit,
+      el("button", {
+        type: "button",
+        text: "取消",
+        onclick: function () {
+          form.hidden = true;
+          toggle.hidden = false;
+          titleInput.value = "";
+          whereInput.value = "";
+        },
+      })
+    );
+    toggle = el("button", {
+      type: "button",
+      class: "linkish",
+      text: "＋ 加一步",
+      onclick: function () {
+        toggle.hidden = true;
+        form.hidden = false;
+        titleInput.focus();
+      },
+    });
+    return el("span", { class: "add-inline-wrap" }, toggle, form);
+  }
+
+  // 步骤的材料列表末尾的"＋ 加材料"：点开行内表单，提交 POST /custom-materials。
+  function addMaterialButton(v, stepId) {
+    var nameInput = el("input", { type: "text", required: true, maxlength: "100", placeholder: "材料名称", "aria-label": "新材料名称" });
+    var bonus = el("input", { type: "checkbox" });
+    var submit = el("button", { type: "submit", text: "添加" });
+    var toggle;
+    var form = el(
+      "form",
+      {
+        class: "add-inline",
+        hidden: true,
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          if (!nameInput.value.trim()) return;
+          submit.disabled = true;
+          showError("");
+          request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-materials", {
+            name: nameInput.value,
+            step: stepId,
+            optional: bonus.checked,
+          })
+            .then(drawTrack)
+            .catch(function (e) {
+              submit.disabled = false;
+              showError(e.message);
+            });
+        },
+      },
+      nameInput,
+      el("label", { class: "bonus-label" }, bonus, "加分项"),
+      submit,
+      el("button", {
+        type: "button",
+        text: "取消",
+        onclick: function () {
+          form.hidden = true;
+          toggle.hidden = false;
+          nameInput.value = "";
+          bonus.checked = false;
+        },
+      })
+    );
+    toggle = el("button", {
+      type: "button",
+      class: "linkish",
+      text: "＋ 加材料",
+      onclick: function () {
+        toggle.hidden = true;
+        form.hidden = false;
+        nameInput.focus();
+      },
+    });
+    return el("div", { class: "add-inline-wrap" }, toggle, form);
+  }
+
+  // 步骤面板底部："已隐藏 N 项"，默认折叠，展开后每项一行 + 恢复按钮。
+  function hiddenItemsBlock(v) {
+    if (!v.hidden_items.length) return null;
+    return el(
+      "details",
+      { class: "hidden-items" },
+      el("summary", { text: "已隐藏 " + v.hidden_items.length + " 项" }),
+      el(
+        "ul",
+        null,
+        v.hidden_items.map(function (item) {
+          var path = "/hidden/" + (item.kind === "step" ? "steps/" : "requirements/") + encodeURIComponent(item.id);
+          return el(
+            "li",
+            null,
+            el("span", { text: (item.kind === "step" ? "步骤：" : "材料：") + item.title }),
+            el("button", { type: "button", text: "恢复", onclick: function () { update(v, path, { hidden: false }); } })
+          );
+        })
+      )
+    );
+  }
+
   function stepItem(s, v, ctx) {
     var cls = "step" + (s.id === v.next_step ? " is-next" : "") + (s.done ? " is-done" : "") + (s.applies === "undecided" ? " is-undecided" : "");
     var tick = el("button", {
@@ -900,10 +1178,30 @@
       if (waiting.length) blocked = el("div", { class: "blocked", text: "要先完成：" + waiting.join("、") });
     }
 
+    var note = ctx.readonly ? null : noteBlock(v, "steps", s.id, s.user_note);
+    var rename = !ctx.readonly && s.custom ? renameBlock(v, "/custom-steps/" + encodeURIComponent(s.id), "title", s.title) : null;
+    var menu = null;
+    if (!ctx.readonly) {
+      var menuItems = [
+        menuButton("加备注", note.open),
+        menuButton("隐藏这一步", function () { update(v, "/hidden/steps/" + encodeURIComponent(s.id), { hidden: true }); }),
+      ];
+      if (s.custom) {
+        menuItems.push(menuButton("改名", rename.open));
+        menuItems.push(confirmDeleteButton("删除", function () {
+          return request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-steps/" + encodeURIComponent(s.id));
+        }));
+      }
+      menu = kebabMenu(menuItems);
+    }
+
     var mats = s.requirements
       .map(function (rid) { return ctx.reqById[rid]; })
       .filter(function (r) { return r && r.state !== "not_applicable"; })
       .map(function (r) { return materialItem(r, v, ctx); });
+    var matsBlock = mats.length || !ctx.readonly
+      ? el("div", { class: "mats" }, mats, ctx.readonly ? null : addMaterialButton(v, s.id))
+      : null;
 
     return el(
       "li",
@@ -912,11 +1210,18 @@
       el(
         "div",
         null,
-        el("div", { class: "step-title", text: s.title }),
+        el(
+          "div",
+          { class: "step-head" },
+          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null),
+          menu
+        ),
         el("div", { class: "step-meta" }, stepMeta(s)),
         linksBlock(s, ctx.factsByKey),
         blocked,
-        mats.length ? el("div", { class: "mats" }, mats) : null,
+        note ? note.node : null,
+        rename ? rename.node : null,
+        matsBlock,
         evidenceBlock(s.evidence, v.sources)
       )
     );
@@ -948,6 +1253,23 @@
     if (r.type_unresolved) hints.push(el("div", { class: "mat-note", text: "词表还不认识这个叫法，暂时没法自动对上你的材料。" }));
     if (r.state === "undecided") hints.push(el("div", { class: "mat-note", text: "取决于你的回答：" + conditionText(r.conditions, ctx.factsByKey) }));
 
+    var note = ctx.readonly ? null : noteBlock(v, "requirements", r.id, r.user_note);
+    var rename = !ctx.readonly && r.custom ? renameBlock(v, "/custom-materials/" + encodeURIComponent(r.id), "name", r.name) : null;
+    var menu = null;
+    if (!ctx.readonly) {
+      var menuItems = [
+        menuButton("加备注", note.open),
+        menuButton("隐藏这项材料", function () { update(v, "/hidden/requirements/" + encodeURIComponent(r.id), { hidden: true }); }),
+      ];
+      if (r.custom) {
+        menuItems.push(menuButton("改名", rename.open));
+        menuItems.push(confirmDeleteButton("删除", function () {
+          return request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-materials/" + encodeURIComponent(r.id));
+        }));
+      }
+      menu = kebabMenu(menuItems);
+    }
+
     return el(
       "div",
       { class: "mat", id: id },
@@ -958,9 +1280,13 @@
         el("span", { class: "mat-name", text: r.name }),
         r.raw_name && r.raw_name !== r.name ? el("span", { class: "mat-raw", text: "攻略写作「" + r.raw_name + "」" }) : null,
         KIND_LABEL[r.kind] ? el("span", { class: "badge" + (r.kind === "generate" ? " ai" : ""), text: KIND_LABEL[r.kind] }) : null,
-        r.optional ? el("span", { class: "badge", text: "加分项" }) : null
+        r.optional ? el("span", { class: "badge", text: "加分项" }) : null,
+        r.custom ? el("span", { class: "badge custom", text: "我加的" }) : null,
+        menu
       ),
       r.note ? el("div", { class: "mat-note", text: r.note }) : null,
+      note ? note.node : null,
+      rename ? rename.node : null,
       hints,
       records,
       !ctx.readonly && (r.state === "missing" || r.state === "stale") && !r.type_unresolved ? uploadForm(r, v) : null,
@@ -1151,6 +1477,9 @@
       )
     );
   }
+
+  // 点"⋯"菜单之外的任何地方都关掉已展开的菜单（点菜单按钮本身时会 stopPropagation，不会跑到这里）
+  document.addEventListener("click", closeAllMenus);
 
   document.getElementById("today").textContent = "今天 " + todayIso();
   window.addEventListener("hashchange", function () {

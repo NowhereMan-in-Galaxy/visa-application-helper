@@ -272,3 +272,35 @@ form.pit-add { display: flex; gap: 6px; margin-top: 10px; }
 form.pit-add input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 13px; }
 form.pit-add button { padding: 4px 10px; font-size: 12px; }
 .state-optional { background: #ececec; color: var(--muted); }
+
+/* ---- 个人调整：⋯ 菜单 / 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏（specs/002-guide-to-track/tasks-parallel-3.md 任务 F） ---- */
+.step-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.badge.custom { border-color: var(--green); color: var(--green); }
+
+.menu-wrap { position: relative; flex: none; }
+.kebab { border: 1px solid var(--line); padding: 2px 8px; font-size: 14px; line-height: 1; background: var(--paper-2); }
+.menu { position: absolute; top: 100%; right: 0; z-index: 5; display: grid; min-width: 130px; background: var(--paper-2); border: 1px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.menu-item { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line-soft); padding: 8px 12px; font-size: 13px; background: var(--paper-2); }
+.menu-item:last-child { border-bottom: 0; }
+.menu-item:hover { background: #eef0e4; }
+.menu-item.danger { color: var(--danger); }
+.mat-top .menu-wrap { margin-left: auto; }
+
+.note-wrap { margin-top: 6px; }
+.note-chip { display: inline-block; background: var(--amber-soft); border: 1px solid #dccb9f; color: var(--amber); padding: 4px 10px; font-size: 12px; text-align: left; }
+.note-edit, .rename-edit { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.note-edit input, .rename-edit input { flex: 1; min-width: 160px; padding: 5px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 12px; }
+.note-edit button, .rename-edit button { padding: 4px 10px; font-size: 12px; }
+
+.add-inline-wrap { margin-left: auto; font-size: 12px; }
+form.add-inline { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+form.add-inline input[type=text] { padding: 5px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 12px; }
+form.add-inline button { padding: 4px 10px; font-size: 12px; }
+.bonus-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.add-row { list-style: none; padding: 10px 20px; border-bottom: 1px solid var(--line-soft); }
+
+.hidden-items { margin: 10px 20px 16px; font-size: 12px; color: var(--muted); }
+.hidden-items summary { cursor: pointer; }
+.hidden-items ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.hidden-items li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line-soft); padding: 6px 10px; background: #fff; }
+.hidden-items button { padding: 3px 10px; font-size: 12px; }
