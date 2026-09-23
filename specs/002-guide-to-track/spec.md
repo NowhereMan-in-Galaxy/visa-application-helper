@@ -257,7 +257,8 @@ types:
   `.claude/skills/errand-helper/SKILL.md`（问答，写操作先复述确认）；官网填表指引仍待 Phase D。
 - **B2 本地 MCP 服务：已实现。** `src/agent_tools/mcp_server.py`（官方 `mcp` SDK，stdio 传输）注册了
   `list_guides`、`get_guide`、`list_tracks`、`get_track`、`set_fact`、`set_step_done`、`confirm_match`、
-  `validate_community` 八个工具，逻辑在 `src/agent_tools/tools.py`（直接调用 `src/core`，不经过
+  `validate_community`，以及个人调整用的 `set_hidden`、`set_note`、`add_custom_step`、`add_custom_material`、
+  `add_pitfall`（2026-09-23 新增，与网页共用 `core/adjustments.py`）共十三个工具，逻辑在 `src/agent_tools/tools.py`（直接调用 `src/core`，不经过
   HTTP）；仓库根目录 `.mcp.json` 已配置好项目级 MCP server。不提供删除、不提供读取材料文件内容的工具。
 - B3 界面里的"问 Agent"：本地服务调起用户自己安装的 Agent CLI，结果流式显示在页面上。**尚未实现**，
   需要先完成下方"B3 的安全前提"。
