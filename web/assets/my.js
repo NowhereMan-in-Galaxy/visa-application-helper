@@ -46,7 +46,13 @@
 
   // 原生 replaceChildren / append 会把 null 当成文字 "null" 显示出来，统一经过这里过滤掉空值
   function setView() {
-    var nodes = Array.prototype.slice.call(arguments).filter(function (n) { return n !== null && n !== undefined && n !== false; });
+    // 和 el() 的子节点规则一致：数组展开一层，空值跳过（原生方法会把数组/null 变成字符串显示出来）
+    var nodes = [];
+    Array.prototype.slice.call(arguments).forEach(function (n) {
+      (Array.isArray(n) ? n : [n]).forEach(function (c) {
+        if (c !== null && c !== undefined && c !== false) nodes.push(c);
+      });
+    });
     view.replaceChildren.apply(view, nodes);
   }
 
