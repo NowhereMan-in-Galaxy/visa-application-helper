@@ -76,6 +76,10 @@ class MaterialRecord(BaseModel):
 
     sublabel: str | None = None
 
+    # 属于共享词表（community/material_types.yaml）里的哪个标准类型，见 specs/002 数据结构 §4。
+    # 留空时匹配代码用 `type` 字段去词表里推断，所以老记录不用补这个字段也能被匹配上。
+    material_type: str | None = None
+
 
 class TravelHistoryEntry(BaseModel):
     """PersonalProfile.travel_history 里的一条出行记录（spec.md Key Entities）。
