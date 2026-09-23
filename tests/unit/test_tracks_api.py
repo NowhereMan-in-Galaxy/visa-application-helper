@@ -247,3 +247,34 @@ def test_pitfall_text_validation(client):
     tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
     assert c.post(f"/api/tracks/{tid}/pitfalls", json={"text": "   "}).status_code == 422
     assert c.post(f"/api/tracks/{tid}/pitfalls", json={"text": "字" * 301}).status_code == 422
+
+
+# ---- 个人调整接口 ----
+
+def test_adjustment_endpoints_round_trip(isolated):
+    c, _, index = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    base = f"/api/tracks/{tid}"
+    v = c.put(f"{base}/hidden/steps/s-insurance", json={"hidden": True}).json()
+    assert {"kind": "step", "id": "s-insurance", "title": "买申根旅行保险"} in v["hidden_items"]
+    v = c.put(f"{base}/notes/requirements/r-bank", json={"note": "要柜台打印"}).json()
+    assert next(r for r in v["requirements"] if r["id"] == "r-bank")["user_note"] == "要柜台打印"
+    v = c.post(f"{base}/custom-steps", json={"title": "办存款证明", "phase": "p-materials"}).json()
+    cs = next(s for s in v["steps"] if s["custom"])
+    assert c.put(f"{base}/steps/{cs['id']}", json={"done": True}).status_code == 200  # 自己加的步骤也能勾
+    v = c.post(f"{base}/custom-materials", json={"name": "邀请函", "step": cs["id"]}).json()
+    cm = next(r for r in v["requirements"] if r["custom"])
+    # 词表不认识的自己加的材料：上传后按名字建记录并直接确认
+    v = c.post(f"{base}/requirements/{cm['id']}/upload", files={"file": ("inv.pdf", b"%PDF", "application/pdf")}).json()
+    assert next(r for r in v["requirements"] if r["id"] == cm["id"])["state"] == "ready"
+    v = c.delete(f"{base}/custom-steps/{cs['id']}").json()
+    assert not any(s["custom"] for s in v["steps"])
+    assert c.get(base).json()["hidden_items"]  # 其余调整仍然在
+
+
+def test_adjustment_errors_are_422(isolated):
+    c, _, _ = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    assert c.put(f"/api/tracks/{tid}/hidden/steps/s-nope", json={"hidden": True}).status_code == 422
+    assert c.post(f"/api/tracks/{tid}/custom-steps", json={"title": "  "}).status_code == 422
+    assert c.delete(f"/api/tracks/{tid}/custom-steps/s-bank").status_code == 422
