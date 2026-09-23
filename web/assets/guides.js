@@ -1304,12 +1304,14 @@
   // 自动识别没认出来时（例如签证页和盖章页扫在同一份 PDF 里），让用户自己从材料库里挑。
   // 组合材料每一部分各挑一份；挑过的类型会被记住，下次自动识别。
   function pickForm(r, v) {
-    if (!myRecords.length) return null;
+    // 可选的只有：长期资料 + 这件办事自己的专用材料（别的办事的专用材料不出现）
+    var usable = myRecords.filter(function (m) { return !m.for_track || m.for_track === v.id; });
+    if (!usable.length) return null;
     var slots = r.parts.length ? r.parts : [{ key: r.material_type, name: r.name }];
     var toggleText = r.state === "ready" ? "换一份" : "从我的资料里选";
     var box = el("form", { class: "pick", hidden: true });
     var groups = {};
-    myRecords.forEach(function (m) { (groups[m.category] = groups[m.category] || []).push(m); });
+    usable.forEach(function (m) { (groups[m.category] = groups[m.category] || []).push(m); });
     var selects = slots.map(function (slot, i) {
       var current = r.records.length === slots.length ? r.records[i].id : "";
       var sel = el(
@@ -1357,9 +1359,13 @@
     }
     var fileInput = el("input", { type: "file", name: "file", required: true, "aria-label": "选择文件：" + r.name });
     var dateInput = el("input", { type: "date", name: "obtained_date", title: "开具/取得日期，不填默认今天" });
+    // 长期资料 vs 本次专用：按词表规则预先勾好（证件、流水等长期材料勾上；行程单、邀请函等一次性材料不勾）
+    var keepBox = el("input", { type: "checkbox", name: "keep" });
+    keepBox.checked = !!r.default_keep;
+    var keepLabel = el("label", { class: "keep", title: "勾上：放进「我的资料」，以后别的办事也能用；不勾：只属于这件办事" }, keepBox, " 放进我的资料（以后还会用）");
     var btn = el("button", { type: "submit", text: r.state === "stale" ? "上传新的一份" : "上传" });
     // 原生 append 会把 null 当成文字 "null" 插进去，所以先过滤掉不需要的控件
-    [el("span", { text: r.state === "stale" ? "重新开好了？" : "手上有了？" }), select, fileInput, el("label", null, "取得日期 ", dateInput), btn]
+    [el("span", { text: r.state === "stale" ? "重新开好了？" : "手上有了？" }), select, fileInput, el("label", null, "取得日期 ", dateInput), keepLabel, btn]
       .filter(Boolean)
       .forEach(function (node) { form.append(node); });
     form.addEventListener("submit", function (ev) {
@@ -1369,6 +1375,7 @@
       fd.set("file", fileInput.files[0]);
       if (dateInput.value) fd.set("obtained_date", dateInput.value);
       if (select) fd.set("part", select.value);
+      fd.set("keep", keepBox.checked ? "true" : "false");
       btn.disabled = true;
       showError("");
       uploadRequest("/api/tracks/" + encodeURIComponent(v.id) + "/requirements/" + encodeURIComponent(r.id) + "/upload", fd)

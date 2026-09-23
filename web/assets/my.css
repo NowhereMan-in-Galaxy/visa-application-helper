@@ -118,3 +118,11 @@ form.travel-form input {
   label.search { margin-left: 0; width: 100%; }
   label.search input { flex: 1; min-width: 0; }
 }
+
+/* 办事专用的材料（折叠分组） */
+details.one-off { border-top: 1px solid var(--line); padding: 12px 20px; font-size: 13px; }
+details.one-off summary { cursor: pointer; color: var(--muted); }
+.one-off-group { margin-top: 12px; }
+.one-off-title { font-weight: 600; margin-bottom: 4px; }
+.one-off-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.one-off-row button { margin-left: auto; padding: 3px 10px; font-size: 12px; }

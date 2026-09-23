@@ -126,9 +126,15 @@
       request("GET", "/api/materials/usage"),
       request("GET", "/api/material-types"),
       request("GET", "/api/personal-profile"),
+      request("GET", "/api/tracks"),
     ])
       .then(function (results) {
-        data.materials = results[0];
+        // 长期资料 vs 本次专用：页面上的统计、筛选、"需要处理"只看长期资料；
+        // 只属于某件办事的一次性材料放进下面单独的折叠分组
+        data.materials = results[0].filter(function (m) { return !m.for_track; });
+        data.oneOff = results[0].filter(function (m) { return !!m.for_track; });
+        data.trackTitles = {};
+        results[4].forEach(function (t) { data.trackTitles[t.id] = t.title; });
         data.usage = results[1];
         data.types = results[2];
         data.profile = results[3];
@@ -568,7 +574,46 @@
       { class: "panel" },
       el("div", { class: "panel-head" }, el("h2", { text: "材料库" }), countLabel),
       el("div", { class: "toolbar" }, chips, el("label", { class: "search" }, "搜索", searchInput)),
-      listContainer
+      listContainer,
+      oneOffSection()
+    );
+  }
+
+  // 本次专用的材料：按所属办事分组，默认折叠；需要的话可以一键转为长期资料
+  function oneOffSection() {
+    if (!data.oneOff || !data.oneOff.length) return null;
+    var groups = {};
+    data.oneOff.forEach(function (m) { (groups[m.for_track] = groups[m.for_track] || []).push(m); });
+    return el(
+      "details",
+      { class: "one-off" },
+      el("summary", { text: "办事专用的材料（" + data.oneOff.length + "）——只属于某一件办事，不会被别的办事用到" }),
+      Object.keys(groups).map(function (tid) {
+        return el(
+          "div",
+          { class: "one-off-group" },
+          el("div", { class: "one-off-title", text: data.trackTitles[tid] || tid + "（这件办事已不存在）" }),
+          groups[tid].map(function (m) {
+            return el(
+              "div",
+              { class: "one-off-row" },
+              el("span", { text: m.type + (m.sublabel ? "（" + m.sublabel + "）" : "") }),
+              el("small", { class: "muted", text: (m.obtained_date || "未填日期") + " · " + (m.file_ref ? "有文件" : "没有文件") }),
+              el("button", {
+                type: "button",
+                text: "转为长期资料",
+                title: "以后别的办事也能用到这份材料",
+                onclick: function () {
+                  showError("");
+                  request("PATCH", "/api/materials/" + encodeURIComponent(m.id), { for_track: null })
+                    .then(reload)
+                    .catch(function (e) { showError(e.message); });
+                },
+              })
+            );
+          })
+        );
+      })
     );
   }
 

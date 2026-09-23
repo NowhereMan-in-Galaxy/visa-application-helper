@@ -304,3 +304,7 @@ form.add-inline button { padding: 4px 10px; font-size: 12px; }
 .hidden-items ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .hidden-items li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid var(--line-soft); padding: 6px 10px; background: #fff; }
 .hidden-items button { padding: 3px 10px; font-size: 12px; }
+
+/* 上传框里的"放进我的资料" */
+form.upload label.keep { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); cursor: pointer; }
+form.upload label.keep input { accent-color: var(--green); }
