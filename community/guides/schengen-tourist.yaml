@@ -9,12 +9,18 @@ category: 签证
 summary: 持中国大陆护照、按身份（学生/在职/退休/自由职业/无业）准备申根 C 类旅游签的材料和步骤
 maintainers: []
 updated: 2026-09-23
+# 导出时按原清单的固定编号命名（export_name 里已带编号），组合材料会自动追加"-部分名"
+export_pattern: "{name}"
 timeline: 递签后通常 15 天左右出签，最长约 45 天；建议出行前至少提前 1–1.5 个月递签。
 
 sources:
   - id: g1
     title: schengen-visa-guide · 申根签证材料清单
     url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/checklist.md
+    as_of: 2025-07-01
+  - id: g2
+    title: schengen-visa-guide · 申根签申请国对比（各国官网直链）
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/country-notes.md
     as_of: 2025-07-01
 
 phases:
@@ -38,6 +44,9 @@ phases:
     evidence: [{source: g1, quote: "递签后通常 15 天左右出签，最长可能 45 天"}, {source: g1, quote: "建议出行前至少提前 1-1.5 个月递签"}]
 
 facts:
+  country:
+    question: 你打算向哪个国家递签？（行程里停留最久的国家）
+    options: [法国, 意大利, 西班牙, 德国, 瑞士, 荷兰, 其他]
   identity:
     question: 你目前的身份是？
     options: [在校学生, 在职, 退休, 自由职业, 无业]
@@ -61,6 +70,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 护照原件 + 所有面复印件 ×2 份
+    export_name: 01-护照复印件
     optional: false
     applies_if: []
     freshness_days: null
@@ -70,6 +80,7 @@ requirements:
     kind: obtain
     material_type: old_passport_copy
     raw_name: 旧护照复印件
+    export_name: 02-旧护照复印件
     optional: true
     applies_if: []
     freshness_days: null
@@ -79,6 +90,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 身份证原件 + 复印件
+    export_name: 03-身份证复印件
     optional: false
     applies_if: []
     freshness_days: null
@@ -88,6 +100,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 户口本整本复印件
+    export_name: 04-户口本复印件
     optional: false
     applies_if: []
     freshness_days: null
@@ -97,6 +110,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 两寸白底证件照
+    export_name: 05-证件照
     optional: false
     applies_if: []
     freshness_days: null
@@ -108,6 +122,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 中英文在读证明
+    export_name: 06-在读证明
     optional: false
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
@@ -117,6 +132,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 学生证原件 + 复印件
+    export_name: 07-学生证
     optional: false
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
@@ -126,6 +142,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 学信网中英文学籍证明
+    export_name: 08-学信网学籍证明
     optional: false
     applies_if: [{fact: identity, in: [在校学生]}]
     freshness_days: null
@@ -137,6 +154,7 @@ requirements:
     kind: obtain
     material_type: employment_letter
     raw_name: 在职证明
+    export_name: 06-在职证明
     optional: false
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
@@ -146,6 +164,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 营业执照副本复印件
+    export_name: 07-营业执照复印件
     optional: false
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
@@ -155,6 +174,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 近 6 个月工资流水
+    export_name: 08-工资流水
     optional: false
     applies_if: [{fact: identity, in: [在职]}]
     freshness_days: null
@@ -166,6 +186,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 退休证原件 + 复印件
+    export_name: 06-退休证
     optional: false
     applies_if: [{fact: identity, in: [退休]}]
     freshness_days: null
@@ -175,6 +196,7 @@ requirements:
     kind: obtain
     material_type: pension_statement
     raw_name: 退休金流水
+    export_name: 07-退休金流水
     optional: false
     applies_if: [{fact: identity, in: [退休]}]
     freshness_days: null
@@ -186,6 +208,7 @@ requirements:
     kind: generate
     material_type: null
     raw_name: 收入来源说明
+    export_name: 06-收入来源说明
     optional: false
     applies_if: [{fact: identity, in: [自由职业, 无业]}]
     freshness_days: null
@@ -197,6 +220,7 @@ requirements:
     kind: obtain
     material_type: sponsor_documents
     raw_name: 出资人材料（出资人流水 + 出资人在职证明/身份证复印件）
+    export_name: 10-出资人材料
     optional: false
     applies_if: [{fact: sponsored, in: [是]}]
     freshness_days: null
@@ -206,6 +230,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 亲属关系公证 + 海牙认证
+    export_name: 10-亲属关系公证
     optional: false
     applies_if: [{fact: sponsored, in: [是]}, {fact: sponsor_same_hukou, in: [否]}]
     freshness_days: null
@@ -217,6 +242,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 出生医学证明公证 + 海牙认证（Apostille）
+    export_name: 06-出生医学证明公证
     optional: false
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
@@ -226,6 +252,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 父母双方同意出行委托书公证 + 海牙认证
+    export_name: 07-父母同意出行委托书公证
     optional: false
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
@@ -235,6 +262,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 父母身份及关系材料
+    export_name: 08-父母身份及关系材料
     optional: false
     applies_if: [{fact: minor, in: [是]}]
     freshness_days: null
@@ -246,6 +274,7 @@ requirements:
     kind: obtain
     material_type: travel_insurance
     raw_name: 旅行保险
+    export_name: 09-旅行保险
     optional: false
     applies_if: []
     freshness_days: null
@@ -255,6 +284,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 最近 3-6 个月银行流水
+    export_name: 10-银行流水
     optional: false
     applies_if: []
     freshness_days: null
@@ -264,6 +294,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 房产证 / 车辆登记证复印件
+    export_name: 11-房产车辆证明
     optional: true
     applies_if: []
     freshness_days: null
@@ -275,6 +306,7 @@ requirements:
     kind: generate
     material_type: itinerary
     raw_name: 行程单
+    export_name: 12-行程单
     optional: false
     applies_if: []
     freshness_days: null
@@ -284,6 +316,7 @@ requirements:
     kind: obtain
     material_type: flight_reservation
     raw_name: 机票预订单
+    export_name: 13-机票预订单
     optional: false
     applies_if: []
     freshness_days: null
@@ -293,6 +326,7 @@ requirements:
     kind: obtain
     material_type: hotel_reservation
     raw_name: 酒店预订单
+    export_name: 14-酒店预订单
     optional: false
     applies_if: []
     freshness_days: null
@@ -304,6 +338,7 @@ requirements:
     kind: obtain
     material_type: null
     raw_name: 结婚证复印件 + 英文翻译件
+    export_name: 15-结婚证及英文翻译件
     optional: false
     applies_if: [{fact: married, in: [是]}]
     freshness_days: null
@@ -313,6 +348,7 @@ requirements:
     kind: generate
     material_type: cover_letter
     raw_name: 解释信
+    export_name: 16-解释信
     optional: false
     applies_if: []
     freshness_days: null
@@ -322,6 +358,7 @@ requirements:
     kind: output
     material_type: visa_application_form
     raw_name: 签证申请表
+    export_name: 17-签证申请表
     optional: false
     applies_if: []
     freshness_days: null
@@ -331,6 +368,7 @@ requirements:
     kind: output
     material_type: appointment_confirmation
     raw_name: 签证中心预约单
+    export_name: 18-签证中心预约单
     optional: false
     applies_if: []
     freshness_days: null
@@ -351,6 +389,18 @@ steps:
   - id: s-appointment
     title: 网上填申请表并预约签证中心
     phase: p-online
+    links:
+      - {title: France-Visas 填申请表, kind: official, url: "https://france-visas.gouv.fr/zh", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "先在 France-Visas 填表获取 FV 编号：https://france-visas.gouv.fr/zh"}]}
+      - {title: TLScontact 预约递签, kind: official, url: "https://visas-fr.tlscontact.cn", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "再到 TLScontact 预约递签：https://visas-fr.tlscontact.cn"}]}
+      - {title: 法国填表指南, kind: form_guide, form: france-visas, applies_if: [{fact: country, in: [法国]}]}
+      - {title: VFS Global 意大利, kind: official, url: "https://visa.vfsglobal.com/chn/zh/ita", applies_if: [{fact: country, in: [意大利]}], evidence: [{source: g2, quote: "预约网站：https://visa.vfsglobal.com/chn/zh/ita"}]}
+      - {title: 意大利填表指南, kind: form_guide, form: italy-vfs, applies_if: [{fact: country, in: [意大利]}]}
+      - {title: BLS 西班牙（填表 + 预约）, kind: official, url: "https://web.blscn.cn", applies_if: [{fact: country, in: [西班牙]}], evidence: [{source: g2, quote: "填表 + 预约：https://web.blscn.cn"}]}
+      - {title: VFS Global 德国, kind: official, url: "https://visa.vfsglobal.com/chn/zh/deu", applies_if: [{fact: country, in: [德国]}]}
+      - {title: VFS Global 瑞士, kind: official, url: "https://visa.vfsglobal.com/chn/zh/che", applies_if: [{fact: country, in: [瑞士]}]}
+      - {title: VFS Global 荷兰, kind: official, url: "https://visa.vfsglobal.com/chn/zh/nld", applies_if: [{fact: country, in: [荷兰]}]}
+      - {title: TLScontact 荷兰, kind: official, url: "https://cn.tlscontact.com", applies_if: [{fact: country, in: [荷兰]}]}
+      - {title: 全部申根国签证中心网址（原资料）, kind: info, url: "https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/country-notes.md", applies_if: [{fact: country, in: [其他]}]}
     where: 申请国签证官网 + TLScontact / VFS / BLS
     requirements: [r-application-form, r-appointment]
     depends_on: [s-choose-country]
@@ -534,6 +584,7 @@ checks:
 conflicts: []
 
 uncertain:
+  - s-appointment.links            # 原资料里荷兰同时列了 VFS 和 TLScontact 两个网址，以荷兰使领馆官网为准
   - r-flight.note                  # "德国等部分领区"要求已付款机票，取决于申请国/领区，攻略未给完整名单
   - r-sponsor-docs.raw_name        # 攻略在"在职"和"自由职业/无业"两处对出资人材料的描述不同，这里合并成一条
   - s-bank.requirements            # r-salary / r-pension 只对部分身份生效，被挂在同一个步骤上
