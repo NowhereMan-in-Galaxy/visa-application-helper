@@ -24,9 +24,10 @@ description: 用户想把一篇或多篇杂乱的攻略（文字、截图描述�
    `timeline`、`sources`、`phases`、`facts`、`requirements`、`steps`、`checks`、`conflicts`、`uncertain`）。
    `id` 只能是小写字母、数字和连字符，且必须和文件名（不含扩展名）一致。
 
-3. **材料叫法先查词表**：`raw_name` 填原始资料里的原叫法；只有它（忽略大小写和首尾空格后）与
-   `material_types.yaml` 里某个 `alias` 完全相同，才填对应的 `material_type`；对不上就把
-   `material_type` 留空（null）。
+3. **材料叫法先查词表**：`raw_name` 填原始资料里的原叫法。词表的匹配规则是：先按
+   `material_types.yaml` 顶部的 `normalize` 删掉"原件""复印件""近 N 个月"等修饰，再忽略大小写和
+   空白后与某个 `alias` 或标准名完全相等。能对上的可以填 `material_type`（也可以留空让程序自动推断）；
+   对不上就留空（null）。第 5 步的校验命令会列出"N 条材料叫法词表认不出"，以它为准。
 
 4. **词表认不出的叫法，不要自己改词表**：先把这些"建议归入哪个已有 key，或者建议新增什么 key
    （包括建议的 `name`/`aliases`/`category`）"整理成一段清单，在回复正文里（不是写进 YAML 文件）
