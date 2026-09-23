@@ -264,7 +264,10 @@
 
   function attentionPanel() {
     var items = sortMaterials(
-      data.materials.filter(function (m) { return m.status === "已过期" || m.status === "即将过期" || m.status === "待补"; })
+      // 示例记录只是演示格式，不提醒用户去处理
+      data.materials.filter(function (m) {
+        return m.id.indexOf("example-") !== 0 && (m.status === "已过期" || m.status === "即将过期" || m.status === "待补");
+      })
     );
     if (!items.length) return null;
     return el(
