@@ -63,12 +63,22 @@ category: 签证                           # 签证 | 工作 | 社保 | 银行�
 summary: 一句话说明适用范围              # 可选
 maintainers: []                          # 可选；GitHub 用户名，不写真实姓名
 updated: 2026-09-23                      # 这份攻略最后一次被修订的日期
+timeline: 递签后通常 15 天出签；建议提前 1–1.5 个月递签   # 可选；一句话说明全程要多久，显示在页面最上方
 
 sources:                                 # 这份攻略是从哪些原始资料整理出来的
   - id: g1
     title: 上海送签日本单次旅游签全流程
     url: https://example.com/post/123    # 可选，仅 http/https
     as_of: 2026-05-01                    # 可选；原始资料的信息时效。距今超过 365 天时界面提示"可能过时"
+
+phases:                                  # 可选但强烈建议；整件事的几个大阶段，显示为页面最上方的进度条
+  - id: p-online                         # 大多数签证都是：官网填表/预约（线上）→ 准备材料 → 递交（线上或线下）→ 等结果
+    title: 官网填表并预约
+    mode: online                         # online | offline | 不写（不明确时）
+    summary: 在官网填申请表，再预约递签时间   # 可选
+    estimate: 1–2 小时                    # 可选，自由文本
+    duration_days: null                  # 可选；需要等待的天数 {typical, max}
+    evidence: []                         # 可选
 
 facts:                                   # 会改变清单内容的问题。攻略里只有问题，没有答案
   identity:
@@ -90,6 +100,7 @@ requirements:
 steps:
   - id: s-bank
     title: 去银行打流水
+    phase: p-materials                   # 定义了 phases 时必填
     where: 线下 · 任意支行柜台
     requirements: [r-bank]
     depends_on: []
@@ -126,6 +137,7 @@ uncertain: [r-bank.note]                 # 整理者没把握的字段路径，�
 - `applies_if[].fact`、`ask_if[].fact` 必须是 `facts` 里的键，`in` 里每个值必须在该 fact 的 `options` 里；`ask_if` 不能引用自己。
 - `duration_days` 非 null 时 `typical`、`max` 为正整数且 `typical <= max`。
 - `sources[].url` 非空时必须以 `http://` 或 `https://` 开头。
+- 定义了 `phases` 时：每个 step 必须写 `phase` 且引用存在的阶段；每个阶段至少有一个 step；`phases[].mode` 只能是 `online` / `offline` 或不写。
 
 ### 2. 我的办事：`<材料根目录>/tracks/<track-id>.yaml`
 
@@ -190,6 +202,8 @@ types:
 
 **进度** = `ready` 需求数 / (非 optional 且状态不是 `not_applicable`、`undecided` 的需求数)。
 
+**阶段状态**：阶段内生效的步骤全部完成 → `done`；"下一步"落在这个阶段 → `current`；没有生效的步骤 → `skipped`；其余 → `upcoming`。没有"下一步"时（问题没答完或全部做完），第一个 `upcoming` 的阶段改为 `current`，保证进度条上总能看出走到了哪。
+
 ## 分阶段计划
 
 ### Phase A：结构落地 + 可交互检视（当前）
@@ -200,19 +214,50 @@ types:
   - `GET /api/guides/{id}` → 完整攻略 + 每条需求的标准材料名。
   - `GET /api/tracks`、`POST /api/tracks`（body: `guide`、可选 `title`、`deadline`）。
   - `GET /api/tracks/{id}` → 合并后的视图：facts（含是否要问）、需求（含状态、候选记录）、步骤（含是否生效/完成/可做）、下一步、进度、checks、conflicts、`stale_sources`。
+  - `POST /api/tracks/{id}/requirements/{requirement}/upload`（multipart：`file` 必填；可选 `obtained_date` 默认今天、`part` 组合类型必填、`sublabel`）→ 新建一条材料记录进个人材料库（`material_type` 为需求的类型或所选 part；`category` 取词表，词表为 null 时用新增的 `other`），丢弃该需求旧的确认，材料凑齐时自动确认。
+  - `POST /api/tracks/{id}/export` → 把状态为 `ready` 的材料**复制**到 `<材料根目录>/exports/<track-id>-<YYYYMMDD-HHMMSS>/`（已存在则加 `-2`…），文件名 `<两位序号>-<需求名>[-<部分名>]<原后缀>`，附 `清单.txt`（已导出 / 已确认但找不到文件 / 还没备齐）。`file_ref` 解析后不在材料根目录内的一律拒绝复制。
   - `PUT /api/tracks/{id}/facts/{fact}`（body: `value`，null 表示清除）、`PUT /api/tracks/{id}/steps/{step}`（body: `done`）、`PUT /api/tracks/{id}/matches/{requirement}`（body: `confirmed`，true 写入当前候选，false 删除）、`PUT /api/tracks/{id}/checks/{check}`（body: `done`）。
 - 前端 `web/guides.html`：攻略库列表 → 攻略预览 → "开始办这件事" → 我的办事详情（回答问题、勾步骤、确认材料、最终核对）。
 - 命令行校验：`PYTHONPATH=src uv run python -m core.guides`（仓库根目录运行）校验 `community/` 下全部内容，有错误时退出码非 0（给贡献者和将来的 CI 用）。
 
-### Phase B：本地 Agent 辅助贡献
-- 把 `prompt.md` 打包成可安装的 Agent skill（Claude Code / Codex 通用），贡献者在本机用自己的 Agent 把攻略整理成 `community/guides/*.yaml`，跑命令行校验，再提 PR。
-- 认不出的材料叫法：Agent 给出归类建议，贡献者确认后写进词表。
+### Phase B：Agent 接入（分三级，逐级做，见下方"Agent 接入方案"）
+- B1 项目自带 Agent 指令（skills）：整理攻略、问答、官网填表。
+- B2 本地 MCP 服务：把"读攻略 / 读写我的办事 / 上传材料"做成 Agent 能调用的工具。
+- B3 界面里的"问 Agent"：本地服务调起用户自己安装的 Agent CLI，结果流式显示在页面上。
 - **不在应用里内嵌模型 API**（原 Phase C 方案作废）：Agent 能力来自用户自己本地的 Agent，应用本身不需要 API key、不产生模型费用，也不会把任何内容发给第三方。
+
+### Phase D：官网填表指引（见下方"官网填表指引"）
 
 ### Phase C：体验打磨
 - 倒排时间（按 `deadline` 和 `duration_days`、`freshness_days` 算每一步最晚/最早什么时候做）。
 - 材料库每条记录显示"被哪些 Track 用到"。
 - 工作台首页整合 Track 列表，替代 localStorage 版"新建办事"。
+
+## Agent 接入方案（2026-09-23 定方向，B1 → B2 → B3 逐级实现）
+
+Agent 在这个项目里要做三件事：①把杂乱攻略整理成流程攻略；②回答"我这种情况要不要交 X"之类的问题；③在官网上辅助填表。它们都需要"理解"能力，属于 Agent 层；应用本身只提供数据和确定性操作。
+
+| 级别 | 用户怎么用 | 应用要提供什么 | 代价 / 风险 |
+|---|---|---|---|
+| **B1 项目自带指令** | 在项目文件夹里打开自己的 Claude Code / Codex，说"帮我把这篇攻略整理成流程"，Agent 按项目里的 skill 工作 | `.claude/skills/<名字>/SKILL.md`（需要把 `.gitignore` 里的 `.claude/` 改成只忽略非 skills 部分）；`AGENTS.md` 里写入口说明 | 零基础设施；但要切到终端，不够顺 |
+| **B2 本地 MCP 服务** | 同上，但 Agent 不再直接改 YAML，而是调用"列出攻略 / 读我的办事 / 确认材料 / 上传"等工具 | 一个 MCP server，复用 `src/core` 和现有 API 的逻辑；只暴露必要操作，不暴露删除 | Agent 操作变得可靠、可校验；Claude Code、Codex、Cursor 等都能接 |
+| **B3 界面里"问 Agent"** | 在办事页面点"问 Agent"，输入问题，回答直接显示在页面里 | 本地服务用子进程调起用户已安装、已登录的 Agent CLI 的非交互模式（例如 Claude Code 的 `claude -p`，只放行 B2 的 MCP 工具），把输出流式推给页面 | 最顺；用的是用户自己的订阅/额度，应用仍不持有任何 key。**安全前提见下** |
+
+B3 的安全前提（实现 B3 之前必须先做）：
+- 本地服务目前没有任何鉴权，**任何网页都可以向 `127.0.0.1:8000` 发请求**（跨站请求伪造，CSRF）。现有写接口已经有这个问题；"调起 Agent"风险更高。实现 B3 前先加：只接受来自本页面的请求（启动时生成随机 token，页面带 token 调用；校验 `Origin`）。
+- Agent 只能用白名单里的工具；任何写文件、上传、提交表单的动作都要在页面上由用户点确认。
+- 在 B3 做好之前，页面上可以先放"复制给 Agent"按钮：把当前办事的上下文（攻略 id、下一步、缺哪些材料）拼成一段提示词，用户粘贴到自己的 Agent 里。
+
+## 官网填表指引（Phase D，方向已定，数据结构待细化）
+
+观察：大多数签证流程都是"官网填表"+"准备材料"两大块，区别只在递交是线上还是线下。材料这一块由现有的流程攻略负责；填表这一块新增**填表指引**：`community/forms/<form-id>.yaml`，被攻略里的步骤引用（step 新增可选字段 `form: <form-id>`）。
+
+填表指引记录的是**表单的结构**，不含任何人的答案：官网地址；按页面顺序列出每个字段——页面上的原文标签、中文解释、该怎么填（例如"按护照上的拼音填，姓在前"）、答案来自哪里（个人资料的哪个字段 / 哪个 fact / 需要自己写）、常见坑。
+
+怎么得到这份结构：
+- **人工看网页源代码不可行**：签证表单通常要登录、分很多页、字段随前面的回答动态出现，源代码里看到的是一堆标记，不是填表流程。
+- **推荐由 Agent 带着浏览器走一遍**（呼应 `docs/SPEC-mvp.md` 第 2 条"探索一次、复用多次"）：用户自己登录官网，Agent 逐页读字段、记录结构，写成填表指引；**只记结构，不记录用户填的任何值**；到签名、付款、提交之前一律停下。记录一次，所有人复用。
+- 之后的"辅助填表"（MVP 第 2 项）在同一份指引上工作：读用户本机的个人资料，逐页填入，提交前让用户确认。
 
 ## Phase A 验收标准
 
@@ -231,5 +276,6 @@ types:
 ## 待决问题（不要擅自决定，先提方案）
 
 - **`where` 随某个 fact 变化**（例如申请国不同，预约网站不同）：暂不支持，观察更多攻略后再定。
+- **填表指引的具体字段**：Phase D 开始时，先用一个真实官网（候选：澳大利亚 ImmiAccount 访客签证 600、法国 France-Visas）走一遍，再定格式。
 - **攻略版本**：攻略被修订后，已有 Track 是否要提示"攻略有更新"、是否允许锁定旧版本。Phase A 只做"忽略已不存在的条目"。
 - **个人材料索引的位置**：`materials_index/records/` 目前在仓库里（只含元数据）。项目转为公开的共同维护仓库后，个人材料索引应迁出到材料根目录，否则每个贡献者都会把自己的材料元数据提交上来。迁移方案单独讨论。
