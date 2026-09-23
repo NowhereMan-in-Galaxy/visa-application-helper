@@ -126,3 +126,52 @@ details.one-off summary { cursor: pointer; color: var(--muted); }
 .one-off-title { font-weight: 600; margin-bottom: 4px; }
 .one-off-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
 .one-off-row button { margin-left: auto; padding: 3px 10px; font-size: 12px; }
+
+/* ---- 基本信息（specs/003-personal-profile）：按分组折叠的表单，表单由 /api/personal-profile/fields 生成 ---- */
+.profile-intro { margin: 0 0 16px; font-size: 13px; max-width: 760px; }
+details.pgroup > summary { cursor: pointer; list-style: none; }
+details.pgroup > summary::-webkit-details-marker { display: none; }
+details.pgroup > summary h2::before { content: "▸"; display: inline-block; width: 1.2em; color: var(--muted); }
+details.pgroup[open] > summary h2::before { content: "▾"; }
+details.pgroup:not([open]) > summary { border-bottom: 0; }
+details.pgroup + details.pgroup { margin-top: 12px; }
+
+form.pf-form { padding: 16px 20px 18px; }
+.pf-note { margin: 0 0 12px; font-size: 12px; }
+.pf-grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-items: start; }
+.pf-grid > .wide, .pf-grid > .pf-object { grid-column: 1 / -1; }
+
+.pf-field { display: grid; gap: 4px; font-size: 13px; min-width: 0; }
+.pf-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
+.badge.sens { border-color: var(--amber); color: var(--amber); background: var(--amber-soft); }
+.pf-form input[type=text], .pf-form input[type=date], .pf-form select, .pf-form textarea {
+  width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--line); background: #fffef9;
+  font: inherit; font-size: 13px; color: inherit;
+}
+.pf-form textarea { resize: vertical; }
+
+fieldset.pf-object { border: 1px dashed var(--line); padding: 10px 14px 14px; margin: 0; min-width: 0; }
+fieldset.pf-object legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+
+.pf-list { border-top: 1px dashed var(--line-soft); padding-top: 10px; display: grid; gap: 8px; min-width: 0; }
+.pf-list-head { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.pf-list-head small { font-weight: 400; }
+.pf-item { border: 1px solid var(--line); background: #fbfaf4; padding: 10px 14px 14px; min-width: 0; }
+.pf-item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.pf-text-item { display: flex; gap: 8px; align-items: center; max-width: 480px; }
+.pf-text-item input { flex: 1; }
+button.pf-add { justify-self: start; padding: 4px 12px; font-size: 12px; border-style: dashed; }
+
+.pf-actions { margin-top: 16px; flex-wrap: wrap; }
+.pf-actions button.primary { padding: 6px 16px; font-size: 13px; }
+.pf-status { font-size: 12px; color: var(--green); }
+.pf-status.error { color: var(--danger); }
+
+@media (max-width: 650px) {
+  form.pf-form { padding: 12px 14px 14px; }
+  .pf-grid { grid-template-columns: 1fr; }
+  .pf-text-item { max-width: none; }
+  fieldset.pf-object, .pf-item { padding: 8px 10px 12px; }
+  .tabs { overflow-x: auto; }
+  .tabs .tab { padding: 8px 12px; white-space: nowrap; }
+}
