@@ -106,3 +106,40 @@ def test_track_summary_has_category_and_elapsed(client):
     c.post("/api/tracks", json={"guide": "schengen-tourist"})
     t = c.get("/api/tracks").json()[0]
     assert t["category"] == "签证" and t["elapsed_days"] == 0 and t["completed"] is None
+
+
+# ---- 倒排时间：PUT /api/tracks/{id}/deadline（spec 002 Phase C 第一条）----
+
+
+def test_set_deadline_computes_latest_start(client):
+    c, _ = client
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    v = c.put(f"/api/tracks/{tid}/deadline", json={"deadline": "2026-12-01"}).json()
+    assert v["deadline"] == "2026-12-01"
+    wait = next(s for s in v["steps"] if s["id"] == "s-wait")
+    assert wait["latest_start"] == "2026-10-17"
+    wait_phase = next(p for p in v["phases"] if p["id"] == "p-wait")
+    assert wait_phase["latest_finish"] == "2026-12-01"
+
+
+def test_clear_deadline_resets_to_null(client):
+    c, _ = client
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    c.put(f"/api/tracks/{tid}/deadline", json={"deadline": "2026-12-01"})
+    v = c.put(f"/api/tracks/{tid}/deadline", json={"deadline": None}).json()
+    assert v["deadline"] is None
+    assert all(s["latest_start"] is None for s in v["steps"])
+    assert all(p["latest_finish"] is None for p in v["phases"])
+
+
+def test_deadline_persists_after_reload(client):
+    c, root = client
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    c.put(f"/api/tracks/{tid}/deadline", json={"deadline": "2026-12-01"})
+    again = c.get(f"/api/tracks/{tid}").json()
+    assert again["deadline"] == "2026-12-01"
+
+
+def test_set_deadline_unknown_track_404(client):
+    c, _ = client
+    assert c.put("/api/tracks/nope/deadline", json={"deadline": "2026-12-01"}).status_code == 404

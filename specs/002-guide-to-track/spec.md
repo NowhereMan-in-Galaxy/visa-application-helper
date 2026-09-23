@@ -208,6 +208,16 @@ types:
 
 **阶段状态**：阶段内生效的步骤全部完成 → `done`；"下一步"落在这个阶段 → `current`；没有生效的步骤 → `skipped`；其余 → `upcoming`。没有"下一步"时（问题没答完或全部做完），第一个 `upcoming` 的阶段改为 `current`，保证进度条上总能看出走到了哪。
 
+**倒排时间**（Phase C 第一条，已实现，见 `core.tracks._deadline_times`）：Track 设了 `deadline` 时，算出每个未完成步骤最晚什么时候必须开始，纯函数，`today` 作为参数传入，不读系统时钟。
+
+- 只考虑 `applies == "yes"` 且未完成的步骤，记为集合 S；Track 没有 `deadline` 时，全部步骤的 `latest_start` / `late` 和全部阶段的 `latest_finish` 都是 null / false。
+- 步骤时长 `dur(s)` = `duration_days.max`，没有 `duration_days` 则为 0。
+- 对 S 中的步骤 s：`latest_finish(s)` = S 中所有**直接**依赖 s（即 `depends_on` 包含 s 且自身也在 S 里）的步骤 d 的 `latest_start(d)` 的最小值；没有这样的 d 时，`latest_finish(s)` = `deadline`。`latest_start(s)` = `latest_finish(s)` − `dur(s)`（按天减）。
+- `late(s)` = `today > latest_start(s)`；不在 S 里的步骤恒为 `late = False`、`latest_start = null`。
+- 阶段的 `latest_finish` = 该阶段内属于 S 的步骤的 `latest_finish` 的最大值；阶段内没有属于 S 的步骤时为 null。
+- 例：申根攻略（`community/guides/schengen-tourist.yaml`）`deadline = 2026-12-01` 时，"等出签"（`s-wait`，`duration_days.max = 45`，没有步骤依赖它）→ `latest_finish = deadline = 2026-12-01`，`latest_start = 2026-10-17`；"递签"（`s-submit`，唯一直接依赖它的步骤是 `s-wait`）→ `latest_finish = latest_start(s-wait) = 2026-10-17`，自身 `duration_days` 为空所以 `latest_start` 同为 `2026-10-17`。
+- 界面：`PUT /api/tracks/{id}/deadline`（body `{"deadline": "YYYY-MM-DD" | null}`）设置或清除截止日期；`StepView` 新增 `latest_start`、`late`，`PhaseView` 新增 `latest_finish`；日期展示统一用"M月D日"格式。
+
 ## 分阶段计划
 
 ### Phase A：结构落地 + 可交互检视（当前）
@@ -238,7 +248,7 @@ types:
 ### Phase D：官网填表指引（见下方"官网填表指引"）
 
 ### Phase C：体验打磨
-- 倒排时间（按 `deadline` 和 `duration_days`、`freshness_days` 算每一步最晚/最早什么时候做）。
+- [已实现] 倒排时间（按 `deadline` 和 `duration_days` 算每一步最晚什么时候开始，见"状态计算"一节）；`freshness_days` 仍只用于需求的 `stale` 判定，未纳入倒排。
 - 材料库每条记录显示"被哪些 Track 用到"。
 - 工作台首页整合 Track 列表，替代 localStorage 版"新建办事"。
 

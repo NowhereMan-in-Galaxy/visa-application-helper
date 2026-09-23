@@ -8,7 +8,7 @@ Track 属于个人区，只存在材料根目录下（<materials_root>/tracks/�
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -146,6 +146,8 @@ class PhaseView(BaseModel):
     steps_done: int
     steps_total: int
     evidence: list[dict]
+    # 阶段内未完成步骤最晚该完成的日期（倒排时间，见"状态计算"）；没有 deadline 或阶段内没有待办步骤时为 null
+    latest_finish: date | None = None
 
 
 class StepView(BaseModel):
@@ -162,6 +164,10 @@ class StepView(BaseModel):
     depends_on: list[str]
     conditions: list[dict]
     evidence: list[dict]
+    # 倒排时间（见"状态计算"）：只在设了 deadline、且这一步 applies=="yes" 且未完成时才有值
+    latest_start: date | None = None
+    # today > latest_start；没有 latest_start 时恒为 False
+    late: bool = False
 
 
 class CheckView(BaseModel):
@@ -338,6 +344,7 @@ def compute_track_view(
 
     step_applies = {s.id: _evaluate(guide, answers, s.applies_if) for s in guide.steps}
     done = set(track.done_steps)
+    latest_start, latest_finish, late = _deadline_times(guide, step_applies, done, track.deadline, today)
     step_views: list[StepView] = []
     for s in guide.steps:
         deps_ok = all(d in done or step_applies.get(d) == "no" for d in s.depends_on)
@@ -351,9 +358,10 @@ def compute_track_view(
             requirements=s.requirements, depends_on=s.depends_on,
             conditions=[{"fact": c.fact, "in": c.in_} for c in s.applies_if],
             evidence=[e.model_dump() for e in s.evidence],
+            latest_start=latest_start.get(s.id), late=late.get(s.id, False),
         ))
     next_step = next((s.id for s in step_views if s.available), None)
-    phase_views = _phase_views(guide, step_views, next_step)
+    phase_views = _phase_views(guide, step_views, next_step, latest_finish)
 
     counted = [r for r in req_views if not r.optional and r.state not in ("not_applicable", "undecided")]
     stale_sources = [
@@ -376,12 +384,62 @@ def compute_track_view(
     )
 
 
-def _phase_views(guide: Guide, steps: list[StepView], next_step: str | None) -> list[PhaseView]:
+def _deadline_times(
+    guide: Guide, step_applies: dict[str, Applies], done: set[str], deadline: date | None, today: date
+) -> tuple[dict[str, date], dict[str, date], dict[str, bool]]:
+    """倒排时间（spec "状态计算"）：deadline 为 null 时三个字典都是空的（界面据此得到全 null / 全 False）。
+
+    只对集合 S（生效且未完成的步骤）计算：latest_finish(s) 是"S 中直接依赖 s 的步骤"的 latest_start
+    的最小值，没有这样的步骤时用 deadline；latest_start(s) = latest_finish(s) 减去这一步的时长
+    （duration_days.max，没有则为 0）。用递归 + 记忆化按依赖图从后往前算，攻略校验已保证无环。
+    """
+    if deadline is None:
+        return {}, {}, {}
+
+    s_ids = {s.id for s in guide.steps if step_applies.get(s.id) == "yes" and s.id not in done}
+    steps_by_id = {s.id: s for s in guide.steps}
+    # 谁直接依赖谁：只统计依赖方也在 S 里的情况
+    dependents: dict[str, list[str]] = {sid: [] for sid in s_ids}
+    for s in guide.steps:
+        if s.id not in s_ids:
+            continue
+        for dep in s.depends_on:
+            if dep in dependents:
+                dependents[dep].append(s.id)
+
+    def dur(step_id: str) -> int:
+        d = steps_by_id[step_id].duration_days
+        return d.max if d else 0
+
+    latest_start: dict[str, date] = {}
+    latest_finish: dict[str, date] = {}
+
+    def compute(sid: str) -> date:
+        if sid in latest_start:
+            return latest_start[sid]
+        deps = dependents.get(sid, [])
+        finish = min((compute(d) for d in deps), default=deadline)
+        latest_finish[sid] = finish
+        start = finish - timedelta(days=dur(sid))
+        latest_start[sid] = start
+        return start
+
+    for sid in s_ids:
+        compute(sid)
+
+    late = {sid: today > latest_start[sid] for sid in s_ids}
+    return latest_start, latest_finish, late
+
+
+def _phase_views(
+    guide: Guide, steps: list[StepView], next_step: str | None, latest_finish: dict[str, date] | None = None
+) -> list[PhaseView]:
     """阶段状态：全部适用步骤做完 → done；下一步落在这里 → current；没有适用步骤 → skipped；其余 upcoming。
 
     没有"下一步"（例如还有问题没回答，或全部做完）时，第一个没做完的阶段算 current，
     保证进度条上总能看出"现在大概走到哪了"。
     """
+    latest_finish = latest_finish or {}
     by_id = {s.id: s for s in steps}
     current_phase = by_id[next_step].phase if next_step else None
     views: list[PhaseView] = []
@@ -396,11 +454,14 @@ def _phase_views(guide: Guide, steps: list[StepView], next_step: str | None) -> 
             state = "current"
         else:
             state = "upcoming"
+        # 阶段的 latest_finish：这一阶段内属于集合 S（applies=="yes" 且未完成）的步骤里 latest_finish 的最大值
+        phase_finishes = [latest_finish[s.id] for s in mine if s.id in latest_finish]
         views.append(PhaseView(
             id=p.id, title=p.title, summary=p.summary, mode=p.mode, estimate=p.estimate,
             duration_days=p.duration_days.model_dump() if p.duration_days else None,
             state=state, steps_done=done, steps_total=len(mine),
             evidence=[e.model_dump() for e in p.evidence],
+            latest_finish=max(phase_finishes) if phase_finishes else None,
         ))
     if current_phase is None:
         first_open = next((v for v in views if v.state == "upcoming"), None)

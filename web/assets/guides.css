@@ -224,3 +224,12 @@ button.phase:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .phase-strip { transition: none; } }
 @media (max-width: 1000px) { .phase-strip { left: 160px; padding: 8px 24px; } }
 @media (max-width: 650px) { .phase-strip { left: 0; padding: 6px 16px; } }
+
+/* ---- 倒排时间：截止日期编辑 + 最晚开始/完成 + 晚了提醒（specs/002-guide-to-track/tasks-parallel-1.md 任务 D） ---- */
+.deadline-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.deadline-edit label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.deadline-edit input[type=date] { padding: 5px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 12px; }
+.deadline-edit button { padding: 4px 10px; font-size: 12px; }
+.late { color: var(--danger); font-weight: 600; }
+.next-card.late { border-color: var(--danger); box-shadow: 5px 5px 0 var(--danger); }
+.late-alert { background: var(--red-soft); color: var(--danger); border: 1px solid var(--danger); padding: 8px 12px; font-size: 13px; margin: 12px 0 0; }
