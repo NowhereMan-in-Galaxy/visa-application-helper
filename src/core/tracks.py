@@ -125,14 +125,31 @@ class RequirementView(BaseModel):
     state: RequirementState
     confirmed: bool
     records: list[CandidateView]  # 已确认的记录；没确认时是候选记录
-    missing_parts: list[str]  # 组合类型缺了哪几部分（标准名），便于界面说清楚"还差什么"
+    # 组合类型缺了哪几部分 [{key, name}]，界面据此说清楚"还差什么"，并按部分上传
+    missing_parts: list[dict]
+    parts: list[dict]  # 组合类型的全部组成部分 [{key, name}]；非组合类型为空
     conditions: list[dict]  # 原样的 applies_if，界面用来解释"为什么待定/取决于什么"
+    evidence: list[dict]
+
+
+class PhaseView(BaseModel):
+    id: str
+    title: str
+    summary: str | None
+    mode: str | None
+    estimate: str | None
+    duration_days: dict | None
+    # done 全部做完 | current 下一步就在这个阶段 | upcoming 还没到 | skipped 没有适用于你的步骤
+    state: Literal["done", "current", "upcoming", "skipped"]
+    steps_done: int
+    steps_total: int
     evidence: list[dict]
 
 
 class StepView(BaseModel):
     id: str
     title: str
+    phase: str | None
     where: str | None
     estimate: str | None
     duration_days: dict | None
@@ -163,6 +180,8 @@ class TrackView(BaseModel):
     requirements: list[RequirementView]
     steps: list[StepView]
     next_step: str | None
+    timeline: str | None
+    phases: list[PhaseView]
     progress_ready: int
     progress_total: int
     checks: list[CheckView]
@@ -278,10 +297,11 @@ def compute_track_view(
         else:
             state = "ready"
 
-        missing_parts: list[str] = []
+        missing_parts: list[dict] = []
         if state == "missing" and type_key in vocab.types:
             missing_parts = [
-                vocab.types[p].name for p in vocab.types[type_key].parts if _latest(by_type.get(p, [])) is None
+                {"key": p, "name": vocab.types[p].name}
+                for p in vocab.types[type_key].parts if _latest(by_type.get(p, [])) is None
             ]
 
         req_views.append(RequirementView(
@@ -304,6 +324,10 @@ def compute_track_view(
                 for r in (chosen or [])
             ],
             missing_parts=missing_parts,
+            parts=[
+                {"key": p, "name": vocab.types[p].name}
+                for p in (vocab.types[type_key].parts if type_key in vocab.types else ())
+            ],
             conditions=[{"fact": c.fact, "in": c.in_} for c in q.applies_if],
             evidence=[e.model_dump() for e in q.evidence],
         ))
@@ -316,7 +340,7 @@ def compute_track_view(
         applies = step_applies[s.id]
         is_done = s.id in done
         step_views.append(StepView(
-            id=s.id, title=s.title, where=s.where, estimate=s.estimate,
+            id=s.id, title=s.title, phase=s.phase, where=s.where, estimate=s.estimate,
             duration_days=s.duration_days.model_dump() if s.duration_days else None,
             applies=applies, done=is_done,
             available=applies == "yes" and not is_done and deps_ok,
@@ -325,6 +349,7 @@ def compute_track_view(
             evidence=[e.model_dump() for e in s.evidence],
         ))
     next_step = next((s.id for s in step_views if s.available), None)
+    phase_views = _phase_views(guide, step_views, next_step)
 
     counted = [r for r in req_views if not r.optional and r.state not in ("not_applicable", "undecided")]
     stale_sources = [
@@ -336,6 +361,7 @@ def compute_track_view(
         id=track.id, title=track.title, guide_id=guide.id, guide_title=guide.title,
         created=track.created, deadline=track.deadline,
         facts=facts, requirements=req_views, steps=step_views, next_step=next_step,
+        timeline=guide.timeline, phases=phase_views,
         progress_ready=sum(r.state == "ready" for r in counted), progress_total=len(counted),
         checks=[CheckView(id=c.id, text=c.text, involves=c.involves, done=c.id in track.done_checks) for c in guide.checks],
         conflicts=[k.model_dump() for k in guide.conflicts],
@@ -343,3 +369,36 @@ def compute_track_view(
         sources=[s.model_dump(mode="json") for s in guide.sources],
         stale_sources=stale_sources,
     )
+
+
+def _phase_views(guide: Guide, steps: list[StepView], next_step: str | None) -> list[PhaseView]:
+    """阶段状态：全部适用步骤做完 → done；下一步落在这里 → current；没有适用步骤 → skipped；其余 upcoming。
+
+    没有"下一步"（例如还有问题没回答，或全部做完）时，第一个没做完的阶段算 current，
+    保证进度条上总能看出"现在大概走到哪了"。
+    """
+    by_id = {s.id: s for s in steps}
+    current_phase = by_id[next_step].phase if next_step else None
+    views: list[PhaseView] = []
+    for p in guide.phases:
+        mine = [s for s in steps if s.phase == p.id and s.applies != "no"]
+        done = sum(s.done for s in mine)
+        if not mine:
+            state = "skipped"
+        elif done == len(mine):
+            state = "done"
+        elif p.id == current_phase:
+            state = "current"
+        else:
+            state = "upcoming"
+        views.append(PhaseView(
+            id=p.id, title=p.title, summary=p.summary, mode=p.mode, estimate=p.estimate,
+            duration_days=p.duration_days.model_dump() if p.duration_days else None,
+            state=state, steps_done=done, steps_total=len(mine),
+            evidence=[e.model_dump() for e in p.evidence],
+        ))
+    if current_phase is None:
+        first_open = next((v for v in views if v.state == "upcoming"), None)
+        if first_open is not None:
+            first_open.state = "current"
+    return views

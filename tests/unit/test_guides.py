@@ -148,3 +148,38 @@ def test_repository_guides_are_valid():
     assert results, "community/guides 里至少应有一份攻略"
     for r in results:
         assert r.valid, f"{r.path.name}: {r.errors}"
+
+
+# ---- 阶段（phases） ----
+
+def with_phases() -> dict:
+    d = guide_dict()
+    d["phases"] = [{"id": "p-prep", "title": "准备"}, {"id": "p-go", "title": "递交", "mode": "offline"}]
+    for s in d["steps"]:
+        s["phase"] = "p-go" if s["id"] == "s-submit" else "p-prep"
+    return d
+
+
+def test_phases_valid():
+    assert errors_for(with_phases()) == []
+
+
+def test_step_must_have_phase_when_phases_defined():
+    d = with_phases(); del d["steps"][0]["phase"]
+    assert_rejected(d, "每个步骤都必须写 phase")
+
+
+def test_step_phase_must_exist():
+    d = with_phases(); d["steps"][0]["phase"] = "p-nope"
+    assert_rejected(d, "不存在的阶段 p-nope")
+
+
+def test_phase_without_steps_rejected():
+    d = with_phases(); d["phases"].append({"id": "p-empty", "title": "空阶段"})
+    assert_rejected(d, "p-empty：没有任何步骤")
+
+
+def test_phase_mode_must_be_known():
+    d = with_phases(); d["phases"][0]["mode"] = "mail"
+    with pytest.raises(ValidationError):
+        Guide.model_validate(d)

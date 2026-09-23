@@ -20,6 +20,9 @@ class MaterialCategory(str, Enum):
     FINANCIAL_SNAPSHOT = "financial_snapshot"
     EMPLOYMENT_DOC = "employment_doc"
     ID_PHOTO = "id_photo"
+    # specs/002：攻略里很多材料（保险、行程单、机酒预订单……）不属于上面四类，
+    # 在攻略页面上传时归到这里。旧的材料维护页不展示这一类，不影响原有功能。
+    OTHER = "other"
 
 
 class MaterialStatus(str, Enum):

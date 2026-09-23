@@ -79,9 +79,22 @@ class Duration(_Strict):
     max: int
 
 
+class Phase(_Strict):
+    """流程的大阶段（例如"官网填表 → 准备材料 → 线下递交 → 等结果"），显示在页面最上方的进度条里。"""
+
+    id: str
+    title: str
+    summary: str | None = None
+    mode: Literal["online", "offline"] | None = None  # 线上还是线下，没有明确说法时留空
+    estimate: str | None = None  # 自由文本，例如"1–2 小时"
+    duration_days: Duration | None = None  # 需要等待的天数，用于估算全程要多久
+    evidence: list[Evidence] = []
+
+
 class Step(_Strict):
     id: str
     title: str
+    phase: str | None = None
     where: str | None = None
     requirements: list[str] = []
     depends_on: list[str] = []
@@ -116,7 +129,9 @@ class Guide(_Strict):
     summary: str | None = None
     maintainers: list[str] = []
     updated: date | None = None
+    timeline: str | None = None  # 一句话说明全程一般要多久、要提前多久开始
     sources: list[Source]
+    phases: list[Phase] = []
     facts: dict[str, Fact] = {}
     requirements: list[Requirement]
     steps: list[Step]
@@ -160,6 +175,7 @@ def validate_guide(guide: Guide, vocab: Vocabulary, file_stem: str | None = None
     source_ids = unique("sources", [s.id for s in guide.sources])
     req_ids = unique("requirements", [r.id for r in guide.requirements])
     step_ids = unique("steps", [s.id for s in guide.steps])
+    phase_ids = unique("phases", [p.id for p in guide.phases])
     unique("checks", [c.id for c in guide.checks])
     unique("conflicts", [c.id for c in guide.conflicts])
 
@@ -220,6 +236,20 @@ def validate_guide(guide: Guide, vocab: Vocabulary, file_stem: str | None = None
                 errors.append(f"{owner}：duration_days 需满足 0 < typical <= max")
         check_conditions(owner, s.applies_if)
         check_evidence(owner, s.evidence, required=True)
+
+    for p in guide.phases:
+        if p.duration_days is not None and not (0 < p.duration_days.typical <= p.duration_days.max):
+            errors.append(f"phase {p.id}：duration_days 需满足 0 < typical <= max")
+        check_evidence(f"phase {p.id}", p.evidence, required=False)
+    for s in guide.steps:
+        if guide.phases and s.phase is None:
+            errors.append(f"step {s.id}：攻略定义了 phases，每个步骤都必须写 phase")
+        elif s.phase is not None and s.phase not in phase_ids:
+            errors.append(f"step {s.id}：phase 引用了不存在的阶段 {s.phase}")
+    used_phases = {s.phase for s in guide.steps}
+    for p in guide.phases:
+        if p.id not in used_phases:
+            errors.append(f"phase {p.id}：没有任何步骤属于这个阶段")
 
     for rid in sorted(req_ids - attached):
         errors.append(f"requirement {rid}：没有挂在任何 step 上（用户照着步骤做会漏掉它）")

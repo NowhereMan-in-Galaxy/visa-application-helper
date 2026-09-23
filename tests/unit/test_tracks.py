@@ -46,7 +46,7 @@ def test_missing_when_composite_lacks_a_part():
     v = view(records=[rec("bio", "护照个人信息页")])
     r = req(v, "r-passport")
     assert r.state == "missing"
-    assert r.missing_parts == ["护照签证页"]
+    assert r.missing_parts == [{"key": "passport_visa_page", "name": "护照签证页"}]
 
 
 def test_placeholder_record_without_date_does_not_count():
@@ -179,3 +179,25 @@ def test_track_round_trip(tmp_path):
 def test_track_ignores_ids_removed_from_guide():
     v = view({"facts": {"gone_fact": "x"}, "done_steps": ["s-gone"], "done_checks": ["c-gone"]})
     assert v.next_step == "s-bank"
+
+
+# ---- 阶段状态 ----
+
+def phased_view(track_kwargs):
+    from test_guides import with_phases
+    from core.guides import Guide
+    guide = Guide.model_validate(with_phases())
+    track = Track(id="t", guide=guide.id, title="t", created=TODAY, **track_kwargs)
+    return compute_track_view(guide, track, [], VOCAB, TODAY)
+
+
+def test_phase_states_follow_next_step():
+    v = phased_view({"facts": {"identity": "学生"}})
+    assert [(p.id, p.state) for p in v.phases] == [("p-prep", "current"), ("p-go", "upcoming")]
+
+
+def test_phase_done_when_all_applicable_steps_done():
+    v = phased_view({"facts": {"identity": "学生"}, "done_steps": ["s-bank", "s-docs"]})
+    prep = v.phases[0]
+    assert prep.state == "done" and (prep.steps_done, prep.steps_total) == (2, 2)  # s-job 不适用，不计
+    assert v.phases[1].state == "current"
