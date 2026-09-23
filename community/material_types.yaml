@@ -176,3 +176,20 @@ types:
     name: 父母身份及关系材料
     category: null
     aliases: [父母身份及关系材料, 父母关系证明]
+  # ---- 学历类（2026-09-23 新增：F-1 学签、留服认证、求职等都会反复用到）----
+  - key: graduation_certificate
+    name: 毕业证书
+    category: null
+    aliases: [毕业证书, 毕业证, 毕业证明书, Graduation Certificate, Certificate of Graduation]
+  - key: degree_certificate
+    name: 学位证书
+    category: null
+    aliases: [学位证书, 学位证, 学位证明书, Degree Certificate, Diploma]
+  - key: transcript
+    name: 成绩单
+    category: null
+    aliases: [成绩单, 在校成绩单, 学业成绩单, Transcript, Academic Transcript]
+  - key: overseas_degree_certification
+    name: 国外学历学位认证书
+    category: null
+    aliases: [国外学历学位认证书, 留服认证, 留服认证证书, 学历学位认证书]
