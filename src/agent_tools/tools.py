@@ -34,6 +34,8 @@ from core.tracks import (
     TrackNotFoundError,
     TrackView,
     compute_track_view,
+    set_fact_value,
+    set_step_done as _mark_step_done,
     load_track,
     load_tracks,
     save_track,
@@ -235,14 +237,7 @@ def set_fact(
 
     track = _load_track_or_raise(track_id, materials_root)
     _, guide = _find_valid_guide(track.guide, community_dir)
-    if fact not in guide.facts:
-        raise ValueError(f"这份攻略没有问题 {fact}")
-    if value is None:
-        track.facts.pop(fact, None)
-    elif value not in guide.facts[fact].options:
-        raise ValueError(f"{value!r} 不是这个问题的选项")
-    else:
-        track.facts[fact] = value
+    set_fact_value(guide, track, fact, value)
     view = _save_track_and_view(track, materials_root, community_dir, materials_index_dir, today)
     return view.model_dump(mode="json")
 
@@ -267,8 +262,7 @@ def set_step_done(
     _, guide = _find_valid_guide(track.guide, community_dir)
     if not any(s.id == step_id for s in apply_adjustments(guide, track).steps):
         raise ValueError(f"这件办事里没有步骤 {step_id}")
-    remaining = [s for s in track.done_steps if s != step_id]
-    track.done_steps = remaining + [step_id] if done else remaining
+    _mark_step_done(track, step_id, done, today)
     view = _save_track_and_view(track, materials_root, community_dir, materials_index_dir, today)
     return view.model_dump(mode="json")
 

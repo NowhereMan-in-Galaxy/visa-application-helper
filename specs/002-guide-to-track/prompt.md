@@ -38,3 +38,4 @@
 18. **导出命名**：原始资料给了官方清单编号或要求的文件命名时，给每条 requirement 写 `export_name`（例如 `01-护照复印件`），并把攻略的 `export_pattern` 设为 `"{name}"`；没给就不写，使用默认的 `{seq:02d}-{name}`。`export_name` 里不能有 `/ \ : * ? " < > |`。
 19. **官网链接**：原始资料里出现的官网 / 签证中心网址，写进对应步骤的 `links`（`kind: official`，`url` 原样照抄）；网址随申请国等回答变化时用 `applies_if`。不要凭记忆补网址。整理时不填 `verified`——只有真正用浏览器打开核实过的链接才写核实日期（见 spec "链接核实"）。原始资料写了"怎么填表 / 怎么预约"的流程时，另外整理成 `community/forms/<id>.yaml`（流程级，`level: procedure`），再在步骤上用 `{kind: form_guide, form: <id>}` 链接过去。
 20. **来源链接去掉追踪参数**：分享链接（尤其小红书）常带 `shareRedId`、`share_id`、`xsec_token`、`apptime` 等参数，可能追溯到分享者本人。`sources[].url` 只保留帖子本身的地址（例如 `https://www.xiaohongshu.com/explore/<帖子 id>`）。帖子配图含个人信息（证件、批准通知等）时不读取、不引用。
+21. **时间规则写成可办时间窗**（"时间提醒型"攻略，见 spec §3c）：原始资料写了"满 N 个月后才能办""毕业 N 年内必须申请""每年一次"时，先把它依赖的个人日期写成 `type: date` 的问题（例如毕业日期、首次参保日期；问法写清楚记不准时怎么填），再给步骤写 `window`。"每年领一次，共 3 次"拆成 3 个步骤，后一个 `depends_on` 前一个、`opens: {step: 前一个, months: 12}`。原始资料没说的时间不要推算，写进 `uncertain`。

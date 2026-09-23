@@ -8,12 +8,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -24,6 +24,7 @@ import core.adjustments as adj
 from core.adjustments import AdjustmentError
 from core.export import export_track
 from core.forms import load_all_forms
+from core.windows import calendar_ics
 from core.tracks import (
     Pitfall,
     apply_adjustments,
@@ -31,6 +32,8 @@ from core.tracks import (
     TrackNotFoundError,
     TrackView,
     compute_track_view,
+    set_fact_value,
+    set_step_done,
     create_track,
     load_track,
     load_tracks,
@@ -574,6 +577,8 @@ class TrackSummary(BaseModel):
     progress_total: int | None
     next_step_title: str | None
     error: str | None
+    # 最近的一条时间提醒 {date, kind, step, title}（spec §3c），首页卡片上显示"X月X日起可以办 …"
+    next_reminder: dict | None = None
 
 
 class TrackCreate(BaseModel):
@@ -715,6 +720,7 @@ def list_tracks() -> list[TrackSummary]:
             **base, category=guide.category, elapsed_days=view.elapsed_days,
             progress_ready=view.progress_ready, progress_total=view.progress_total,
             next_step_title=next_title, error=None,
+            next_reminder=view.reminders[0] if view.reminders else None,
         ))
     return summaries
 
@@ -732,6 +738,19 @@ def get_track(track_id: str) -> TrackView:
     return _track_view(_load_track_or_404(track_id))
 
 
+@app.get("/api/tracks/{track_id}/calendar.ics")
+def track_calendar(track_id: str) -> Response:
+    """把这件办事的时间提醒导出成日历文件（spec §3c），导入手机/电脑日历后到点会提醒。"""
+    track = _load_track_or_404(track_id)
+    view = _track_view(track)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    body = calendar_ics(track.id, view.title, view.reminders, stamp)
+    return Response(
+        content=body, media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=\"{track.id}.ics\""},
+    )
+
+
 @app.put("/api/tracks/{track_id}/deadline", response_model=TrackView)
 def update_track_deadline(track_id: str, payload: DeadlineUpdate) -> TrackView:
     """设置或清除这件事的截止日期（倒排时间的输入）；见 core.tracks 的"状态计算"。"""
@@ -746,12 +765,10 @@ def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackVie
     _, guide = _valid_guide(track.guide)
     if fact not in guide.facts:
         raise HTTPException(status_code=404, detail=f"这份攻略没有问题 {fact}")
-    if payload.value is None:
-        track.facts.pop(fact, None)
-    elif payload.value not in guide.facts[fact].options:
-        raise HTTPException(status_code=422, detail=f"{payload.value!r} 不是这个问题的选项")
-    else:
-        track.facts[fact] = payload.value
+    try:
+        set_fact_value(guide, track, fact, payload.value)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return _save_track(track)
 
 
@@ -761,8 +778,7 @@ def update_track_step(track_id: str, step: str, payload: DoneUpdate) -> TrackVie
     _, guide = _valid_guide(track.guide)
     if not any(s.id == step for s in apply_adjustments(guide, track).steps):
         raise HTTPException(status_code=404, detail=f"这件办事里没有步骤 {step}")
-    done = [s for s in track.done_steps if s != step]
-    track.done_steps = done + [step] if payload.done else done
+    set_step_done(track, step, payload.done, date.today())
     return _save_track(track)
 
 

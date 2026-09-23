@@ -59,7 +59,7 @@ community/guides/<id>.yaml ── 校验器检查 ── 提交到仓库，大�
 ```yaml
 id: schengen-tourist                     # 小写字母/数字/连字符，与文件名一致
 title: 申根短期旅游签证（中国大陆护照）
-category: 签证                           # 签证 | 工作 | 社保 | 银行补贴 | 其他
+category: 签证                           # 签证 | 工作 | 社保 | 补贴 | 银行补贴 | 其他
 summary: 一句话说明适用范围              # 可选
 maintainers: []                          # 可选；GitHub 用户名，不写真实姓名
 updated: 2026-09-23                      # 这份攻略最后一次被修订的日期
@@ -132,7 +132,7 @@ uncertain: [r-bank.note]                 # 整理者没把握的字段路径，�
 - `depends_on` 不能成环。
 - 每条 requirement 至少出现在一个 step 的 `requirements` 里。
 - 每条 requirement 和 step 至少有一条 `evidence`；`evidence[].quote` 不超过 60 个字符。
-- `kind` 只能是 `obtain` / `generate` / `output`；`category` 只能是上面列出的五个值。
+- `kind` 只能是 `obtain` / `generate` / `output`；`category` 只能是上面列出的六个值。
 - `material_type` 非 null 时必须是词表里的 key；为 null 时 `raw_name` 不能为空。
 - `applies_if[].fact`、`ask_if[].fact` 必须是 `facts` 里的键，`in` 里每个值必须在该 fact 的 `options` 里；`ask_if` 不能引用自己。
 - `duration_days` 非 null 时 `typical`、`max` 为正整数且 `typical <= max`。
@@ -205,6 +205,39 @@ types:
 **默认规则**（在办事页上传时，上传框里的"放进我的资料（以后还会用）"按它预先勾好，用户可以改）：词表认识、且类型没有标 `reusable: false` 的 → 长期资料；词表里标了 `reusable: false` 的一次性类型、以及词表不认识的材料 → 本次专用。组合类型看它的各个部分。视图字段 `RequirementView.default_keep` 就是这个默认值；上传接口的 `keep` 字段覆盖它。
 
 **词表不认识的材料也能上传**：不论是攻略里的（例如邀请函）还是自己加的，上传时按材料名建一条 `other` 类记录并直接确认给这项材料（因为没法自动匹配，所以不依赖词表）。
+
+### 3c. 时间窗口与提醒（2026-09-23 新增，"时间提醒型"攻略）
+
+有一类事几乎不用准备材料，难点是**记得在对的时间去办**，例如"杭州应届生补贴"：社保满 1 个月能领青荷礼包，连续缴满 6 个月才能申请生活补贴，毕业满 2 年就作废。它们的时间都是**从某个个人日期往后数**，和签证的"从截止日往回推"（倒排时间）方向相反。所以加三样东西，全部可选，老攻略不受影响：
+
+**① 日期类问题**：`facts.<key>.type: date`（默认 `choice`，即原来的选择题）。
+- `date` 类问题不写 `options`（写了算错）；`choice` 类 `options` 不能为空。
+- 答案存在 Track 的 `facts` 里，格式 `YYYY-MM-DD`；接口收到别的格式返回 422。
+- `applies_if` / `ask_if` 只能引用 `choice` 类问题（日期不能用"在不在选项里"判断）；`date` 类问题自己可以有 `ask_if`。
+
+**② 步骤的可办时间窗**：`steps[].window: {opens: <日期引用>, closes: <日期引用>}`，两端至少写一个。
+- 日期引用：`{fact: <date 类问题>}` 或 `{step: <步骤 id>}`，二选一；加可选的 `months`、`days`（整数，可以为负）和 `end_of: month | year`。
+- 算法：取基准日期 → 加 `months` 个月（日子超出当月天数时取当月最后一天，例如 1 月 31 日 + 1 个月 = 2 月 28/29 日）→ 加 `days` 天 → `end_of: month` 取那个月最后一天，`end_of: year` 取那年 12 月 31 日。
+- `{step: X}` 的基准是步骤 X **勾完的日期**，X 必须写在本步骤的 `depends_on` 里（校验）。例如"第 2 年领青荷礼包" `opens: {step: s-qinghe-1, months: 12}`。
+- 例：就业补贴"满足条件（同一单位连续缴 12 个月）的次月至次年年底申请"，首次参保日期记为 F，则 `opens: {fact: first_insured, months: 12}`、`closes: {fact: first_insured, months: 24, end_of: year}`（F = 2026-07-01 → 2027-07-01 起，2028-12-31 止）。
+
+**③ 记录勾完的日期**：Track 新增 `done_on: {step_id: YYYY-MM-DD}`。勾选步骤时写入当天（`today`），取消勾选时删除。以前勾的步骤没有日期，引用它的时间窗按"基准未知"处理。
+
+**状态计算**（`core.tracks`，纯函数，`today` 作为参数传入）：只对 `applies != "no"` 且未完成、写了 `window` 的步骤计算，`StepView.window = {opens, closes, state, days, waiting_for}`，其余为 null。
+- `opens` / `closes`：按上面算法算出的日期；基准未知（问题没回答、引用的步骤没勾或没有勾选日期）时为 null。
+- `state` 按顺序判定，命中即停：
+  1. `missed`：`closes` 已知且 `today > closes`；
+  2. `waiting`：`opens` 端写了但算不出（基准未知）；`waiting_for` 列出缺的问题 key 或步骤 id；
+  3. `upcoming`：`opens` 已知且 `today < opens`；`days` = 距 `opens` 的天数；
+  4. `closing`：`closes` 已知且距 `closes` ≤ 30 天；`days` = 剩余天数（0 表示今天是最后一天）；
+  5. `open`：其余；`closes` 已知时 `days` = 剩余天数，否则 null。
+- `available` 在原有条件上再加一条：`window.state` 不是 `upcoming`、`missed`。所以"下一步"不会指向还没到时间或已经错过的步骤。
+- `TrackView.reminders`：`applies == "yes"`、未完成、未隐藏的步骤里，`opens > today` 的记一条 `{date: opens, kind: "opens", step, title}`，`closes >= today` 的记一条 `{date: closes, kind: "closes", ...}`，按日期升序。
+- **日历导出**：`GET /api/tracks/{id}/calendar.ics` 返回 `text/calendar`，每条 reminder 一个全天事件，标题"可以办了：<步骤>"或"截止：<步骤>"，截止事件带提前 7 天的提醒；`UID` = `<track>-<step>-<kind>@youtiaoyouli`，重复导入同一文件不会出现重复事件。没有任何 reminder 时返回一个没有事件的日历。
+
+界面：日期类问题显示日期选择框；步骤上显示时间窗和状态（还没到时间，还有 N 天 / 可以办了 / 只剩 N 天 / 已错过 / 先回答「…」）；办事页有"时间提醒"清单和"加到日历"按钮。
+
+整理规则见 `prompt.md` 第 21 条。
 
 ### 4. MaterialRecord 新增一个可选字段
 

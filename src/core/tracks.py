@@ -19,6 +19,7 @@ from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide, Requirement, S
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
 from core.status import compute_status
+from core.windows import reminders as _reminders, window_view
 
 # 原始资料的时效日期距今超过这么多天，界面提示"可能过时"
 SOURCE_STALE_AFTER_DAYS = 365
@@ -69,6 +70,8 @@ class Track(BaseModel):
     deadline: date | None = None
     facts: dict[str, str] = {}
     done_steps: list[str] = []
+    # 每个步骤勾完的日期（spec §3c）：时间窗可以从"上一步勾完那天"往后数，例如第 2 年领礼包
+    done_on: dict[str, date] = {}
     matches: dict[str, list[str]] = {}
     done_checks: list[str] = []
     # 所有适用步骤都做完的那一天；由 sync_completion 自动维护，取消任一步骤会清空。首页据此算"用时"
@@ -184,6 +187,7 @@ class CandidateView(BaseModel):
 class FactView(BaseModel):
     key: str
     question: str
+    type: Literal["choice", "date"] = "choice"
     options: list[str]
     value: str | None
     asked: bool
@@ -255,6 +259,8 @@ class StepView(BaseModel):
     custom: bool = False  # 用户自己加的步骤
     hidden: bool = False
     user_note: str | None = None
+    # 可办时间窗（spec §3c）：{opens, closes, state, days, waiting_for}；攻略没给这一步写 window 时为 null
+    window: dict | None = None
 
 
 class CheckView(BaseModel):
@@ -289,6 +295,8 @@ class TrackView(BaseModel):
     pitfalls: list[Pitfall]
     # 被隐藏的步骤和材料 [{kind: "step"|"requirement", id, title}]，界面上用来"恢复"
     hidden_items: list[dict] = []
+    # 以后"开始可以办"或"截止"的日子 [{date, kind: opens|closes, step, title}]，按日期排序（spec §3c）
+    reminders: list[dict] = []
     sources: list[dict]
     stale_sources: list[str]
 
@@ -398,7 +406,7 @@ def compute_track_view(
 
     facts = [
         FactView(
-            key=k, question=f.question, options=f.options, value=answers.get(k),
+            key=k, question=f.question, type=f.type, options=f.options, value=answers.get(k),
             asked=_fact_ask_state(guide, answers, k) == "yes",
         )
         for k, f in guide.facts.items()
@@ -483,17 +491,20 @@ def compute_track_view(
         deps_ok = all(d in done or step_applies.get(d) == "no" for d in s.depends_on)
         applies = step_applies[s.id]
         is_done = s.id in done
+        window = None if applies == "no" or is_done else window_view(s, answers, track.done_on, today)
+        in_window = window is None or window["state"] not in ("upcoming", "missed")
         step_views.append(StepView(
             custom=s.id in custom_ids, hidden=s.id in hidden_steps, user_note=track.step_notes.get(s.id),
             id=s.id, title=s.title, phase=s.phase, where=s.where, estimate=s.estimate,
             duration_days=s.duration_days.model_dump() if s.duration_days else None,
             applies=applies, done=is_done,
-            available=applies == "yes" and not is_done and deps_ok,
+            available=applies == "yes" and not is_done and deps_ok and in_window,
             requirements=s.requirements, depends_on=s.depends_on,
             conditions=[{"fact": c.fact, "in": c.in_} for c in s.applies_if],
             links=_link_views(guide, answers, s),
             evidence=[e.model_dump() for e in s.evidence],
             latest_start=latest_start.get(s.id), late=late.get(s.id, False),
+            window=window,
         ))
     next_step = next((s.id for s in step_views if s.available), None)
     phase_views = _phase_views(guide, step_views, next_step, latest_finish)
@@ -523,9 +534,40 @@ def compute_track_view(
             {"kind": "requirement", "id": q.id, "title": vocab.name_of(q.material_type or vocab.lookup(q.raw_name)) or q.raw_name or q.id}
             for q in guide.requirements if q.id in hidden_reqs
         ],
+        reminders=_reminders(guide, step_views, today),
         sources=[s.model_dump(mode="json") for s in guide.sources],
         stale_sources=stale_sources,
     )
+
+
+def set_fact_value(guide: Guide, track: Track, fact: str, value: str | None) -> None:
+    """回答（或清除）一个问题，网页接口和 MCP 工具共用。不合法时抛 ValueError（中文原因）。"""
+    if fact not in guide.facts:
+        raise ValueError(f"这份攻略没有问题 {fact}")
+    if value is None:
+        track.facts.pop(fact, None)
+        return
+    f = guide.facts[fact]
+    if f.type == "date":
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            raise ValueError(f"{value!r} 不是 YYYY-MM-DD 格式的日期") from None
+        if len(value) != 10:
+            raise ValueError(f"{value!r} 不是 YYYY-MM-DD 格式的日期")
+    elif value not in f.options:
+        raise ValueError(f"{value!r} 不是这个问题的选项")
+    track.facts[fact] = value
+
+
+def set_step_done(track: Track, step: str, done: bool, today: date) -> None:
+    """勾选 / 取消一个步骤，并同步勾完的日期（spec §3c）。调用方负责先确认步骤存在。"""
+    remaining = [s for s in track.done_steps if s != step]
+    track.done_steps = remaining + [step] if done else remaining
+    if done:
+        track.done_on.setdefault(step, today)
+    else:
+        track.done_on.pop(step, None)
 
 
 def _deadline_times(

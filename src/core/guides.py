@@ -23,7 +23,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 
-CATEGORIES = ("签证", "工作", "社保", "银行补贴", "其他")
+CATEGORIES = ("签证", "工作", "社保", "补贴", "银行补贴", "其他")
 # 导出文件名模板里允许的占位符：{seq} 序号（可写 {seq:02d}）、{name} 材料名、{part} 组合材料的部分名
 EXPORT_PLACEHOLDERS = {"seq", "name", "part"}
 DEFAULT_EXPORT_PATTERN = "{seq:02d}-{name}"
@@ -63,8 +63,27 @@ class Source(_Strict):
 
 class Fact(_Strict):
     question: str
-    options: list[str]
+    # choice = 从 options 里选一个；date = 填一个日期（毕业日期、首次参保日期……），给步骤的时间窗当基准
+    type: Literal["choice", "date"] = "choice"
+    options: list[str] = []
     ask_if: list[Condition] = []
+
+
+class DateRef(_Strict):
+    """时间窗的一端（spec §3c）：某个日期类问题的答案，或某个步骤勾完的日期，再往后（或往前）挪一段。"""
+
+    fact: str | None = None
+    step: str | None = None
+    months: int = 0
+    days: int = 0
+    end_of: Literal["month", "year"] | None = None  # 挪完之后取那个月 / 那年的最后一天
+
+
+class Window(_Strict):
+    """步骤的可办时间窗：opens 之前还不能办，closes 之后就错过了。两端至少写一个。"""
+
+    opens: DateRef | None = None
+    closes: DateRef | None = None
 
 
 class Requirement(_Strict):
@@ -121,6 +140,7 @@ class Step(_Strict):
     applies_if: list[Condition] = []
     estimate: str | None = None
     duration_days: Duration | None = None
+    window: Window | None = None
     evidence: list[Evidence] = []
 
 
@@ -247,13 +267,18 @@ def validate_guide(
                 continue
             if c.fact == self_fact:
                 errors.append(f"{owner}：ask_if 不能引用自己")
+            if fact.type == "date":
+                errors.append(f"{owner}：条件不能引用日期类问题 {c.fact}（日期没有选项可比）")
+                continue
             for v in c.in_:
                 if v not in fact.options:
                     errors.append(f"{owner}：条件值 {v!r} 不在 fact {c.fact} 的选项 {fact.options} 里")
 
     for name, fact in guide.facts.items():
-        if not fact.options:
+        if fact.type == "choice" and not fact.options:
             errors.append(f"fact {name}：options 不能为空")
+        if fact.type == "date" and fact.options:
+            errors.append(f"fact {name}：日期类问题不写 options")
         check_conditions(f"fact {name}", fact.ask_if, self_fact=name)
 
     for r in guide.requirements:
@@ -283,6 +308,23 @@ def validate_guide(
                 errors.append(f"{owner}：duration_days 需满足 0 < typical <= max")
         check_conditions(owner, s.applies_if)
         check_evidence(owner, s.evidence, required=True)
+        if s.window is not None:
+            if s.window.opens is None and s.window.closes is None:
+                errors.append(f"{owner}：window 的 opens 和 closes 至少写一个")
+            for end, ref in (("opens", s.window.opens), ("closes", s.window.closes)):
+                if ref is None:
+                    continue
+                where = f"{owner} 的 window.{end}"
+                if (ref.fact is None) == (ref.step is None):
+                    errors.append(f"{where}：fact 和 step 必须二选一")
+                elif ref.fact is not None:
+                    f = guide.facts.get(ref.fact)
+                    if f is None:
+                        errors.append(f"{where}：引用了不存在的 fact {ref.fact}")
+                    elif f.type != "date":
+                        errors.append(f"{where}：fact {ref.fact} 不是日期类问题（type: date）")
+                elif ref.step not in s.depends_on:
+                    errors.append(f"{where}：引用的步骤 {ref.step} 必须写在 depends_on 里")
 
     for p in guide.phases:
         if p.duration_days is not None and not (0 < p.duration_days.typical <= p.duration_days.max):
