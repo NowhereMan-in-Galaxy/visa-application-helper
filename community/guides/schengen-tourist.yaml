@@ -9,12 +9,33 @@ category: 签证
 summary: 持中国大陆护照、按身份（学生/在职/退休/自由职业/无业）准备申根 C 类旅游签的材料和步骤
 maintainers: []
 updated: 2026-09-23
+timeline: 递签后通常 15 天左右出签，最长约 45 天；建议出行前至少提前 1–1.5 个月递签。
 
 sources:
   - id: g1
     title: schengen-visa-guide · 申根签证材料清单
     url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/checklist.md
     as_of: 2025-07-01
+
+phases:
+  - id: p-online
+    title: 官网填表并预约
+    mode: online
+    summary: 在申请国签证官网填写申请表，再到签证中心网站（TLScontact / VFS / BLS）预约递签时间。两份确认单都要打印带去。
+    evidence: [{source: g1, quote: "选申请国 → 网上预约 → 准备证件"}]
+  - id: p-materials
+    title: 准备材料
+    summary: 证件复印、身份证明、保险、流水、行程单和机酒预订单，最后写解释信。按身份不同，要准备的东西不一样。
+    evidence: [{source: g1, quote: "证件类（1-5） — 复印拍照，基础活"}]
+  - id: p-submit
+    title: 线下递签
+    mode: offline
+    summary: 本人带齐材料去签证中心递交，首次申请要现场录十指指纹。
+    evidence: [{source: g1, quote: "写解释信 → 递签（现场录指纹）→ 等出签"}]
+  - id: p-wait
+    title: 等出签
+    duration_days: {typical: 15, max: 45}
+    evidence: [{source: g1, quote: "递签后通常 15 天左右出签，最长可能 45 天"}, {source: g1, quote: "建议出行前至少提前 1-1.5 个月递签"}]
 
 facts:
   identity:
@@ -319,6 +340,7 @@ requirements:
 steps:
   - id: s-choose-country
     title: 选定申请国
+    phase: p-online
     where: 自己决定（行程里停留最久的国家）
     requirements: []
     depends_on: []
@@ -328,6 +350,7 @@ steps:
     evidence: [{source: g1, quote: "选申请国 → 网上预约 → 准备证件"}]
   - id: s-appointment
     title: 网上填申请表并预约签证中心
+    phase: p-online
     where: 申请国签证官网 + TLScontact / VFS / BLS
     requirements: [r-application-form, r-appointment]
     depends_on: [s-choose-country]
@@ -337,6 +360,7 @@ steps:
     evidence: [{source: g1, quote: "打印之前填表和预约时生成的 PDF"}]
   - id: s-copy-ids
     title: 复印证件、拍证件照
+    phase: p-materials
     where: 打印店 / 签证中心现场
     requirements: [r-passport, r-old-passport, r-id-card, r-hukou, r-photo, r-property]
     depends_on: []
@@ -346,6 +370,7 @@ steps:
     evidence: [{source: g1, quote: "证件类（1-5） — 复印拍照，基础活"}]
   - id: s-student-docs
     title: 找教务处开在读证明、下载学信网学籍证明
+    phase: p-materials
     where: 学校教务处 + 学信网
     requirements: [r-enrollment, r-student-card, r-chsi]
     depends_on: []
@@ -355,6 +380,7 @@ steps:
     evidence: [{source: g1, quote: "在职的找公司开证明，学生跑教务处"}]
   - id: s-employer-docs
     title: 找公司开在职证明、要营业执照复印件
+    phase: p-materials
     where: 公司人事
     requirements: [r-employment-letter, r-business-license]
     depends_on: []
@@ -364,6 +390,7 @@ steps:
     evidence: [{source: g1, quote: "在职的找公司开证明，学生跑教务处"}]
   - id: s-retiree-docs
     title: 复印退休证
+    phase: p-materials
     where: 打印店
     requirements: [r-retirement-cert]
     depends_on: []
@@ -373,6 +400,7 @@ steps:
     evidence: [{source: g1, quote: "退休证原件 + 复印件"}]
   - id: s-sponsor-docs
     title: 准备出资人材料（不在同一户口本还要办亲属关系公证）
+    phase: p-materials
     where: 出资人所在银行 / 单位 + 公证处
     requirements: [r-sponsor-docs, r-kinship-notary]
     depends_on: []
@@ -382,6 +410,7 @@ steps:
     evidence: [{source: g1, quote: "不在同一户口本还需亲属关系公证 + 海牙认证"}]
   - id: s-minor-docs
     title: 办未成年人公证材料（出生证明、出行同意书、父母关系）
+    phase: p-materials
     where: 公证处
     requirements: [r-birth-cert, r-parental-consent, r-parents-docs]
     depends_on: []
@@ -391,6 +420,7 @@ steps:
     evidence: [{source: g1, quote: "父母双方签字；若一方不能到场，需出具同意书"}]
   - id: s-insurance
     title: 买申根旅行保险
+    phase: p-materials
     where: 京东 / 支付宝
     requirements: [r-insurance]
     depends_on: []
@@ -400,6 +430,7 @@ steps:
     evidence: [{source: g1, quote: "保险（9） — 京东/支付宝 5 分钟，日期覆盖行程"}]
   - id: s-bank
     title: 去银行打流水
+    phase: p-materials
     where: 银行
     requirements: [r-bank, r-salary, r-pension]
     depends_on: []
@@ -409,6 +440,7 @@ steps:
     evidence: [{source: g1, quote: "银行打流水，按预算公式确认余额够，记得别临时大额转账"}]
   - id: s-itinerary
     title: 做行程单
+    phase: p-materials
     where: 「行程助手」app 或让 AI 生成
     requirements: [r-itinerary]
     depends_on: [s-choose-country]
@@ -418,6 +450,7 @@ steps:
     evidence: [{source: g1, quote: "行程单（12） — 申请国天数最长，一天 3-4 景点，别特种兵"}]
   - id: s-flight
     title: 订机票预订单（不付款）
+    phase: p-materials
     where: trip.com
     requirements: [r-flight]
     depends_on: [s-itinerary]
@@ -427,6 +460,7 @@ steps:
     evidence: [{source: g1, quote: "trip.com 不付款，出入境呼应行程"}]
   - id: s-hotel
     title: 订酒店预订单（可免费取消）
+    phase: p-materials
     where: 携程 / Agoda / Booking
     requirements: [r-hotel]
     depends_on: [s-itinerary]
@@ -436,6 +470,7 @@ steps:
     evidence: [{source: g1, quote: "城市和日期跟行程对齐"}]
   - id: s-marriage
     title: 准备结婚证复印件和英文翻译件
+    phase: p-materials
     where: 自行复印 + 翻译
     requirements: [r-marriage]
     depends_on: []
@@ -445,6 +480,7 @@ steps:
     evidence: [{source: g1, quote: "结婚证（15） — 已婚的准备，未婚跳过"}]
   - id: s-cover-letter
     title: 写解释信
+    phase: p-materials
     where: 自己写或让 AI 起草
     requirements: [r-cover-letter, r-income-explanation]
     depends_on: [s-bank, s-flight, s-hotel]
@@ -454,6 +490,7 @@ steps:
     evidence: [{source: g1, quote: "最后写，因为要解释前面材料的情况"}]
   - id: s-submit
     title: 去签证中心递签（现场录指纹）
+    phase: p-submit
     where: 签证中心
     requirements: []
     depends_on: [s-appointment, s-copy-ids, s-insurance, s-bank, s-cover-letter, s-student-docs, s-employer-docs, s-retiree-docs, s-sponsor-docs, s-minor-docs, s-marriage]
@@ -463,6 +500,7 @@ steps:
     evidence: [{source: g1, quote: "写解释信 → 递签（现场录指纹）→ 等出签"}]
   - id: s-wait
     title: 等出签
+    phase: p-wait
     where: 无需操作
     requirements: []
     depends_on: [s-submit]
