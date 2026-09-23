@@ -154,12 +154,13 @@
     var hash = location.hash.replace(/^#\/?/, "");
     var parts = hash.split("/");
     document.querySelectorAll("[data-nav]").forEach(function (a) {
-      a.classList.toggle("active", ["", "guide", "track", "tag"].indexOf(parts[0]) !== -1);
+      a.classList.toggle("active", ["", "guide", "track", "tag", "form"].indexOf(parts[0]) !== -1);
     });
     setView(el("p", { class: "muted", text: "加载中…" }));
     if (parts[0] === "guide" && parts[1]) return renderGuide(decodeURIComponent(parts[1]));
     if (parts[0] === "track" && parts[1]) return renderTrack(decodeURIComponent(parts[1]));
     if (parts[0] === "tag" && parts[1]) return renderHome(decodeURIComponent(parts[1]));
+    if (parts[0] === "form" && parts[1]) return renderForm(decodeURIComponent(parts[1]));
     return renderHome(null);
   }
 
@@ -312,6 +313,67 @@
       });
   }
 
+  // ---------- 填表指南 ----------
+
+  function renderForm(id) {
+    request("GET", "/api/forms/" + encodeURIComponent(id))
+      .then(function (f) {
+        setView(
+          el(
+            "div",
+            { class: "heading" },
+            el(
+              "div",
+              null,
+              el("div", { class: "crumb" }, el("a", { href: "#", text: "← 返回", onclick: function (ev) { ev.preventDefault(); history.back(); } }), " / 填表指南"),
+              el("h1", { text: f.title }),
+              f.summary ? el("p", { class: "muted", text: f.summary }) : null
+            ),
+            el("a", { class: "link-btn official big", href: f.site.url, target: "_blank", rel: "noopener noreferrer", text: "🌐 打开 " + f.site.name + " ↗" })
+          ),
+          f.level === "procedure"
+            ? el("p", { class: "notice", text: "这是流程级指南：按环节列出要做什么、注意什么。每一栏具体怎么填的字段级说明，还需要有人带着 Agent 实际走一遍官网后补充。" })
+            : null,
+          el(
+            "ol",
+            { class: "form-sections" },
+            f.sections.map(function (sec) {
+              return el(
+                "li",
+                { class: "panel" },
+                el("div", { class: "panel-head" }, el("h2", { text: sec.title })),
+                el(
+                  "div",
+                  { class: "form-body" },
+                  el("ol", null, sec.items.map(function (t) { return el("li", { text: t }); })),
+                  sec.tips.length ? el("div", { class: "tips" }, el("strong", { text: "注意" }), el("ul", null, sec.tips.map(function (t) { return el("li", { text: t }); }))) : null,
+                  evidenceBlock(sec.evidence, f.sources)
+                )
+              );
+            })
+          ),
+          el(
+            "section",
+            { class: "panel" },
+            el("div", { class: "panel-head" }, el("h2", { text: "来源" })),
+            el(
+              "div",
+              { class: "sources" },
+              el("ul", null, f.sources.map(function (src) {
+                return el("li", null, src.url ? el("a", { href: src.url, target: "_blank", rel: "noopener noreferrer", text: src.title }) : src.title, src.as_of ? el("small", { text: " · 信息截至 " + src.as_of }) : null);
+              })),
+              f.uncertain.length ? [el("strong", { text: "还不确定、建议核实：" }), el("ul", null, f.uncertain.map(function (u) { return el("li", { text: u }); }))] : null,
+              el("p", { class: "muted", text: "以官网实际页面为准。" })
+            )
+          )
+        );
+      })
+      .catch(function (e) {
+        setView(el("p", null, el("a", { href: "#/", text: "← 回到攻略库" })));
+        showError(e.message);
+      });
+  }
+
   // ---------- 攻略预览 ----------
 
   function renderGuide(id) {
@@ -377,9 +439,17 @@
 
   // ---------- 我的办事 ----------
 
+  var myRecords = []; // 我的资料里的真实材料（不含示例），"从我的资料里选"用
+
+  function loadMyRecords() {
+    return request("GET", "/api/materials").then(function (list) {
+      myRecords = list.filter(function (m) { return m.id.indexOf("example-") !== 0; });
+    });
+  }
+
   function renderTrack(id) {
-    request("GET", "/api/tracks/" + encodeURIComponent(id))
-      .then(function (v) { drawTrack(v); })
+    Promise.all([request("GET", "/api/tracks/" + encodeURIComponent(id)), loadMyRecords()])
+      .then(function (results) { drawTrack(results[0]); })
       .catch(function (e) {
         setView(el("p", null, el("a", { href: "#/", text: "← 回到攻略库" })));
         showError(e.message);
@@ -679,13 +749,23 @@
 
   function exportPanel(v) {
     var out = el("div");
+    var input = el("input", { type: "text", value: v.export_dir || "", placeholder: "例如 ~/Desktop（留空 = 材料根目录下的 exports/）", "aria-label": "导出到哪个文件夹" });
+    var chips = el("div", { class: "chips small" });
+    request("GET", "/api/export-locations").then(function (locs) {
+      locs.forEach(function (loc) {
+        chips.append(el("button", { type: "button", class: "chip", text: loc.label, onclick: function () { input.value = loc.path; } }));
+      });
+    }).catch(function () { /* 快捷选项拿不到不影响手动填写 */ });
+    var sample = v.export_pattern.replace("{seq:02d}", "01").replace("{seq}", "1").replace("{name}", "01-护照复印件").replace("{part}", "");
     var btn = el("button", {
       type: "button",
+      class: "primary",
       text: "导出已确认的材料",
       onclick: function () {
         btn.disabled = true;
         showError("");
-        request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/export")
+        var dest = input.value.trim();
+        request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/export", dest ? { dest: dest } : {})
           .then(function (r) {
             // 经过 el() 包一层：它会展开数组、跳过空值，原生 replaceChildren 不会
             out.replaceChildren(el(
@@ -693,6 +773,7 @@
               null,
               el("p", null, "已复制 " + r.copied.length + " 个文件到："),
               el("code", { text: r.folder }),
+              r.copied.length ? el("ul", { class: "file-list" }, r.copied.map(function (m) { return el("li", { text: m }); })) : null,
               r.missing_files.length ? [el("p", { text: "已确认但找不到文件：" }), el("ul", null, r.missing_files.map(function (m) { return el("li", { text: m }); }))] : null,
               r.pending.length
                 ? [el("p", { text: "还没备齐（已写进文件夹里的 清单.txt）：" }), el("ul", null, r.pending.map(function (m) { return el("li", { text: m }); }))]
@@ -710,7 +791,10 @@
       el(
         "div",
         { class: "export" },
-        el("p", { class: "muted", text: "把状态为「已有」的材料复制到材料根目录下的 exports/ 文件夹，按顺序编号，附一份清单。原文件不会被移动或改名。" }),
+        el("p", { class: "muted", text: "把状态为「已有」的材料复制到你选的文件夹里（会新建一个以这件事命名的子文件夹），附一份清单。原文件留在材料库里，不移动、不改名。" }),
+        el("label", null, "导出到", input),
+        chips,
+        el("p", { class: "muted", text: "文件名按攻略里的规则生成，例如「" + sample + ".pdf」。" }),
         btn,
         out
       )
@@ -739,6 +823,7 @@
       el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
       el("h2", { text: s.title }),
       el("div", { class: "step-meta" }, stepMeta(s)),
+      linksBlock(s, factsFromView(v)),
       s.late
         ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
         : null,
@@ -760,6 +845,42 @@
       if (v.phases[i].id === phaseId) return " · 第 " + (i + 1) + " 阶段：" + v.phases[i].title;
     }
     return "";
+  }
+
+  function factsFromView(v) {
+    var map = {};
+    v.facts.forEach(function (f) { map[f.key] = f; });
+    return map;
+  }
+
+  var LINK_ICON = { official: "🌐", form_guide: "📋", info: "🔗" };
+
+  // 已适用的链接直接显示成按钮；取决于还没回答的问题的，只提示"先回答哪个问题"，不把十几个国家的官网全堆出来
+  function linksBlock(s, factsByKey) {
+    if (!s.links || !s.links.length) return null;
+    var ready = s.links.filter(function (l) { return l.applies === "yes"; });
+    var pendingFacts = {};
+    s.links.filter(function (l) { return l.applies === "undecided"; }).forEach(function (l) {
+      l.conditions.forEach(function (c) { pendingFacts[c.fact] = true; });
+    });
+    var hint = Object.keys(pendingFacts).length
+      ? el("span", { class: "muted", text: "回答「" + Object.keys(pendingFacts).map(function (k) { return factsByKey[k] ? factsByKey[k].question.replace(/[（(].*$/, "").replace(/[？?]$/, "") : k; }).join("」「") + "」后，这里会出现对应的官网和填表指南" })
+      : null;
+    return el(
+      "div",
+      { class: "links" },
+      ready.map(function (l) {
+        var internal = l.kind === "form_guide" && l.form;
+        return el("a", {
+          class: "link-btn " + l.kind,
+          href: internal ? "#/form/" + encodeURIComponent(l.form) : l.url,
+          target: internal ? null : "_blank",
+          rel: internal ? null : "noopener noreferrer",
+          text: (LINK_ICON[l.kind] || "🔗") + " " + l.title + (internal ? "" : " ↗"),
+        });
+      }),
+      hint
+    );
   }
 
   function stepMeta(s) {
@@ -812,6 +933,7 @@
         null,
         el("div", { class: "step-title", text: s.title }),
         el("div", { class: "step-meta" }, stepMeta(s)),
+        linksBlock(s, ctx.factsByKey),
         blocked,
         mats.length ? el("div", { class: "mats" }, mats) : null,
         evidenceBlock(s.evidence, v.sources)
@@ -861,8 +983,62 @@
       hints,
       records,
       !ctx.readonly && (r.state === "missing" || r.state === "stale") && !r.type_unresolved ? uploadForm(r, v) : null,
+      !ctx.readonly && r.state !== "undecided" ? pickForm(r, v) : null,
       evidenceBlock(r.evidence, v.sources)
     );
+  }
+
+  var CATEGORY_NAME = { passport_scan: "证件", financial_snapshot: "财务", employment_doc: "工作", id_photo: "证件照", other: "其他" };
+
+  function recordLabel(m) {
+    return m.type + (m.sublabel ? "（" + m.sublabel + "）" : "") + " · " + (m.obtained_date || "未填日期");
+  }
+
+  // 自动识别没认出来时（例如签证页和盖章页扫在同一份 PDF 里），让用户自己从材料库里挑。
+  // 组合材料每一部分各挑一份；挑过的类型会被记住，下次自动识别。
+  function pickForm(r, v) {
+    if (!myRecords.length) return null;
+    var slots = r.parts.length ? r.parts : [{ key: r.material_type, name: r.name }];
+    var toggleText = r.state === "ready" ? "换一份" : "从我的资料里选";
+    var box = el("form", { class: "pick", hidden: true });
+    var groups = {};
+    myRecords.forEach(function (m) { (groups[m.category] = groups[m.category] || []).push(m); });
+    var selects = slots.map(function (slot, i) {
+      var current = r.records.length === slots.length ? r.records[i].id : "";
+      var sel = el(
+        "select",
+        { required: true, "aria-label": "选择：" + slot.name },
+        el("option", { value: "", text: "— 选一份 —" }),
+        Object.keys(groups).map(function (cat) {
+          return el("optgroup", { label: CATEGORY_NAME[cat] || cat }, groups[cat].map(function (m) {
+            return el("option", { value: m.id, text: recordLabel(m), selected: m.id === current });
+          }));
+        })
+      );
+      return el("label", null, slots.length > 1 ? slot.name + " " : "", sel);
+    });
+    var submit = el("button", { type: "submit", text: "就用这些" });
+    [selects, submit, el("small", { class: "muted", text: "选过的材料以后会被自动识别" })].forEach(function (n) {
+      (Array.isArray(n) ? n : [n]).forEach(function (c) { box.append(c); });
+    });
+    box.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var ids = selects.map(function (label) { return label.querySelector("select").value; });
+      if (ids.some(function (x) { return !x; })) return;
+      submit.disabled = true;
+      update(v, "/matches/" + encodeURIComponent(r.id), { confirmed: true, records: ids });
+    });
+    var toggle = el("button", {
+      type: "button",
+      class: "linkish",
+      text: toggleText,
+      "aria-expanded": "false",
+      onclick: function () {
+        box.hidden = !box.hidden;
+        toggle.setAttribute("aria-expanded", box.hidden ? "false" : "true");
+      },
+    });
+    return el("div", { class: "pick-wrap" }, toggle, box);
   }
 
   function uploadForm(r, v) {
@@ -889,7 +1065,7 @@
       btn.disabled = true;
       showError("");
       uploadRequest("/api/tracks/" + encodeURIComponent(v.id) + "/requirements/" + encodeURIComponent(r.id) + "/upload", fd)
-        .then(drawTrack)
+        .then(function (nv) { return loadMyRecords().then(function () { drawTrack(nv); }); })
         .catch(function (e) { btn.disabled = false; showError(e.message); });
     });
     return form;
