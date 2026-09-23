@@ -446,7 +446,7 @@ travel_history:
 10. 代码中每个字段 key（含条目和子对象里的）都以反引号形式出现在本文档中（测试 `test_every_field_key_is_documented_in_spec`）。
 11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里没有名字形如 `set_/save_/update_/put_…profile` 的工具。
 12. 浏览器打开 `/my.html#profile`：能看到 9 个分组面板；在「教育经历」里点「＋ 添加一条」会多出一个空条目卡片，点「删除这条」会移除；点「保存」后出现「已保存」字样；刷新页面后已保存的值仍在。
-13. `web/assets/my.js` 中不出现 `innerHTML`、`alert(`、`confirm(`。
+13. `grep -nE "\.innerHTML|alert\(|confirm\(" web/assets/my.js` 没有输出。
 14. 仓库里（含本文档、测试、提交信息）不出现任何真实姓名、证件号、电话、地址、学校、单位；示例一律为虚构值。
 
 ## 待定 / 以后再说
