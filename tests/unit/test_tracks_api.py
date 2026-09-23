@@ -308,3 +308,15 @@ def test_cannot_pick_other_tracks_one_off_and_convert_to_long_term(isolated):
     assert c.patch("/api/materials/inv", json={"for_track": None}).json()["for_track"] is None  # 转为长期
     assert c.put(url, json={"confirmed": True, "records": ["inv"]}).status_code == 200
     assert c.patch("/api/materials/inv", json={"for_track": "no-such-track"}).status_code == 422
+
+
+
+def test_upload_for_guide_requirement_unknown_to_vocabulary(isolated):
+    """攻略里词表不认识的一次性材料（例如邀请函）也能上传：默认本次专用，并直接确认。"""
+    import yaml
+    c, _, index = isolated
+    tid = c.post("/api/tracks", json={"guide": "australia-visitor-600-business"}).json()["id"]
+    v = c.post(f"/api/tracks/{tid}/requirements/r-invitation/upload", files={"file": ("inv.pdf", b"%PDF", "application/pdf")}).json()
+    assert next(r for r in v["requirements"] if r["id"] == "r-invitation")["state"] == "ready"
+    rec = yaml.safe_load(next((index / "records").glob("*.yaml")).read_text(encoding="utf-8"))
+    assert rec["type"] == "客户发的邀请函（英文）" and rec["for_track"] == tid

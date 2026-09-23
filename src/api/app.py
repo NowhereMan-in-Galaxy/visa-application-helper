@@ -1013,9 +1013,8 @@ async def upload_for_requirement(
         raise HTTPException(status_code=422, detail="这条材料对你不适用，不需要上传")
     scope = None if (req.default_keep if keep is None else keep) else track.id
     if req.material_type is None:
-        if not req.custom:
-            raise HTTPException(status_code=422, detail="词表还不认识这种材料，暂时没法归档；请先补充 community/material_types.yaml")
-        # 自己加的材料、词表不认识：按材料名建一条"其他"类记录，并直接确认给这项材料
+        # 词表不认识的材料（自己加的，或攻略里的一次性材料如邀请函）：按材料名建一条"其他"类记录，
+        # 默认只属于这件办事，并直接确认给这项材料——不能自动匹配，所以不依赖词表
         created = await _create_material(
             belongs_to=None, category=MaterialCategory.OTHER, type_=req.name,
             obtained_date=obtained_date or date.today(),

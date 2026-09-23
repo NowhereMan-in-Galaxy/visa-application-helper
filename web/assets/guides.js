@@ -1250,7 +1250,7 @@
       hints.push(el("div", { class: "mat-note", text: r.freshness_days ? "这份材料已经过期或超过 " + r.freshness_days + " 天，需要重新开一份。" : "这份材料已经过期，需要重新开一份。" }));
     }
     if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.map(function (p) { return p.name; }).join("、") }));
-    if (r.type_unresolved) hints.push(el("div", { class: "mat-note", text: "词表还不认识这个叫法，暂时没法自动对上你的材料。" }));
+    if (r.type_unresolved) hints.push(el("div", { class: "mat-note", text: "这类材料没法自动对上材料库，上传或从我的资料里选一份即可。" }));
     if (r.state === "undecided") hints.push(el("div", { class: "mat-note", text: "取决于你的回答：" + conditionText(r.conditions, ctx.factsByKey) }));
 
     var note = ctx.readonly ? null : noteBlock(v, "requirements", r.id, r.user_note);
@@ -1289,7 +1289,7 @@
       rename ? rename.node : null,
       hints,
       records,
-      !ctx.readonly && (r.state === "missing" || r.state === "stale") && !r.type_unresolved ? uploadForm(r, v) : null,
+      !ctx.readonly && (r.state === "missing" || r.state === "stale") ? uploadForm(r, v) : null,
       !ctx.readonly && r.state !== "undecided" ? pickForm(r, v) : null,
       evidenceBlock(r.evidence, v.sources)
     );
