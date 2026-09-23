@@ -70,6 +70,18 @@
     });
   }
 
+  function uploadRequest(path, formData) {
+    return fetch(path, { method: "POST", body: formData, headers: { Accept: "application/json" } }).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok) {
+          var detail = data && data.detail;
+          throw new Error(typeof detail === "string" ? detail : "上传失败（HTTP " + res.status + "）");
+        }
+        return data;
+      });
+    });
+  }
+
   function daysBetween(fromIso, toIso) {
     return Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 86400000);
   }
@@ -400,9 +412,26 @@
         el(
           "ol",
           { class: "timeline" },
-          visibleSteps.map(function (s) {
-            return stepItem(s, v, { readonly: readonly, reqById: reqById, stepById: stepById, factsByKey: factsByKey, anchored: anchored });
-          })
+          (function () {
+            var phaseById = {};
+            v.phases.forEach(function (p, i) { phaseById[p.id] = { p: p, i: i }; });
+            var items = [];
+            var lastPhase = null;
+            visibleSteps.forEach(function (s) {
+              if (s.phase && s.phase !== lastPhase && phaseById[s.phase]) {
+                var ph = phaseById[s.phase];
+                items.push(el(
+                  "li",
+                  { class: "phase-heading" },
+                  el("span", { text: "第 " + (ph.i + 1) + " 阶段 · " + ph.p.title }),
+                  MODE_LABEL[ph.p.mode] ? el("span", { class: "mode " + ph.p.mode, text: MODE_LABEL[ph.p.mode] }) : null
+                ));
+                lastPhase = s.phase;
+              }
+              items.push(stepItem(s, v, { readonly: readonly, reqById: reqById, stepById: stepById, factsByKey: factsByKey, anchored: anchored }));
+            });
+            return items;
+          })()
         )
       )
     );
@@ -438,7 +467,86 @@
     side.append(materialSummary(v));
     side.append(sourcesPanel(v, reqById, stepById));
 
-    return el("div", { class: "layout" }, main, el("div", null, side));
+    if (!readonly) side.append(exportPanel(v));
+
+    return el("div", null, phaseBar(v, stepById), el("div", { class: "layout" }, main, el("div", null, side)));
+  }
+
+  var MODE_LABEL = { online: "线上", offline: "线下" };
+  var PHASE_STATE_LABEL = { done: "已完成", current: "进行中", upcoming: "未开始", skipped: "不需要" };
+
+  function durationText(d) {
+    return d ? "通常 " + d.typical + " 天，最长 " + d.max + " 天" : null;
+  }
+
+  // 页面最上方的"大阶段"进度条：先让人知道整件事分几段、现在走到哪、一般要多久
+  function phaseBar(v) {
+    if (!v.phases.length) {
+      return v.timeline ? el("p", { class: "notice", text: "⏱ " + v.timeline }) : null;
+    }
+    return el(
+      "section",
+      { class: "phases", "aria-label": "办理阶段" },
+      el(
+        "ol",
+        { class: "phase-bar" },
+        v.phases.map(function (p, i) {
+          var meta = [
+            el("span", { text: PHASE_STATE_LABEL[p.state] }),
+            p.steps_total ? el("span", { text: "· " + p.steps_done + "/" + p.steps_total + " 步" }) : null,
+            MODE_LABEL[p.mode] ? el("span", { class: "mode " + p.mode, text: MODE_LABEL[p.mode] }) : null,
+          ];
+          var time = p.estimate || durationText(p.duration_days);
+          return el(
+            "li",
+            { class: "phase " + p.state, "aria-current": p.state === "current" ? "step" : null },
+            el("div", { class: "phase-no", text: "第 " + (i + 1) + " 阶段" }),
+            el("div", { class: "phase-title", text: p.title }),
+            el("div", { class: "phase-meta" }, meta),
+            time ? el("div", { class: "phase-meta", text: "⏱ " + time }) : null,
+            p.summary ? el("div", { class: "phase-summary", text: p.summary }) : null
+          );
+        })
+      ),
+      v.timeline ? el("p", { class: "timeline-note", text: "⏱ 全程：" + v.timeline }) : null
+    );
+  }
+
+  function exportPanel(v) {
+    var out = el("div");
+    var btn = el("button", {
+      type: "button",
+      text: "导出已确认的材料",
+      onclick: function () {
+        btn.disabled = true;
+        showError("");
+        request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/export")
+          .then(function (r) {
+            out.replaceChildren(
+              el("p", null, "已复制 " + r.copied.length + " 个文件到："),
+              el("code", { text: r.folder }),
+              r.missing_files.length ? [el("p", { text: "已确认但找不到文件：" }), el("ul", null, r.missing_files.map(function (m) { return el("li", { text: m }); }))] : null,
+              r.pending.length
+                ? [el("p", { text: "还没备齐（已写进文件夹里的 清单.txt）：" }), el("ul", null, r.pending.map(function (m) { return el("li", { text: m }); }))]
+                : el("p", { text: "材料全部备齐了。" })
+            );
+          })
+          .catch(function (e) { showError(e.message); })
+          .then(function () { btn.disabled = false; });
+      },
+    });
+    return el(
+      "section",
+      { class: "panel" },
+      el("div", { class: "panel-head" }, el("h2", { text: "导出到文件夹" })),
+      el(
+        "div",
+        { class: "export" },
+        el("p", { class: "muted", text: "把状态为「已有」的材料复制到材料根目录下的 exports/ 文件夹，按顺序编号，附一份清单。原文件不会被移动或改名。" }),
+        btn,
+        out
+      )
+    );
   }
 
   function nextCard(v, stepById, reqById) {
@@ -460,7 +568,7 @@
     return el(
       "section",
       { class: "next-card" },
-      el("div", { class: "label", text: "下一步" }),
+      el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
       el("h2", { text: s.title }),
       el("div", { class: "step-meta" }, stepMeta(s)),
       mats.length
@@ -474,6 +582,13 @@
       ),
       el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
     );
+  }
+
+  function phaseLabel(v, phaseId) {
+    for (var i = 0; i < v.phases.length; i++) {
+      if (v.phases[i].id === phaseId) return " · 第 " + (i + 1) + " 阶段：" + v.phases[i].title;
+    }
+    return "";
   }
 
   function stepMeta(s) {
@@ -550,7 +665,7 @@
     if (r.state === "stale") {
       hints.push(el("div", { class: "mat-note", text: r.freshness_days ? "这份材料已经过期或超过 " + r.freshness_days + " 天，需要重新开一份。" : "这份材料已经过期，需要重新开一份。" }));
     }
-    if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.join("、") }));
+    if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.map(function (p) { return p.name; }).join("、") }));
     if (r.type_unresolved) hints.push(el("div", { class: "mat-note", text: "词表还不认识这个叫法，暂时没法自动对上你的材料。" }));
     if (r.state === "undecided") hints.push(el("div", { class: "mat-note", text: "取决于你的回答：" + conditionText(r.conditions, ctx.factsByKey) }));
 
@@ -569,8 +684,39 @@
       r.note ? el("div", { class: "mat-note", text: r.note }) : null,
       hints,
       records,
+      !ctx.readonly && (r.state === "missing" || r.state === "stale") && !r.type_unresolved ? uploadForm(r, v) : null,
       evidenceBlock(r.evidence, v.sources)
     );
+  }
+
+  function uploadForm(r, v) {
+    var form = el("form", { class: "upload" });
+    var partChoices = r.missing_parts.length ? r.missing_parts : r.parts;
+    var select = null;
+    if (partChoices.length) {
+      select = el("select", { name: "part", "aria-label": "上传的是哪一部分" }, partChoices.map(function (p) { return el("option", { value: p.key, text: p.name }); }));
+    }
+    var fileInput = el("input", { type: "file", name: "file", required: true, "aria-label": "选择文件：" + r.name });
+    var dateInput = el("input", { type: "date", name: "obtained_date", title: "开具/取得日期，不填默认今天" });
+    var btn = el("button", { type: "submit", text: r.state === "stale" ? "上传新的一份" : "上传" });
+    // 原生 append 会把 null 当成文字 "null" 插进去，所以先过滤掉不需要的控件
+    [el("span", { text: r.state === "stale" ? "重新开好了？" : "手上有了？" }), select, fileInput, el("label", null, "取得日期 ", dateInput), btn]
+      .filter(Boolean)
+      .forEach(function (node) { form.append(node); });
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      if (!fileInput.files.length) return;
+      var fd = new FormData();
+      fd.set("file", fileInput.files[0]);
+      if (dateInput.value) fd.set("obtained_date", dateInput.value);
+      if (select) fd.set("part", select.value);
+      btn.disabled = true;
+      showError("");
+      uploadRequest("/api/tracks/" + encodeURIComponent(v.id) + "/requirements/" + encodeURIComponent(r.id) + "/upload", fd)
+        .then(drawTrack)
+        .catch(function (e) { btn.disabled = false; showError(e.message); });
+    });
+    return form;
   }
 
   function materialSummary(v) {

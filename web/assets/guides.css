@@ -159,3 +159,37 @@ form.start input { width: 100%; padding: 10px; border: 1px solid var(--line); ba
   .top { font-size: 10px; }
   .step { grid-template-columns: 28px 1fr; padding: 16px 14px; }
 }
+
+/* ---- 阶段进度条（页面最上方） ---- */
+.phases { margin: 0 0 28px; }
+.phase-bar { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); background: var(--paper-2); }
+.phase { position: relative; padding: 14px 16px 14px 18px; border-right: 1px solid var(--line-soft); min-width: 0; }
+.phase:last-child { border-right: 0; }
+.phase::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--line-soft); }
+.phase.done::before { background: var(--green); }
+.phase.current::before { background: var(--ink); }
+.phase.current { background: #f1f3e8; }
+.phase.skipped { opacity: .45; }
+.phase-no { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+.phase-title { font-weight: 600; font-size: 15px; margin: 2px 0; overflow-wrap: anywhere; }
+.phase-meta { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.mode { font-size: 11px; padding: 0 6px; border: 1px solid var(--line); }
+.mode.online { background: #e3e8f0; border-color: #c4cfdf; }
+.mode.offline { background: var(--amber-soft); border-color: #dccb9f; color: var(--amber); }
+.phase-summary { font-size: 12px; color: #4a4f45; margin-top: 6px; }
+.timeline-note { font-size: 13px; margin-top: 10px; }
+.phase-heading { list-style: none; padding: 12px 20px; background: var(--side); border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+
+/* ---- 上传 / 导出 ---- */
+form.upload { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-soft); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 12px; }
+form.upload input[type=file] { max-width: 220px; font-size: 12px; }
+form.upload input[type=date], form.upload select { font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); background: #fffef9; }
+form.upload button { padding: 3px 10px; font-size: 12px; }
+.export { padding: 14px 20px; display: grid; gap: 10px; font-size: 13px; }
+.export code { word-break: break-all; }
+.export ul { margin: 4px 0; padding-left: 18px; }
+
+@media (max-width: 900px) {
+  .phase-bar { grid-auto-flow: row; }
+  .phase { border-right: 0; border-bottom: 1px solid var(--line-soft); }
+}
