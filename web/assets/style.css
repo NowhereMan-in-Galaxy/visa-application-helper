@@ -364,3 +364,32 @@ select {
   border-color: var(--accent);
   color: #fff;
 }
+
+/* 新版办事工作台入口横幅（保留旧页面，仅新增一个醒目链接） */
+.workbench-banner {
+  display: block;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1.1rem;
+  border: 2px solid var(--accent, #2563eb);
+  border-radius: 0.5rem;
+  background: #eef4ff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workbench-banner strong {
+  display: block;
+  font-size: 1.02rem;
+  color: var(--accent, #2563eb);
+}
+
+.workbench-banner span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.workbench-banner:hover {
+  background: #e0ebff;
+}
