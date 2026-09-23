@@ -1,0 +1,84 @@
+# 美国 F-1 学生签证：SEVIS 缴费 → DS-160 → 预约面签（流程级指南）。
+# 整理自小红书笔记「LLM｜F-1美签材料checklist」（g1，清单在配图里）、小红书 AI 搜索总结（g2，二手概括），
+# 以及 2026-09-23 用浏览器打开核实过的官方网站（g3–g6）。只摘录不超过 60 字的原话。
+# 字段级说明（DS-160 每一页每一栏怎么填）待 Agent 实际走一遍官网后补充。
+
+id: us-f1-visa
+title: 美国 F-1 签证：缴 SEVIS 费、填 DS-160、预约面签
+level: procedure
+site:
+  name: 美国签证信息服务中国网站（USTravelDocs）
+  url: https://www.ustraveldocs.com/cn/zh/nonimmigrant-visa
+summary: 拿到 I-20 后依次在三个官方网站操作：FMJFEE.com 缴 SEVIS I-901 费 → CEAC 填 DS-160 → USTravelDocs 付签证费并预约面谈。
+updated: 2026-09-23
+
+sources:
+  - id: g1
+    title: 小红书 · LLM｜F-1美签材料checklist（清单在配图里）
+    url: https://www.xiaohongshu.com/explore/6a2aec7c0000000016026282
+    as_of: 2026-06-12
+  - id: g2
+    title: 小红书 AI 搜索总结（二手资料）
+    as_of: 2026-09-23
+  - id: g3
+    title: SEVP I-901 SEVIS 缴费官网（FMJFEE.com）
+    url: https://www.fmjfee.com/i901fee/index.htm
+    as_of: 2026-09-23
+  - id: g4
+    title: CEAC · 在线非移民签证申请（DS-160）
+    url: https://ceac.state.gov/GenNIV/Default.aspx
+    as_of: 2026-09-23
+  - id: g5
+    title: USTravelDocs · 缴纳签证申请费
+    url: https://www.ustraveldocs.com/cn/zh/step-3
+    as_of: 2026-09-23
+  - id: g6
+    title: USTravelDocs · 预约面谈时间
+    url: https://www.ustraveldocs.com/cn/zh/step-4
+    as_of: 2026-09-23
+
+sections:
+  - title: 第一步：缴纳 SEVIS I-901 费（FMJFEE.com）
+    items:
+      - 打开 FMJFEE.com，点 Pay I-901 Fee，按 I-20 上的 SEVIS ID 填写。
+      - F-1 学生费用 350 美元，可以用信用卡支付。
+      - 缴完后在 Check I-901 Status 里打印缴费确认（收据），面签要带。
+    tips:
+      - 核对 SEVIS 上的信息和 I-20 是否一致。
+    evidence:
+      - {source: g1, quote: "缴纳 SEVIS I-901 费用 350 美金，信用卡支付，并打印收据。"}
+      - {source: g1, quote: "核对 sevis 上的信息和 i20 是否一致"}
+      - {source: g3, quote: "You will need proof of payment for your visa interview."}
+  - title: 第二步：填写 DS-160（CEAC）
+    items:
+      - 打开 CEAC 官网在线填写，官网说大约需要 90 分钟。
+      - 要上传照片电子版：51×51 mm 白底，240kb 以下，不可戴眼镜。
+      - 教育背景、旅行计划等所有信息要和 I-20 完全一致。
+      - 提交后生成以 AA 开头的确认码，保存好；打印确认页，黑白或彩打均可。
+    tips:
+      - 填写的社交媒体账号要提前设为公开；没写全的，面签时可以附一份社交媒体清单。
+    evidence:
+      - {source: g4, quote: "It takes approximately 90 minutes to do this."}
+      - {source: g1, quote: "51 x 51 mm，洗一张，并保留电子版（需要上传到 DS160），要求在 240kb 以下，不可戴眼镜。"}
+      - {source: g2, quote: "填写时务必保证所有信息（如教育背景、旅行计划）与I-20完全一致"}
+      - {source: g2, quote: "提交后会生成一个AA开头的确认码，记得保存好"}
+      - {source: g2, quote: "务必在DS-160表格中填写的账号提前设置为公开状态。"}
+  - title: 第三步：付签证费并预约面谈（USTravelDocs）
+    items:
+      - 拿到 DS-160 的 AA 码后，到美国签证信息服务中国网站付签证申请费并预约面谈。
+      - F 类签证申请费 185 美元，可以用支付宝支付。
+      - 预约成功后打印预约单，黑白或彩打均可。
+    tips:
+      - 5–8 月是申请高峰，名额紧张，尽早预约。
+      - 可重新预约的次数有限，定时间前想好。
+      - 原帖给的旧预约网址（cgifederal.secure.force.com）已无法访问，以官网现在的入口为准。
+    evidence:
+      - {source: g2, quote: "拿到DS-160的AA码后，就可以去美国签证申请服务官网预约面签时间了。"}
+      - {source: g1, quote: "预约系统中需要支付 185 美金，支付宝即可支付。"}
+      - {source: g5, quote: "$185B 商务/旅行C-1 过境D 船员/机组人员F 学生（学术性）"}
+      - {source: g6, quote: "申请人允许重新预约的次数有限。"}
+
+uncertain:
+  - DS-160 每一页的字段级填法（待字段级指南）
+  - 预约系统登录入口（usvisascheduling.com）被人机验证拦住，没有打开核实
+  - 费用会调整，以官网当时价格为准
