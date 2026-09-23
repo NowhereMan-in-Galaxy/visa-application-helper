@@ -56,14 +56,29 @@ sources:                                 # 这个 Track 从哪些攻略整理出
     title: 上海送签日本单次旅游签全流程
     url: https://example.com/post/123    # 可选，仅 http/https
     guide_ref: guides/japan-visa-g1.md   # 可选；相对材料根目录的路径，原文存仓库外
+    as_of: 2026-05-01                    # 可选；攻略信息的时效日期。距今超过 365 天时前端提示"攻略可能过时"
+
+facts:                                   # 会改变清单内容的"你的情况"。value 为 null 表示还没问
+  identity:
+    question: 你目前的身份是？
+    options: [在校学生, 在职, 自由职业, 退休]
+    value: null
+  married:
+    question: 是否已婚？
+    options: [是, 否]
+    ask_if: []                           # 可选；什么情况下才需要问这个问题，格式同 applies_if。例：只有"有人出资"时才问"出资人是否同户口本"
+    value: null
 
 requirements:
   - id: r-bank
+    kind: obtain                         # obtain 要自己去办/去拿 | generate 可由 AI 起草（行程单、解释信）| output 完成某个步骤后自然得到（预约单）
     material_type: bank_statement        # 必须是词表里的 key；词表查不到时填 null 并在 raw_name 留原叫法
     raw_name: 近半年银行流水              # 攻略里的原叫法
+    optional: false                      # true 表示"有就交，没有可跳过"（加分项），不计入进度分母
+    applies_if: []                       # 生效条件，全部满足才生效；空列表 = 总是生效。例：[{fact: identity, in: [在职]}]
     freshness_days: 30                   # 可选；递交时该材料开具不能超过多少天（机械可判断）
     note: 需覆盖近 6 个月，余额建议 5 万以上   # 可选；无法机械判断的要求写这里
-    matched_record: null                 # 匹配到的 MaterialRecord.id；null 表示缺
+    matched_records: []                  # 匹配到的 MaterialRecord.id 列表；组合类型（见词表 parts）会有多条
     match_confirmed: false               # 用户是否确认过这个匹配
     evidence: [{source: g1, quote: "流水要近半年的，我是交材料前一周去打的"}]
 
@@ -73,8 +88,16 @@ steps:
     where: 线下 · 任意支行柜台            # 自由文本：线下地点 / 网站地址 / App 名
     requirements: [r-bank]               # 这一步产出或用到的需求 id
     depends_on: []                       # 必须先完成的 step id
+    applies_if: []                       # 同 requirements[].applies_if
     estimate: 30 分钟                     # 可选，自由文本
+    duration_days: null                  # 可选；需要等待的天数 {typical: 15, max: 45}，用于倒排时间
     done: false
+    evidence: [{source: g1, quote: "…"}]
+
+checks:                                  # 材料之间的一致性要求，最终核对时逐条展示给用户勾选（暂不做机械校验）
+  - id: c-hotel-itinerary
+    text: 酒店预订单的城市和日期必须与行程单一致
+    involves: [r-hotel, r-itinerary]     # 涉及的 requirement id
     evidence: [{source: g1, quote: "…"}]
 
 conflicts:                               # 多篇攻略说法不一致时，原样摆出来，不替用户选
@@ -93,7 +116,13 @@ uncertain: [r-bank.note]                 # AI 自己没把握的字段路径，�
 - `depends_on` 不能成环。
 - `evidence[].quote` 不超过 60 个字符（防止把整篇攻略搬进仓库）。
 - `material_type` 非 null 时必须存在于词表；为 null 时 `raw_name` 必填。
-- `match_confirmed: true` 时 `matched_record` 必须非 null 且该记录存在。
+- `match_confirmed: true` 时 `matched_records` 必须非空且每条记录都存在。
+- `kind` 只能是 `obtain` / `generate` / `output`。
+- `applies_if[].fact` 必须是 `facts` 里的键，`applies_if[].in` 的每个值必须在该 fact 的 `options` 里；`facts.*.value` 非 null 时也必须在 `options` 里。
+- `facts.*.ask_if` 遵守与 `applies_if` 相同的引用规则，且不能引用自己。
+- 每条 requirement 至少出现在一个 step 的 `requirements` 里。
+- `checks[].involves` 引用的 requirement id 必须存在；`checks[].id` 在文件内唯一。
+- `duration_days` 非 null 时，`typical` 和 `max` 都是正整数且 `typical <= max`。
 
 ### 2. 材料类型词表：`materials_index/material_types.yaml`
 
@@ -108,6 +137,8 @@ uncertain: [r-bank.note]                 # AI 自己没把握的字段路径，�
   aliases: [在职证明, 工作证明, 单位证明, employment letter]
 ```
 
+- `category` 可以为 null：保险、行程单这类材料不属于 001 的四大类。
+- 可选字段 `parts: [key, ...]` 表示组合类型，例如"护照全部页复印件"= 个人信息页 + 签证页 + 盖章页。每个 part 必须是词表里存在的、自身没有 `parts` 的 key（只允许一层）。
 - `key` 全局唯一；任一 alias 只能出现在一个条目里（否则匹配有歧义）。
 - 别名比较时忽略大小写和首尾空格，其余必须完全相等（**不做模糊匹配**，模糊的交给 AI + 用户确认）。
 
@@ -121,21 +152,25 @@ uncertain: [r-bank.note]                 # AI 自己没把握的字段路径，�
 |---|---|---|---|
 | ① 攻略 → Track 草稿 | Agent | 攻略原文 → `status: draft` 的 Track YAML | Phase A 由 Claude Code 按 `prompt.md` 手动执行；Phase C 才接进网页 |
 | ② 原叫法 → 材料类型 | 核心库优先，Agent 兜底 | `raw_name` → 词表 key | 词表命中直接用；未命中才问 AI，用户确认后把新叫法追加进 `aliases` |
-| ③ 需求 → 材料记录 | 核心库 | Track + 材料库 → 每条需求的匹配候选 | 同 `material_type` 的记录中，选 `obtained_date` 最新的一条；若设了 `freshness_days` 且截至今天已超期，标为"需重新开具" |
-| ④ 清单渲染 | 核心库 | Track + 匹配结果 → 视图数据 | 包括"下一步"（所有依赖都完成、自身未完成的步骤中排最前的一个）和进度（已有/总需求） |
+| ③ 需求 → 材料记录 | 核心库 | Track + 材料库 → 每条需求的匹配候选 | 同 `material_type` 的记录中，选 `obtained_date` 最新的一条；组合类型对每个 part 各选一条。若设了 `freshness_days` 且截至今天已超期，标为"需重新开具" |
+| ④ 清单渲染 | 核心库 | Track + 匹配结果 → 视图数据 | 包括"下一步"（生效的、所有依赖都完成、自身未完成的步骤中排最前的一个）和进度（`ready` 数 / 生效且非 optional 的需求数） |
 
-需求的展示状态只有四种，由代码按顺序判定：
-1. `missing` 缺：没有任何同类型记录；
-2. `stale` 需重新开具：有记录，但设了 `freshness_days` 且记录的 `obtained_date` 距今超过该天数，或记录本身状态是"已过期"；
-3. `unconfirmed` 待确认：有合格记录，但 `match_confirmed` 为 false；
-4. `ready` 已有：有合格记录且已确认。
+需求的展示状态共六种，由代码**按顺序**判定，命中即停：
+1. `not_applicable` 不适用：`applies_if` 里有条件引用的 fact 已有值且不满足。前端隐藏，不计进度。
+2. `undecided` 待确认情况：`applies_if` 里有条件引用的 fact 值还是 null。前端提示先回答对应问题，不计进度。
+3. `missing` 缺：没有任何同类型记录（组合类型：任一 part 没有记录）。
+4. `stale` 需重新开具：有记录，但设了 `freshness_days` 且记录的 `obtained_date` 距今超过该天数，或记录本身状态是"已过期"（组合类型：任一 part 满足即算）。
+5. `unconfirmed` 待确认：有合格记录，但 `match_confirmed` 为 false。
+6. `ready` 已有：有合格记录且已确认。
+
+`material_type` 为 null 的需求（词表还认不出）在第 3 步直接判为 `missing`，并在前端提示"材料类型未归类"。步骤的 `applies_if` 用同样的方法判定是否生效。`ask_if` 不满足的 fact 不向用户提问，引用它的 `applies_if` 条件一律视为**不满足**（因此相关需求判为 `not_applicable`，而不是永远卡在 `undecided`）。
 
 ## 分阶段计划
 
 ### Phase A：数据结构落地 + 手动抽取（不需要 API key）
-- `src/core/tracks.py`：Track / Requirement / Step 等 pydantic 模型、读取 `materials_index/tracks/*.yaml`、校验上面"规则"一节的每一条、计算四种需求状态和"下一步"。
+- `src/core/tracks.py`：Track / Requirement / Step 等 pydantic 模型、读取 `materials_index/tracks/*.yaml`、校验上面"规则"一节的每一条、计算六种需求状态和"下一步"。
 - `src/core/material_types.py`：读取词表、别名查找。
-- `materials_index/material_types.yaml`：先录入覆盖 001 四大类的常用类型（至少 8 条）。
+- `materials_index/material_types.yaml`：已建立初版（27 条，2026-09-23），之后随抽取试验增补。
 - `materials_index/tracks/example-japan-tourist-2026.yaml`：虚构示例。
 - `specs/002-guide-to-track/prompt.md`：给 Claude Code 用的抽取指令。
 - API：`GET /api/tracks`（列表 + 每个 Track 的进度）、`GET /api/tracks/{id}`（完整 Track + 每条需求的状态和候选记录）。
@@ -154,8 +189,8 @@ uncertain: [r-bank.note]                 # AI 自己没把握的字段路径，�
 
 ## Phase A 验收标准
 
-- [ ] `uv run pytest tests/` 全部通过，且新增测试覆盖：规则一节每条规则各有至少 1 个"违规被拒绝"的用例；四种需求状态各有至少 1 个用例；"下一步"在有依赖、无依赖、全部完成三种情况下各有 1 个用例。
-- [ ] 示例 Track 能被 `GET /api/tracks/example-japan-tourist-2026` 读出，返回每条需求的 `state` 字段，取值只能是 `missing` / `stale` / `unconfirmed` / `ready`。
+- [ ] `uv run pytest tests/` 全部通过，且新增测试覆盖：规则一节每条规则各有至少 1 个"违规被拒绝"的用例；六种需求状态各有至少 1 个用例（含组合类型缺一个 part 判为 `missing` 的用例）；"下一步"在有依赖、无依赖、全部完成三种情况下各有 1 个用例。
+- [ ] 示例 Track 能被 `GET /api/tracks/example-japan-tourist-2026` 读出，返回每条需求的 `state` 字段，取值只能是 `not_applicable` / `undecided` / `missing` / `stale` / `unconfirmed` / `ready`。
 - [ ] 词表中任意 alias 重复时，服务启动或加载时报错并指出冲突的两个 key。
 - [ ] 至少 3 个由真实攻略抽取出的 Track 通过校验（这些 Track 若含个人信息，只能放材料根目录；仓库里只放虚构示例）。
 - [ ] 本 feature 所有改动中不出现真实姓名、证件号、金额。
@@ -165,3 +200,8 @@ uncertain: [r-bank.note]                 # AI 自己没把握的字段路径，�
 - 不做自动爬取小红书/知乎（登录墙、平台规则、维护成本）；输入一律由用户粘贴文字、上传截图或提供链接。
 - 不做模糊字符串匹配；认不出的叫法一律走"AI 建议 + 用户确认 + 写回词表"。
 - 不自动解决攻略间的冲突。
+
+## 待决问题（不要擅自决定，先提方案）
+
+- **材料名的规范化**：试验 #1 中 29 条需求有 19 条的叫法词表认不出（攻略常在材料名上加"原件 + 复印件""近 N 个月"等修饰）。候选方案和倾向见 [`trials/README.md`](./trials/README.md) 问题 4。在 Phase A 实现 `material_types.py` 时决定。
+- **`where` 随某个 fact 变化**（例如申请国不同，预约网站不同）：暂不支持，观察更多攻略后再定。
