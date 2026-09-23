@@ -27,6 +27,9 @@ class MaterialType:
     category: MaterialCategory | None
     aliases: tuple[str, ...]
     parts: tuple[str, ...] = ()
+    # 是否是跨事项反复使用的长期材料（证件、流水……）。False = 一次性材料（行程单、解释信……），
+    # 在办事里上传时默认只属于那件办事，不进长期资料库。见 specs/002 "长期资料 vs 本次专用"。
+    reusable: bool = True
 
 
 @dataclass
@@ -77,12 +80,16 @@ def build_vocabulary(raw: dict) -> Vocabulary:
             category_value = MaterialCategory(category) if category else None
         except ValueError as e:
             raise VocabularyError(f"{key}：category 取值不合法：{category}") from e
+        reusable = entry.get("reusable", True)
+        if not isinstance(reusable, bool):
+            raise VocabularyError(f"{key}：reusable 只能是 true 或 false")
         types[key] = MaterialType(
             key=key,
             name=entry.get("name") or key,
             category=category_value,
             aliases=tuple(entry.get("aliases") or []),
             parts=tuple(entry.get("parts") or []),
+            reusable=reusable,
         )
 
     for t in types.values():

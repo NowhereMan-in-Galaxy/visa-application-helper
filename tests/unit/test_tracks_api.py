@@ -278,3 +278,33 @@ def test_adjustment_errors_are_422(isolated):
     assert c.put(f"/api/tracks/{tid}/hidden/steps/s-nope", json={"hidden": True}).status_code == 422
     assert c.post(f"/api/tracks/{tid}/custom-steps", json={"title": "  "}).status_code == 422
     assert c.delete(f"/api/tracks/{tid}/custom-steps/s-bank").status_code == 422
+
+
+# ---- 长期资料 vs 本次专用（接口） ----
+
+def test_upload_scope_defaults_and_override(isolated):
+    import yaml
+    c, _, index = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    pdf = lambda n: {"file": (n, b"%PDF", "application/pdf")}
+    c.post(f"/api/tracks/{tid}/requirements/r-itinerary/upload", files=pdf("it.pdf"))       # 行程单：一次性
+    c.post(f"/api/tracks/{tid}/requirements/r-id-card/upload", files=pdf("id.pdf"))         # 身份证：长期
+    c.post(f"/api/tracks/{tid}/requirements/r-hotel/upload", data={"keep": "true"}, files=pdf("h.pdf"))  # 手动改为长期
+    recs = {r["type"]: r for r in (yaml.safe_load(p.read_text(encoding="utf-8")) for p in (index / "records").glob("*.yaml"))}
+    assert recs["行程单"]["for_track"] == tid
+    assert recs["身份证"]["for_track"] is None
+    assert recs["酒店预订单"]["for_track"] is None
+
+
+def test_cannot_pick_other_tracks_one_off_and_convert_to_long_term(isolated):
+    import yaml
+    c, _, index = isolated
+    (index / "records" / "inv.yaml").write_text(yaml.safe_dump({
+        "id": "inv", "category": "other", "type": "行程单", "obtained_date": "2026-09-01", "for_track": "someone-else",
+    }, allow_unicode=True), encoding="utf-8")
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    url = f"/api/tracks/{tid}/matches/r-itinerary"
+    assert c.put(url, json={"confirmed": True, "records": ["inv"]}).status_code == 422
+    assert c.patch("/api/materials/inv", json={"for_track": None}).json()["for_track"] is None  # 转为长期
+    assert c.put(url, json={"confirmed": True, "records": ["inv"]}).status_code == 200
+    assert c.patch("/api/materials/inv", json={"for_track": "no-such-track"}).status_code == 422

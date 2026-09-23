@@ -199,6 +199,7 @@ class MaterialView(BaseModel):
     # 编辑表单要回填当前值；不返回的话，表单里有效期一栏永远是空的，保存时会把原有有效期清掉
     validity_days: int | None
     file_ref: str | None
+    for_track: str | None  # 只属于某件办事的一次性材料；None = 长期资料
     status: MaterialStatus
     days_until_expiry: int | None
     update_due_date: date | None
@@ -217,6 +218,7 @@ def _to_material_view(record: MaterialRecord, today: date) -> MaterialView:
         obtained_date=record.obtained_date,
         validity_days=record.validity_days,
         file_ref=record.file_ref,
+        for_track=record.for_track,
         status=status_result.status,
         days_until_expiry=status_result.days_until_expiry,
         update_due_date=reminder.due_date if reminder else None,
@@ -270,6 +272,7 @@ async def _create_material(
     recommended_update_day_of_month: int | None,
     file: UploadFile | None,
     material_type: str | None = None,
+    for_track: str | None = None,
 ) -> MaterialView:
     # 用 "类别-日期-随机后缀" 做 id：日期方便人眼在 materials_index/records/ 里按时间找到它，
     # 随机后缀保证不会跟已有记录撞 id（撞了 save_material_record 也会拒绝，不会覆盖）。
@@ -297,6 +300,7 @@ async def _create_material(
         recommended_update_day_of_month=recommended_update_day_of_month,
         file_ref=file_ref,
         material_type=material_type,
+        for_track=for_track,
     )
     try:
         save_material_record(MATERIALS_INDEX_DIR, record)
@@ -492,6 +496,8 @@ class MaterialUpdate(BaseModel):
     sublabel: str | None = None
     obtained_date: date | None = None
     validity_days: int | None = None
+    # null = 转为长期资料；某件办事的 id = 改为那件办事专用
+    for_track: str | None = None
 
 
 @app.patch("/api/materials/{material_id}", response_model=MaterialView)
@@ -518,6 +524,13 @@ def update_material(material_id: str, payload: MaterialUpdate) -> MaterialView:
         record.obtained_date = payload.obtained_date
     if "validity_days" in fields:
         record.validity_days = payload.validity_days
+    if "for_track" in fields:
+        if payload.for_track is not None:
+            try:
+                load_track(get_materials_root(), payload.for_track)
+            except TrackNotFoundError as e:
+                raise HTTPException(status_code=422, detail=f"没有这件办事：{payload.for_track}") from e
+        record.for_track = payload.for_track
 
     overwrite_material_record(MATERIALS_INDEX_DIR, record)
     return _to_material_view(record, date.today())
@@ -798,6 +811,8 @@ def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) ->
                 raise HTTPException(status_code=404, detail=f"没有找到材料记录：{rid}")
             if rid.startswith("example-"):
                 raise HTTPException(status_code=422, detail="示例记录不能用于真实的办事")
+            if by_id[rid].for_track not in (None, track.id):
+                raise HTTPException(status_code=422, detail="这份材料是另一件办事专用的；需要的话先在「我的资料」里把它转为长期资料")
         for rid, slot in zip(payload.records, slots):
             record = by_id[rid]
             if slot is not None and record_type(record, vocab) is None:
@@ -981,9 +996,13 @@ async def upload_for_requirement(
     obtained_date: date | None = Form(None),
     part: str | None = Form(None),
     sublabel: str | None = Form(None),
+    keep: bool | None = Form(None),
 ) -> TrackView:
-    """在办事页面直接为一条缺失/过期的需求上传材料：新建一条材料记录（进个人材料库，别的办事也能复用），
-    并在材料凑齐时自动确认给这条需求。组合类型（例如护照全部页）要用 part 指明上传的是哪一部分。"""
+    """在办事页面直接为一条缺失/过期的需求上传材料，并在材料凑齐时自动确认给这条需求。
+    组合类型（例如护照全部页）要用 part 指明上传的是哪一部分。
+
+    keep：要不要放进长期资料库（别的办事也能复用）。不传时按规则默认：词表认识、且不是一次性类型的
+    放进长期资料库；一次性类型（行程单、解释信……）和词表不认识的，只属于这件办事。"""
     track = _load_track_or_404(track_id)
     vocab, _ = _valid_guide(track.guide)
     view = _track_view(track)
@@ -992,6 +1011,7 @@ async def upload_for_requirement(
         raise HTTPException(status_code=404, detail=f"这份攻略没有需求 {requirement}")
     if req.state == "not_applicable":
         raise HTTPException(status_code=422, detail="这条材料对你不适用，不需要上传")
+    scope = None if (req.default_keep if keep is None else keep) else track.id
     if req.material_type is None:
         if not req.custom:
             raise HTTPException(status_code=422, detail="词表还不认识这种材料，暂时没法归档；请先补充 community/material_types.yaml")
@@ -1001,7 +1021,7 @@ async def upload_for_requirement(
             obtained_date=obtained_date or date.today(),
             sublabel=sublabel.strip() if sublabel and sublabel.strip() else None,
             validity_days=None, recommended_update_interval_days=None, recommended_update_day_of_month=None,
-            file=file,
+            file=file, for_track=scope,
         )
         track.matches[requirement] = [created.id]
         save_track(get_materials_root(), track)
@@ -1026,6 +1046,7 @@ async def upload_for_requirement(
         recommended_update_day_of_month=None,
         file=file,
         material_type=target_type,
+        for_track=scope,
     )
 
     # 刚上传的是最新的一份：丢掉旧的确认，按最新候选重新判断；凑齐了就直接确认给这条需求

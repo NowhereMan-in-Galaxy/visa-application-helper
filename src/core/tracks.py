@@ -206,6 +206,8 @@ class RequirementView(BaseModel):
     missing_parts: list[dict]
     parts: list[dict]  # 组合类型的全部组成部分 [{key, name}]；非组合类型为空
     export_name: str | None  # 攻略里指定的导出文件名（不含序号模板以外的部分）
+    # 在这里上传时，默认要不要放进长期资料库（词表认识且不是一次性类型 → True）
+    default_keep: bool = False
     conditions: list[dict]  # 原样的 applies_if，界面用来解释"为什么待定/取决于什么"
     evidence: list[dict]
     custom: bool = False  # 用户自己加的材料
@@ -331,6 +333,16 @@ def _link_views(guide: Guide, answers: dict[str, str], step) -> list[dict]:
     return views
 
 
+def _default_keep(type_key: str | None, vocab: Vocabulary) -> bool:
+    """上传时默认要不要放进长期资料库：词表认识、且不是一次性类型（组合类型看各部分）。"""
+    if type_key is None or type_key not in vocab.types:
+        return False
+    t = vocab.types[type_key]
+    if t.parts:
+        return all(vocab.types[p].reusable for p in t.parts)
+    return t.reusable
+
+
 def record_type(record: MaterialRecord, vocab: Vocabulary) -> str | None:
     """一条材料记录属于词表里的哪个类型：优先用记录上写明的 material_type，否则按 type 走词表推断。"""
     return _record_type(record, vocab)
@@ -377,6 +389,8 @@ def compute_track_view(
     for r in records:
         if r.id.startswith(EXAMPLE_PREFIX):
             continue  # 虚构示例数据只用来演示格式，不能被当成真实材料匹配给一件真实的办事
+        if r.for_track is not None and r.for_track != track.id:
+            continue  # 别的办事的"本次专用"材料（例如去年的邀请函），不能匹配给这件办事
         key = _record_type(r, vocab)
         if key is not None:
             by_type.setdefault(key, []).append(r)
@@ -448,6 +462,7 @@ def compute_track_view(
             ],
             missing_parts=missing_parts,
             export_name=q.export_name,
+            default_keep=_default_keep(type_key, vocab),
             parts=[
                 {"key": p, "name": vocab.types[p].name}
                 for p in (vocab.types[type_key].parts if type_key in vocab.types else ())

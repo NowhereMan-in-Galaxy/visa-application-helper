@@ -5,6 +5,8 @@
 # 约束：key 全局唯一；两个不同 key 的别名规范化之后不能相同（加载时会报错）。
 # category：对应 001 的 MaterialCategory；不属于那四类（保险、行程单…）填 null。
 # parts：组合类型——需要由多个子类型的记录共同满足，只允许一层。
+# reusable: false：一次性材料（只为某一次办事准备，例如行程单、解释信）。在办事里上传时默认只属于那件办事，
+#   不进长期资料库、也不会被别的办事匹配到；不写默认为 true（长期材料，可以跨事项复用）。
 
 # 查词表前依次删除的片段（Python 正则）。改这里会影响所有攻略的匹配，改完跑一遍：uv run python -m core.guides
 normalize:
@@ -112,18 +114,22 @@ types:
     name: 旅行保险
     category: null
     aliases: [旅行保险, 境外旅行保险]
+    reusable: false
   - key: itinerary
     name: 行程单
     category: null
     aliases: [行程单, 行程计划, itinerary]
+    reusable: false
   - key: flight_reservation
     name: 机票预订单
     category: null
     aliases: [机票预订单, 机票订单, 往返机票]
+    reusable: false
   - key: hotel_reservation
     name: 酒店预订单
     category: null
     aliases: [酒店预订单, 酒店订单, 住宿证明]
+    reusable: false
   - key: marriage_certificate
     name: 结婚证（含英文翻译件）
     category: null
@@ -132,20 +138,24 @@ types:
     name: 解释信
     category: null
     aliases: [解释信, cover letter, 申请信]
+    reusable: false
   - key: visa_application_form
     name: 签证申请表
     category: null
     aliases: [签证申请表, 申请表]
+    reusable: false
   - key: appointment_confirmation
     name: 签证中心预约单
     category: null
     aliases: [签证中心预约单, 预约单, 预约确认单]
+    reusable: false
 
   # ---- 出资 / 公证（试验 #1 后补充）----
   - key: income_explanation
     name: 收入来源说明
     category: null
     aliases: [收入来源说明, 收入说明]
+    reusable: false
   - key: sponsor_documents
     name: 出资人材料
     category: financial_snapshot

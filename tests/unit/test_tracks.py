@@ -328,3 +328,26 @@ def test_schengen_wait_phase_latest_finish_equals_deadline():
     v = _schengen_view(date(2026, 12, 1))
     wait_phase = next(p for p in v.phases if p.id == "p-wait")
     assert wait_phase.latest_finish == date(2026, 12, 1)
+
+
+# ---- 长期资料 vs 本次专用 ----
+
+def test_one_off_record_only_matches_its_own_track():
+    other = rec("b-other", "银行流水", for_track="another-track")
+    mine = rec("b-mine", "银行流水", obtained=date(2026, 9, 2), for_track="t")
+    v = view(records=[other])
+    assert req(v, "r-bank").state == "missing"  # 别的办事专用的流水不会被匹配过来
+    v = view(records=[other, mine])
+    assert [c.id for c in req(v, "r-bank").records] == ["b-mine"]  # 自己这件办事的可以
+
+
+def test_default_keep_follows_vocabulary_reusable():
+    from core.material_types import build_vocabulary
+    from core.tracks import _default_keep
+    vocab = build_vocabulary({"types": [
+        {"key": "bank_statement", "name": "银行流水", "aliases": []},
+        {"key": "itinerary", "name": "行程单", "aliases": [], "reusable": False},
+    ]})
+    assert _default_keep("bank_statement", vocab) is True
+    assert _default_keep("itinerary", vocab) is False
+    assert _default_keep(None, vocab) is False  # 词表不认识的默认只属于这件办事

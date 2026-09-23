@@ -83,6 +83,10 @@ class MaterialRecord(BaseModel):
     # 留空时匹配代码用 `type` 字段去词表里推断，所以老记录不用补这个字段也能被匹配上。
     material_type: str | None = None
 
+    # 只属于某一件办事的一次性材料（值为那件办事的 Track id）；None = 长期资料，可以跨事项复用。
+    # 本次专用的材料只会匹配给它所属的那件办事，「我的资料」里默认也不显示。见 specs/002。
+    for_track: str | None = None
+
 
 class TravelHistoryEntry(BaseModel):
     """PersonalProfile.travel_history 里的一条出行记录（spec.md Key Entities）。

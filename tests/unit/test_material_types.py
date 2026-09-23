@@ -65,3 +65,14 @@ def test_repository_vocabulary_is_valid():
     vocab = load_vocabulary(COMMUNITY_DIR / "material_types.yaml")
     assert vocab.lookup("户口本整本复印件") == "household_register"
     assert vocab.lookup("最近 3-6 个月银行流水") == "bank_statement"
+
+
+def test_reusable_must_be_boolean():
+    with pytest.raises(VocabularyError, match="reusable"):
+        vocab_with([{"key": "x", "name": "某材料", "aliases": [], "reusable": "no"}])
+
+
+def test_repository_marks_one_off_types():
+    vocab = load_vocabulary(COMMUNITY_DIR / "material_types.yaml")
+    assert vocab.types["itinerary"].reusable is False
+    assert vocab.types["national_id"].reusable is True
