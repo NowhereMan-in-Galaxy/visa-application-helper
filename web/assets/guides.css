@@ -76,7 +76,8 @@ p { margin: 6px 0; }
 /* ---- 详情页 ---- */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
 .layout > * { min-width: 0; }
-.sticky { position: sticky; top: 20px; display: grid; gap: 20px; }
+/* 右侧栏跟着整页一起滚动（不吸顶、不做内部滚动条）；类名沿用历史叫法 */
+.sticky { display: grid; gap: 20px; }
 
 .next-card { border: 1px solid var(--ink); background: var(--paper-2); box-shadow: 5px 5px 0 var(--ink); padding: 22px 24px; margin-bottom: 28px; }
 .next-card .label { font-size: 12px; letter-spacing: 2px; color: var(--green); font-weight: 600; }
@@ -262,7 +263,6 @@ form.pick button { padding: 3px 10px; font-size: 12px; }
 .file-list { font: 12px ui-monospace, Menlo, monospace; }
 
 /* ---- 右侧核对清单 ---- */
-.sticky { max-height: calc(100vh - 40px); overflow-y: auto; }
 .check.pit { align-items: center; }
 .check.pit label { flex: 1; cursor: pointer; }
 .check.pit.done label { color: var(--muted); text-decoration: line-through; }
@@ -271,4 +271,3 @@ form.pick button { padding: 3px 10px; font-size: 12px; }
 form.pit-add { display: flex; gap: 6px; margin-top: 10px; }
 form.pit-add input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 13px; }
 form.pit-add button { padding: 4px 10px; font-size: 12px; }
-@media (max-width: 1000px) { .sticky { max-height: none; overflow: visible; } }

@@ -620,12 +620,7 @@
     side.append(materialSummary(v));
     if (!readonly) side.append(exportPanel(v));
 
-    // 原来的"来源与提醒"栏已去掉（2026-09-23 项目主要求）；只保留一条最关键的提醒：依据的资料太旧
-    var staleNote = v.stale_sources.length
-      ? el("p", { class: "notice warn", text: "这份攻略依据的资料已超过一年，要求可能有变化，递交前请以官网为准。" })
-      : null;
-
-    return el("div", null, phaseBar(v, stepById), staleNote, el("div", { class: "layout" }, main, el("div", null, side)));
+    return el("div", null, phaseBar(v, stepById), el("div", { class: "layout" }, main, el("div", null, side)));
   }
 
   var MODE_LABEL = { online: "线上", offline: "线下" };
