@@ -28,3 +28,10 @@ config.yaml
 .workbuddy-ai/
 # 一次性原型、临时导出物，不属于项目源码
 outputs/
+
+# 个人材料的索引记录（类型、日期、文件路径）也属于个人信息：只在本机保留，不进仓库。
+# 以 example- 开头的是虚构示例，用来演示格式，继续跟着仓库走。
+materials_index/records/*
+!materials_index/records/example-*
+materials_index/applications/*
+!materials_index/applications/example-*
