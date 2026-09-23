@@ -26,7 +26,7 @@ def setup(tmp_path, file_ref="financial_snapshot/b.pdf", matches=None):
 def test_copies_confirmed_material_and_writes_manifest(tmp_path):
     view, records = setup(tmp_path)
     result = export_track(view, records, tmp_path, NOW)
-    assert result.folder == tmp_path / "exports" / "t1-20260923-103000"
+    assert result.folder == tmp_path / "exports" / "我的-20260923-1030"
     assert result.copied == ["01-银行流水.pdf"]
     assert (result.folder / "01-银行流水.pdf").read_bytes() == b"%PDF fake"
     assert (tmp_path / "financial_snapshot" / "b.pdf").exists()  # 原件还在
@@ -52,3 +52,44 @@ def test_file_outside_materials_root_is_refused(tmp_path):
     view, records = setup(tmp_path, file_ref="../../etc/passwd")
     result = export_track(view, records, tmp_path, NOW)
     assert result.copied == [] and result.missing_files
+
+
+# ---- 自定义位置与命名 ----
+
+from core.export import export_file_stem  # noqa: E402
+
+
+def test_export_to_custom_destination(tmp_path):
+    view, records = setup(tmp_path)
+    desktop = tmp_path / "Desktop"
+    desktop.mkdir()
+    result = export_track(view, records, tmp_path, NOW, dest_root=desktop)
+    assert result.folder.parent == desktop
+    assert not (tmp_path / "exports").exists()
+
+
+def test_file_stem_uses_pattern_and_export_name():
+    assert export_file_stem("{seq:02d}-{name}", 3, "银行流水", None) == "03-银行流水"
+    assert export_file_stem("{name}", 1, "10-银行流水", None) == "10-银行流水"
+
+
+def test_file_stem_appends_part_for_composite_when_pattern_lacks_it():
+    assert export_file_stem("{name}", 1, "01-护照复印件", "护照签证页") == "01-护照复印件-护照签证页"
+    assert export_file_stem("{name}（{part}）", 1, "01-护照", "签证页") == "01-护照（签证页）"
+
+
+def test_file_stem_strips_unsafe_characters():
+    assert "/" not in export_file_stem("{name}", 1, "a/b", None)
+
+
+def test_same_name_gets_suffix_instead_of_overwriting(tmp_path):
+    view, records = setup(tmp_path)
+    view.export_pattern = "{name}"
+    for r in view.requirements:
+        r.export_name = "同名"
+    # 让护照也"已有"：复用同一条记录，只为制造两个同名导出
+    passport = next(r for r in view.requirements if r.id == "r-passport")
+    bank = next(r for r in view.requirements if r.id == "r-bank")
+    passport.state, passport.records = "ready", bank.records
+    result = export_track(view, records, tmp_path, NOW)
+    assert sorted(result.copied) == ["同名-2.pdf", "同名.pdf"]

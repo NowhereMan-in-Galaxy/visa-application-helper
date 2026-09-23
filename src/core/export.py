@@ -1,8 +1,11 @@
 """把一件办事已确认的材料导出到一个文件夹（specs/002 "导出"）。
 
-只**复制**，不移动、不改名原文件：材料根目录里的原件永远保持原样。每次导出都新建一个
-带时间戳的文件夹，不覆盖上一次导出的结果；文件夹里附一份"清单.txt"，写清楚导出了什么、
-还缺什么——拿去打印或交给别人时，一眼就能看出齐不齐。
+只**复制**，不移动、不改名原文件：材料根目录里的原件永远保持原样。每次导出都在目标位置
+（默认材料根目录下的 exports/，也可以是用户选的桌面等文件夹）新建一个带时间戳的文件夹，
+不覆盖上一次导出的结果；文件夹里附一份"清单.txt"，写清楚导出了什么、还缺什么。
+
+文件名按攻略里的 export_pattern / export_name 生成（例如按官方清单编号"01-护照复印件.pdf"），
+同名时自动追加 -2、-3，保证不会互相覆盖。
 """
 
 from __future__ import annotations
@@ -44,12 +47,33 @@ def _unique_folder(base: Path) -> Path:
     return folder
 
 
+def _unique_file(folder: Path, stem: str, suffix: str) -> Path:
+    target, n = folder / f"{stem}{suffix}", 2
+    while target.exists():
+        target, n = folder / f"{stem}-{n}{suffix}", n + 1
+    return target
+
+
+def export_file_stem(pattern: str, seq: int, name: str, part: str | None) -> str:
+    """按模板生成文件名（不含后缀）。组合材料导出多份文件而模板里没写 {part} 时，自动追加"-部分名"。"""
+    stem = pattern.format(seq=seq, name=_safe_name(name), part=_safe_name(part) if part else "")
+    if part and "{part" not in pattern:
+        stem = f"{stem}-{_safe_name(part)}"
+    return _safe_name(stem.strip(" -_"))
+
+
 def export_track(
-    view: TrackView, records: list[MaterialRecord], materials_root: Path, now: datetime
+    view: TrackView,
+    records: list[MaterialRecord],
+    materials_root: Path,
+    now: datetime,
+    dest_root: Path | None = None,
 ) -> ExportResult:
+    """dest_root 为 None 时导出到 <材料根目录>/exports/；调用方负责先校验 dest_root 是否允许写入。"""
     records_by_id = {r.id: r for r in records}
     root = materials_root.resolve()
-    folder = _unique_folder(materials_root / "exports" / f"{view.id}-{now:%Y%m%d-%H%M%S}")
+    base_dir = dest_root if dest_root is not None else materials_root / "exports"
+    folder = _unique_folder(base_dir / f"{_safe_name(view.title)}-{now:%Y%m%d-%H%M}")
     folder.mkdir(parents=True)
     result = ExportResult(folder=folder)
 
@@ -70,10 +94,10 @@ def export_track(
             if src is None or root not in src.parents or not src.is_file():
                 result.missing_files.append(f"{req.name}：{rec_view.type}")
                 continue
-            name = f"{index:02d}-{_safe_name(req.name)}"
-            if multi:
-                name += f"-{_safe_name(rec_view.type)}"
-            target = folder / f"{name}{src.suffix}"
+            stem = export_file_stem(
+                view.export_pattern, index, req.export_name or req.name, rec_view.type if multi else None
+            )
+            target = _unique_file(folder, stem, src.suffix)
             shutil.copy2(src, target)
             result.copied.append(target.name)
 

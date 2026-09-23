@@ -15,7 +15,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel
 
-from core.guides import Condition, Guide
+from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
 from core.status import compute_status
@@ -45,6 +45,8 @@ class Track(BaseModel):
     done_checks: list[str] = []
     # 所有适用步骤都做完的那一天；由 sync_completion 自动维护，取消任一步骤会清空。首页据此算"用时"
     completed: date | None = None
+    # 上次导出材料时选的文件夹（例如 ~/Desktop），下次导出默认用它；None 表示用材料根目录下的 exports/
+    export_dir: str | None = None
 
 
 # ---------- 读写（个人区） ----------
@@ -130,6 +132,7 @@ class RequirementView(BaseModel):
     # 组合类型缺了哪几部分 [{key, name}]，界面据此说清楚"还差什么"，并按部分上传
     missing_parts: list[dict]
     parts: list[dict]  # 组合类型的全部组成部分 [{key, name}]；非组合类型为空
+    export_name: str | None  # 攻略里指定的导出文件名（不含序号模板以外的部分）
     conditions: list[dict]  # 原样的 applies_if，界面用来解释"为什么待定/取决于什么"
     evidence: list[dict]
 
@@ -163,6 +166,9 @@ class StepView(BaseModel):
     requirements: list[str]
     depends_on: list[str]
     conditions: list[dict]
+    # 挂在这一步上的链接（官网 / 填表指南 / 参考），已按回答过滤：条件不满足的不出现，
+    # 取决于还没回答的问题的带 applies="undecided"
+    links: list[dict] = []
     evidence: list[dict]
     # 倒排时间（见"状态计算"）：只在设了 deadline、且这一步 applies=="yes" 且未完成时才有值
     latest_start: date | None = None
@@ -197,6 +203,8 @@ class TrackView(BaseModel):
     checks: list[CheckView]
     conflicts: list[dict]
     uncertain: list[str]
+    export_pattern: str
+    export_dir: str | None
     sources: list[dict]
     stale_sources: list[str]
 
@@ -226,6 +234,24 @@ def _evaluate(guide: Guide, answers: dict[str, str], conditions: list[Condition]
         elif value not in c.in_:
             return "no"
     return "undecided" if undecided else "yes"
+
+
+def _link_views(guide: Guide, answers: dict[str, str], step) -> list[dict]:
+    views = []
+    for link in step.links:
+        applies = _evaluate(guide, answers, link.applies_if)
+        if applies == "no":
+            continue
+        views.append({
+            "title": link.title, "kind": link.kind, "url": link.url, "form": link.form,
+            "applies": applies, "conditions": [{"fact": c.fact, "in": c.in_} for c in link.applies_if],
+        })
+    return views
+
+
+def record_type(record: MaterialRecord, vocab: Vocabulary) -> str | None:
+    """一条材料记录属于词表里的哪个类型：优先用记录上写明的 material_type，否则按 type 走词表推断。"""
+    return _record_type(record, vocab)
 
 
 def _record_type(record: MaterialRecord, vocab: Vocabulary) -> str | None:
@@ -334,6 +360,7 @@ def compute_track_view(
                 for r in (chosen or [])
             ],
             missing_parts=missing_parts,
+            export_name=q.export_name,
             parts=[
                 {"key": p, "name": vocab.types[p].name}
                 for p in (vocab.types[type_key].parts if type_key in vocab.types else ())
@@ -357,6 +384,7 @@ def compute_track_view(
             available=applies == "yes" and not is_done and deps_ok,
             requirements=s.requirements, depends_on=s.depends_on,
             conditions=[{"fact": c.fact, "in": c.in_} for c in s.applies_if],
+            links=_link_views(guide, answers, s),
             evidence=[e.model_dump() for e in s.evidence],
             latest_start=latest_start.get(s.id), late=late.get(s.id, False),
         ))
@@ -379,6 +407,8 @@ def compute_track_view(
         checks=[CheckView(id=c.id, text=c.text, involves=c.involves, done=c.id in track.done_checks) for c in guide.checks],
         conflicts=[k.model_dump() for k in guide.conflicts],
         uncertain=guide.uncertain,
+        export_pattern=guide.export_pattern or DEFAULT_EXPORT_PATTERN,
+        export_dir=track.export_dir,
         sources=[s.model_dump(mode="json") for s in guide.sources],
         stale_sources=stale_sources,
     )

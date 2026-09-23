@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -20,6 +21,7 @@ from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.export import export_track
+from core.forms import load_all_forms
 from core.tracks import (
     Track,
     TrackNotFoundError,
@@ -28,6 +30,7 @@ from core.tracks import (
     create_track,
     load_track,
     load_tracks,
+    record_type,
     save_track,
     sync_completion,
 )
@@ -573,6 +576,9 @@ class DeadlineUpdate(BaseModel):
 
 class MatchUpdate(BaseModel):
     confirmed: bool
+    # 用户自己从"我的资料"里挑的记录 id；不传时用核心库算出的候选。
+    # 组合类型（例如护照全部页）按词表 parts 的顺序每部分一条。
+    records: list[str] | None = None
 
 
 def _vocabulary() -> Vocabulary:
@@ -653,6 +659,17 @@ def get_guide(guide_id: str) -> GuideDetail:
                 preview = compute_track_view(r.guide, blank, records, vocab, date.today())
             return GuideDetail(summary=_summarize(r), preview=preview)
     raise HTTPException(status_code=404, detail=f"没有找到攻略：{guide_id}")
+
+
+@app.get("/api/forms/{form_id}")
+def get_form(form_id: str) -> dict:
+    """填表指南（community/forms/<id>.yaml），给页面上的"填表指南"链接用。"""
+    for r in load_all_forms(COMMUNITY_DIR / "forms"):
+        if r.path.stem == form_id:
+            if not r.valid:
+                raise HTTPException(status_code=422, detail=f"填表指南 {form_id} 没有通过校验：" + "；".join(r.errors))
+            return r.form.model_dump(mode="json")
+    raise HTTPException(status_code=404, detail=f"没有找到填表指南：{form_id}")
 
 
 @app.get("/api/tracks", response_model=list[TrackSummary])
@@ -743,20 +760,55 @@ def update_track_check(track_id: str, check: str, payload: DoneUpdate) -> TrackV
 
 @app.put("/api/tracks/{track_id}/matches/{requirement}", response_model=TrackView)
 def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) -> TrackView:
-    """confirmed=true：把当前候选记录写进 matches；false：取消确认。候选由核心库算，前端不能随便指定记录。"""
+    """confirmed=true：确认这条需求用哪些材料；false：取消确认。
+
+    不传 records 时用核心库算出的候选；传了 records 表示用户自己从材料库里挑（自动识别没认出来的情况，
+    例如签证页和盖章页扫在同一份 PDF 里）。用户挑的记录如果词表认不出它的类型，顺手把类型记到记录上，
+    下次别的办事就能自动识别；已经有明确类型的记录不改，避免一条记录被改来改去。
+    """
     track = _load_track_or_404(track_id)
     if not payload.confirmed:
         track.matches.pop(requirement, None)
-    else:
-        view = _track_view(track)
-        req = next((r for r in view.requirements if r.id == requirement), None)
-        if req is None:
-            raise HTTPException(status_code=404, detail=f"这份攻略没有需求 {requirement}")
+        save_track(get_materials_root(), track)
+        return _track_view(track)
+
+    view = _track_view(track)
+    req = next((r for r in view.requirements if r.id == requirement), None)
+    if req is None:
+        raise HTTPException(status_code=404, detail=f"这份攻略没有需求 {requirement}")
+    if payload.records is None:
         if not req.records:
             raise HTTPException(status_code=422, detail="材料库里还没有能满足这条需求的记录")
         track.matches[requirement] = [r.id for r in req.records]
+    else:
+        vocab = _vocabulary()
+        slots = [p["key"] for p in req.parts] or ([req.material_type] if req.material_type else [None])
+        if len(payload.records) != len(slots):
+            raise HTTPException(status_code=422, detail=f"需要选 {len(slots)} 份材料（{'、'.join(p['name'] for p in req.parts) or req.name}）")
+        by_id = {r.id: r for r in load_material_records(MATERIALS_INDEX_DIR)}
+        for rid in payload.records:
+            if rid not in by_id:
+                raise HTTPException(status_code=404, detail=f"没有找到材料记录：{rid}")
+            if rid.startswith("example-"):
+                raise HTTPException(status_code=422, detail="示例记录不能用于真实的办事")
+        for rid, slot in zip(payload.records, slots):
+            record = by_id[rid]
+            if slot is not None and record_type(record, vocab) is None:
+                record.material_type = slot
+                overwrite_material_record(MATERIALS_INDEX_DIR, record)
+        track.matches[requirement] = list(payload.records)
     save_track(get_materials_root(), track)
     return _track_view(track)
+
+
+class ExportRequest(BaseModel):
+    # 导出到哪个文件夹，例如 "~/Desktop"；不传时用这件办事上次选的位置，再没有就用材料根目录下的 exports/
+    dest: str | None = None
+
+
+class ExportLocation(BaseModel):
+    label: str
+    path: str
 
 
 class ExportResponse(BaseModel):
@@ -818,13 +870,43 @@ async def upload_for_requirement(
     return _track_view(track)
 
 
+def _resolve_export_dir(text: str) -> Path:
+    """校验用户给的导出位置：必须是已经存在的文件夹；不能在仓库里面（材料根目录除外），
+    免得把个人材料复制进会被提交、甚至公开的目录（例如 community/）。"""
+    path = Path(text).expanduser()
+    if not path.is_absolute():
+        raise HTTPException(status_code=422, detail="请填完整路径，例如 ~/Desktop 或 /Users/你/Desktop")
+    path = path.resolve()
+    if not path.is_dir():
+        raise HTTPException(status_code=422, detail=f"文件夹不存在：{path}")
+    repo, materials = REPO_ROOT.resolve(), get_materials_root().resolve()
+    inside_repo = path == repo or repo in path.parents
+    inside_materials = path == materials or materials in path.parents
+    if inside_repo and not inside_materials:
+        raise HTTPException(status_code=422, detail="不能导出到项目仓库里面（会被 Git 提交），请选桌面等仓库外的位置")
+    return path
+
+
+@app.get("/api/export-locations", response_model=list[ExportLocation])
+def export_locations() -> list[ExportLocation]:
+    """导出面板上的快捷选项：只列出这台电脑上真实存在的文件夹。"""
+    options = [ExportLocation(label="桌面", path="~/Desktop"), ExportLocation(label="下载", path="~/Downloads")]
+    found = [o for o in options if Path(o.path).expanduser().is_dir()]
+    return found + [ExportLocation(label="材料根目录", path=str(get_materials_root()))]
+
+
 @app.post("/api/tracks/{track_id}/export", response_model=ExportResponse)
-def export_track_materials(track_id: str) -> ExportResponse:
-    """把已确认（状态为"已有"）的材料复制到 <材料根目录>/exports/<办事 id>-<时间>/，附一份清单。"""
+def export_track_materials(track_id: str, payload: ExportRequest | None = None) -> ExportResponse:
+    """把已确认（状态为"已有"）的材料复制到目标文件夹下新建的 <办事标题>-<时间>/，附一份清单。"""
     track = _load_track_or_404(track_id)
+    dest_text = (payload.dest.strip() if payload and payload.dest else None) or track.export_dir
+    dest = _resolve_export_dir(dest_text) if dest_text else None
     view = _track_view(track)
     records = load_material_records(MATERIALS_INDEX_DIR)
-    result = export_track(view, records, get_materials_root(), datetime.now())
+    result = export_track(view, records, get_materials_root(), datetime.now(), dest_root=dest)
+    if payload and payload.dest is not None:
+        track.export_dir = dest_text  # 记住这次的选择，下次默认还导出到这里
+        save_track(get_materials_root(), track)
     return ExportResponse(
         folder=str(result.folder), copied=result.copied,
         missing_files=result.missing_files, pending=result.pending,

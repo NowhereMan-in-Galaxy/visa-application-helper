@@ -97,7 +97,7 @@ def test_export_endpoint(isolated):
     tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
     c.post(f"/api/tracks/{tid}/requirements/r-insurance/upload", files={"file": ("p.pdf", b"%PDF x", "application/pdf")})
     r = c.post(f"/api/tracks/{tid}/export").json()
-    assert r["copied"] == ["01-旅行保险.pdf"]
+    assert r["copied"] == ["09-旅行保险.pdf"]  # 按攻略里原清单的编号命名
     assert r["folder"].startswith(str(root / "exports"))
 
 
@@ -143,3 +143,81 @@ def test_deadline_persists_after_reload(client):
 def test_set_deadline_unknown_track_404(client):
     c, _ = client
     assert c.put("/api/tracks/nope/deadline", json={"deadline": "2026-12-01"}).status_code == 404
+
+
+
+# ---- 手动从材料库挑选 ----
+
+def _write_record(index, rid, type_, obtained="2026-09-01", **extra):
+    import yaml
+    data = {"id": rid, "category": "passport_scan", "type": type_, "obtained_date": obtained, **extra}
+    (index / "records" / f"{rid}.yaml").write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+
+
+def test_manual_pick_for_composite_and_learns_type(isolated):
+    import yaml
+    c, _, index = isolated
+    _write_record(index, "bio", "护照个人信息页")
+    _write_record(index, "scan", "护照扫描件（含签证页）")  # 词表认不出的叫法
+    _write_record(index, "stamps", "护照盖章页")
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    url = f"/api/tracks/{tid}/matches/r-passport"
+    assert c.put(url, json={"confirmed": True, "records": ["bio"]}).status_code == 422  # 组合材料要每部分一条
+    v = c.put(url, json={"confirmed": True, "records": ["bio", "scan", "stamps"]}).json()
+    assert next(r for r in v["requirements"] if r["id"] == "r-passport")["state"] == "ready"
+    learned = yaml.safe_load((index / "records" / "scan.yaml").read_text(encoding="utf-8"))
+    assert learned["material_type"] == "passport_visa_page"  # 记住了，下次自动识别
+    kept = yaml.safe_load((index / "records" / "bio.yaml").read_text(encoding="utf-8"))
+    assert kept.get("material_type") is None  # 本来就认得的记录不改
+
+
+def test_manual_pick_rejects_example_and_unknown(isolated):
+    c, _, index = isolated
+    _write_record(index, "example-photo", "证件照")
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    url = f"/api/tracks/{tid}/matches/r-photo"
+    assert c.put(url, json={"confirmed": True, "records": ["example-photo"]}).status_code == 422
+    assert c.put(url, json={"confirmed": True, "records": ["nope"]}).status_code == 404
+
+
+# ---- 导出位置 ----
+
+def test_export_to_chosen_folder_is_remembered(isolated, tmp_path):
+    c, root, _ = isolated
+    desk = tmp_path / "Desktop"
+    desk.mkdir()
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    r = c.post(f"/api/tracks/{tid}/export", json={"dest": str(desk)}).json()
+    assert r["folder"].startswith(str(desk.resolve()))
+    assert c.get(f"/api/tracks/{tid}").json()["export_dir"] == str(desk)
+    again = c.post(f"/api/tracks/{tid}/export").json()  # 不传 dest：沿用上次的位置
+    assert again["folder"].startswith(str(desk.resolve()))
+
+
+def test_export_refuses_repo_and_missing_folders(isolated):
+    from config import REPO_ROOT
+    c, _, _ = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    assert c.post(f"/api/tracks/{tid}/export", json={"dest": str(REPO_ROOT / "community")}).status_code == 422
+    assert c.post(f"/api/tracks/{tid}/export", json={"dest": "/definitely/not/here"}).status_code == 422
+    assert c.post(f"/api/tracks/{tid}/export", json={"dest": "relative/path"}).status_code == 422
+
+
+# ---- 步骤链接按回答过滤 ----
+
+def test_links_follow_country_answer(isolated):
+    c, _, _ = isolated
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    step = lambda v: next(s for s in v["steps"] if s["id"] == "s-appointment")
+    before = step(c.get(f"/api/tracks/{tid}").json())
+    assert before["links"] and all(l["applies"] == "undecided" for l in before["links"])
+    after = step(c.put(f"/api/tracks/{tid}/facts/country", json={"value": "法国"}).json())
+    assert {l["title"] for l in after["links"]} == {"France-Visas 填申请表", "TLScontact 预约递签", "法国填表指南"}
+    assert all(l["applies"] == "yes" for l in after["links"])
+
+
+def test_form_guide_endpoint(client):
+    c, _ = client
+    f = c.get("/api/forms/france-visas").json()
+    assert f["site"]["url"].startswith("https://") and f["sections"]
+    assert c.get("/api/forms/nope").status_code == 404
