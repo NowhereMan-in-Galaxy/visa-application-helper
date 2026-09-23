@@ -2,6 +2,9 @@
 
 from datetime import date
 
+from config import COMMUNITY_DIR
+from core.guides import load_guide
+from core.material_types import load_vocabulary
 from core.models import MaterialCategory, MaterialRecord
 from core.tracks import Track, compute_track_view, create_track, load_track, save_track
 
@@ -231,3 +234,97 @@ def test_sync_completion_records_first_day_and_clears_on_undo():
     track.done_steps = ["s-bank"]
     sync_completion(track, compute_track_view(guide, track, [], VOCAB, later), later)
     assert track.completed is None
+
+
+# ---- 倒排时间（spec 002 Phase C 第一条，见 specs/002-guide-to-track/spec.md "状态计算"）----
+
+
+def test_no_deadline_means_all_null():
+    v = view({"facts": {"identity": "在职"}})
+    assert all(s.latest_start is None and s.late is False for s in v.steps)
+    assert all(p.latest_finish is None for p in v.phases)
+
+
+def test_transitive_dependency_chain_propagates_backwards():
+    # s-submit depends_on [s-bank, s-job, s-docs]，duration_days max=20；三者本身没有时长
+    v = view({"facts": {"identity": "在职"}, "deadline": date(2026, 10, 10)})
+    assert step(v, "s-submit").latest_start == date(2026, 9, 20)  # 2026-10-10 减 20 天
+    # 直接依赖 s-submit 的步骤，latest_finish 等于 s-submit 的 latest_start；自身没有时长，latest_start 相同
+    assert step(v, "s-bank").latest_start == date(2026, 9, 20)
+    assert step(v, "s-job").latest_start == date(2026, 9, 20)
+    assert step(v, "s-docs").latest_start == date(2026, 9, 20)
+
+
+def test_step_with_no_dependents_uses_deadline_as_latest_finish():
+    v = view({"facts": {"identity": "在职"}, "deadline": date(2026, 10, 10)})
+    assert step(v, "s-submit").latest_start == date(2026, 9, 20)
+
+
+def test_completed_step_excluded_from_deadline_calc():
+    v = view({"facts": {"identity": "在职"}, "deadline": date(2026, 10, 10), "done_steps": ["s-submit"]})
+    # s-submit 已完成，不再计入 S；s-bank 因此不再被它约束，直接用 deadline 当 latest_finish（自身无时长）
+    assert step(v, "s-submit").latest_start is None
+    assert step(v, "s-bank").latest_start == date(2026, 10, 10)
+
+
+def test_late_when_today_past_latest_start():
+    v = view({"facts": {"identity": "在职"}, "deadline": date(2026, 10, 10)}, records=())
+    # latest_start(s-bank) == 2026-09-20，TODAY 是 2026-09-23，已经晚了
+    assert step(v, "s-bank").late is True
+    # s-wait 之类不适用的步骤没有 available，late 恒为 False（这份攻略没有 s-wait，用 s-job 佐证不适用步骤不受影响）
+    v2 = view({"facts": {"identity": "学生"}, "deadline": date(2026, 10, 10)})
+    assert step(v2, "s-job").applies == "no"
+    assert step(v2, "s-job").latest_start is None and step(v2, "s-job").late is False
+
+
+def test_not_late_when_today_before_latest_start():
+    v = view({"facts": {"identity": "在职"}, "deadline": date(2026, 12, 1)})
+    assert step(v, "s-submit").late is False
+
+
+def test_undecided_step_excluded_from_deadline_calc():
+    # identity 没回答时 s-job 是 undecided（不是 yes），不计入集合 S
+    v = view({"deadline": date(2026, 10, 10)})
+    assert step(v, "s-job").applies == "undecided"
+    assert step(v, "s-job").latest_start is None
+
+
+def test_phase_latest_finish_is_max_of_its_steps():
+    v = phased_view({"facts": {"identity": "学生"}, "deadline": date(2026, 10, 10)})
+    prep, go = v.phases
+    # p-go 只有 s-submit（没人依赖它）：latest_finish = deadline
+    assert go.latest_finish == date(2026, 10, 10)
+    # p-prep 里 s-bank / s-docs 都是 s-submit 的依赖（s-job 因"学生"身份不适用，不计入）
+    assert prep.latest_finish == date(2026, 9, 20)
+
+
+def test_phase_latest_finish_null_when_no_pending_steps_in_phase():
+    v = phased_view({"facts": {"identity": "学生"}, "deadline": date(2026, 10, 10), "done_steps": ["s-bank", "s-docs"]})
+    prep, go = v.phases
+    assert prep.latest_finish is None
+    assert go.latest_finish == date(2026, 10, 10)
+
+
+# ---- 倒排时间：申根真实攻略（specs/002-guide-to-track/tasks-parallel-1.md 任务 D 的例子）----
+
+
+def _schengen_view(deadline, today=TODAY):
+    vocab = load_vocabulary(COMMUNITY_DIR / "material_types.yaml")
+    result = load_guide(COMMUNITY_DIR / "guides" / "schengen-tourist.yaml", vocab)
+    assert result.valid, result.errors
+    track = Track(id="t", guide=result.guide.id, title="t", created=today, deadline=deadline)
+    return compute_track_view(result.guide, track, [], vocab, today)
+
+
+def test_schengen_deadline_example_from_spec():
+    v = _schengen_view(date(2026, 12, 1))
+    wait = next(s for s in v.steps if s.id == "s-wait")
+    submit = next(s for s in v.steps if s.id == "s-submit")
+    assert wait.latest_start == date(2026, 10, 17)  # deadline 减 duration_days.max=45
+    assert submit.latest_start == date(2026, 10, 17)  # s-wait 是它唯一的直接依赖，latest_finish 等于 latest_start
+
+
+def test_schengen_wait_phase_latest_finish_equals_deadline():
+    v = _schengen_view(date(2026, 12, 1))
+    wait_phase = next(p for p in v.phases if p.id == "p-wait")
+    assert wait_phase.latest_finish == date(2026, 12, 1)
