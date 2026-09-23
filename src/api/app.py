@@ -311,6 +311,94 @@ def update_travel_history_entry(index: int, entry: TravelHistoryCreate) -> Perso
     return profile
 
 
+# ---------- 新版界面「02 我的资料」用到的接口，见 specs/002-guide-to-track/tasks-parallel-1.md 任务 A ----------
+
+
+class MaterialTypeSummary(BaseModel):
+    key: str
+    name: str
+    category: MaterialCategory | None
+
+
+@app.get("/api/material-types", response_model=list[MaterialTypeSummary])
+def list_material_types() -> list[MaterialTypeSummary]:
+    """给"新增材料"表单的 type 输入框提供候选词（datalist），来自共享词表。"""
+    vocab = _vocabulary()
+    return [
+        MaterialTypeSummary(key=t.key, name=t.name, category=t.category)
+        for t in vocab.types.values()
+    ]
+
+
+class MaterialUsage(BaseModel):
+    track_id: str
+    track_title: str
+    requirement_name: str
+
+
+@app.get("/api/materials/usage", response_model=dict[str, list[MaterialUsage]])
+def materials_usage() -> dict[str, list[MaterialUsage]]:
+    """一条材料记录被哪些"我的办事"用到——只看各 Track `matches` 里已经确认的记录
+
+    （`matches` 本身只存确认过的匹配，见 core/tracks.py 里 Track 模型的注释），
+    攻略被删了或改坏了（无效）的 Track 直接跳过，不让它报错影响整个列表。
+    """
+    usage: dict[str, list[MaterialUsage]] = {}
+    vocab, guide_results = _guide_results()
+    guides_by_id = {r.guide.id: r.guide for r in guide_results if r.valid}
+    for track in load_tracks(get_materials_root()):
+        guide = guides_by_id.get(track.guide)
+        if guide is None:
+            continue
+        req_by_id = {r.id: r for r in guide.requirements}
+        for requirement_id, record_ids in track.matches.items():
+            requirement = req_by_id.get(requirement_id)
+            if requirement is None:
+                continue
+            name = vocab.name_of(requirement.material_type) or requirement.raw_name or requirement.id
+            for record_id in record_ids:
+                usage.setdefault(record_id, []).append(
+                    MaterialUsage(track_id=track.id, track_title=track.title, requirement_name=name)
+                )
+    return usage
+
+
+class MaterialUpdate(BaseModel):
+    type: str | None = None
+    sublabel: str | None = None
+    obtained_date: date | None = None
+    validity_days: int | None = None
+
+
+@app.patch("/api/materials/{material_id}", response_model=MaterialView)
+def update_material(material_id: str, payload: MaterialUpdate) -> MaterialView:
+    """编辑一条已有材料记录的基本字段。
+
+    只处理请求体里真正出现的字段（`model_fields_set`）：没提供的字段保持原样；
+    `sublabel` / `validity_days` 传 `null` 表示清空；`type` 不能是空字符串。
+    """
+    records = load_material_records(MATERIALS_INDEX_DIR)
+    record = next((r for r in records if r.id == material_id), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"没有找到材料记录：{material_id}")
+
+    fields = payload.model_fields_set
+    if "type" in fields:
+        new_type = (payload.type or "").strip()
+        if not new_type:
+            raise HTTPException(status_code=422, detail="type 不能为空")
+        record.type = new_type
+    if "sublabel" in fields:
+        record.sublabel = payload.sublabel
+    if "obtained_date" in fields:
+        record.obtained_date = payload.obtained_date
+    if "validity_days" in fields:
+        record.validity_days = payload.validity_days
+
+    overwrite_material_record(MATERIALS_INDEX_DIR, record)
+    return _to_material_view(record, date.today())
+
+
 # ---------- 流程攻略（共享区）+ 我的办事（个人区），见 specs/002-guide-to-track ----------
 #
 # 攻略、词表、Track 每次请求都重新读文件：文件都很小，这样改完 YAML 刷新页面就能看到效果，
