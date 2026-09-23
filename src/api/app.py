@@ -192,6 +192,8 @@ class MaterialView(BaseModel):
     type: str
     sublabel: str | None
     obtained_date: date | None
+    # 编辑表单要回填当前值；不返回的话，表单里有效期一栏永远是空的，保存时会把原有有效期清掉
+    validity_days: int | None
     file_ref: str | None
     status: MaterialStatus
     days_until_expiry: int | None
@@ -209,6 +211,7 @@ def _to_material_view(record: MaterialRecord, today: date) -> MaterialView:
         type=record.type,
         sublabel=record.sublabel,
         obtained_date=record.obtained_date,
+        validity_days=record.validity_days,
         file_ref=record.file_ref,
         status=status_result.status,
         days_until_expiry=status_result.days_until_expiry,

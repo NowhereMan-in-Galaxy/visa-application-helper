@@ -115,3 +115,16 @@ def test_patch_material_rejects_empty_type(isolated):
 def test_patch_material_not_found(isolated):
     c, _, _ = isolated
     assert c.patch("/api/materials/nope", json={"sublabel": "x"}).status_code == 404
+
+
+
+def test_material_list_includes_validity_days_so_edit_form_does_not_clear_it(isolated):
+    """编辑表单靠列表接口回填当前有效期；缺了这个字段，保存时会把原有有效期清掉。"""
+    import yaml
+    c, root, index = isolated
+    (index / "records" / "v.yaml").write_text(yaml.safe_dump({
+        "id": "v", "category": "financial_snapshot", "type": "银行流水",
+        "obtained_date": "2026-09-01", "validity_days": 90,
+    }, allow_unicode=True), encoding="utf-8")
+    listed = next(m for m in c.get("/api/materials").json() if m["id"] == "v")
+    assert listed["validity_days"] == 90
