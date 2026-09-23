@@ -32,7 +32,8 @@
 2. [`docs/SPEC-mvp.md`](./docs/SPEC-mvp.md)——项目级别的范围、架构边界、安全约束。
 3. [`specs/002-guide-to-track/spec.md`](./specs/002-guide-to-track/spec.md)——当前主线：攻略/我的办事的数据结构、状态计算、分阶段计划、待决问题。
 4. [`specs/001-visa-material-hub/spec.md`](./specs/001-visa-material-hub/spec.md) + [`STATUS.md`](./specs/001-visa-material-hub/STATUS.md)——材料资料库的需求和实现进度。
-5. [`docs/BACKLOG.md`](./docs/BACKLOG.md)——明确推迟、暂不实现的想法，看到时不要主动开始实现，除非项目主明确要求。
+5. [`docs/ROADMAP.md`](./docs/ROADMAP.md)——**接下来做什么**：按优先级排好的几条主线、每条需要项目主提供什么、待商量的决定。
+6. [`docs/BACKLOG.md`](./docs/BACKLOG.md)——明确推迟、暂不实现的想法，看到时不要主动开始实现，除非项目主明确要求。
 
 ## 项目主的背景（供协作的 Agent 参考）
 
