@@ -1,0 +1,123 @@
+# 材料类型词表（specs/002-guide-to-track/spec.md "数据结构 §2"）
+#
+# 作用：把攻略里五花八门的叫法对齐到同一个 key，匹配材料库靠它。
+# 规则：key 全局唯一；任一 alias 只能出现在一个条目里；比较时忽略大小写和首尾空格，不做模糊匹配。
+# category：对应 001 的 MaterialCategory；词表里很多类型（保险、行程单…）不属于那四类，填 null。
+# parts：组合类型——需要由多个子类型的记录共同满足（例如"护照全部页"= 个人信息页 + 签证页 + 盖章页）。
+
+# ---- 证件 ----
+- key: passport_bio_page
+  name: 护照个人信息页
+  category: passport_scan
+  aliases: [护照个人信息页, 护照首页, 护照资料页, passport bio page]
+- key: passport_visa_page
+  name: 护照签证页
+  category: passport_scan
+  aliases: [护照签证页, 签证页, visa page]
+- key: passport_stamped_pages
+  name: 护照盖章页（现护照）
+  category: passport_scan
+  aliases: [护照盖章页, 护照盖章页（现护照）, 出入境盖章页]
+- key: passport_full_copy
+  name: 护照全部页复印件
+  category: passport_scan
+  aliases: [护照复印件, 护照原件及复印件, 护照所有页复印件]
+  parts: [passport_bio_page, passport_visa_page, passport_stamped_pages]
+- key: old_passport_copy
+  name: 旧护照复印件
+  category: passport_scan
+  aliases: [旧护照复印件, 旧护照, 护照盖章页（旧护照）]
+- key: national_id
+  name: 身份证
+  category: passport_scan
+  aliases: [身份证, 身份证复印件, 居民身份证]
+- key: household_register
+  name: 户口本
+  category: passport_scan
+  aliases: [户口本, 户口簿, 户口本复印件]
+- key: id_photo
+  name: 证件照
+  category: id_photo
+  aliases: [证件照, 签证照片, 白底照片]
+
+# ---- 工作 / 学籍 ----
+- key: employment_letter
+  name: 在职证明
+  category: employment_doc
+  aliases: [在职证明, 工作证明, 单位证明, employment letter]
+- key: employer_business_license
+  name: 雇主营业执照复印件
+  category: employment_doc
+  aliases: [雇主营业执照, 营业执照复印件, 公司营业执照]
+- key: enrollment_certificate
+  name: 在读证明
+  category: null
+  aliases: [在读证明, 在校证明]
+- key: student_card
+  name: 学生证
+  category: null
+  aliases: [学生证]
+- key: chsi_status_report
+  name: 学信网学籍证明
+  category: null
+  aliases: [学籍证明, 学信网学籍验证报告]
+- key: retirement_certificate
+  name: 退休证
+  category: null
+  aliases: [退休证]
+
+# ---- 资金 ----
+- key: bank_statement
+  name: 银行流水
+  category: financial_snapshot
+  aliases: [银行流水, 流水, 银行对账单, 近半年银行流水, bank statement]
+- key: salary_statement
+  name: 工资流水
+  category: financial_snapshot
+  aliases: [工资流水, 工资卡流水]
+- key: pension_statement
+  name: 退休金流水
+  category: financial_snapshot
+  aliases: [退休金流水, 养老金流水]
+- key: funding_declaration
+  name: 资金来源声明
+  category: financial_snapshot
+  aliases: [资金来源公司声明, 资金来源声明, 出资证明]
+- key: property_certificate
+  name: 房产/车辆证明复印件
+  category: null
+  aliases: [房产证复印件, 车辆登记证复印件, 房产证]
+
+# ---- 行程与其他 ----
+- key: travel_insurance
+  name: 旅行保险
+  category: null
+  aliases: [旅行保险, 境外旅行保险]
+- key: itinerary
+  name: 行程单
+  category: null
+  aliases: [行程单, 行程计划, itinerary]
+- key: flight_reservation
+  name: 机票预订单
+  category: null
+  aliases: [机票预订单, 机票订单, 往返机票]
+- key: hotel_reservation
+  name: 酒店预订单
+  category: null
+  aliases: [酒店预订单, 酒店订单, 住宿证明]
+- key: marriage_certificate
+  name: 结婚证（含英文翻译件）
+  category: null
+  aliases: [结婚证, 结婚证复印件]
+- key: cover_letter
+  name: 解释信
+  category: null
+  aliases: [解释信, cover letter, 申请信]
+- key: visa_application_form
+  name: 签证申请表
+  category: null
+  aliases: [签证申请表, 申请表]
+- key: appointment_confirmation
+  name: 签证中心预约单
+  category: null
+  aliases: [签证中心预约单, 预约单, 预约确认单]
