@@ -37,3 +37,4 @@
 17. **先搭阶段骨架，再填步骤。** 大多数办事都能分成"官网填表/预约 → 准备材料 → 递交 → 等结果"几段，按原始资料的实际情况写 `phases`（线上还是线下写进 `mode`），每个步骤标上 `phase`。原始资料写了"一般要多久""要提前多久"时，写进 `timeline` 和对应阶段的 `duration_days` / `estimate`；**没写就不填，不要凭常识估**。
 18. **导出命名**：原始资料给了官方清单编号或要求的文件命名时，给每条 requirement 写 `export_name`（例如 `01-护照复印件`），并把攻略的 `export_pattern` 设为 `"{name}"`；没给就不写，使用默认的 `{seq:02d}-{name}`。`export_name` 里不能有 `/ \ : * ? " < > |`。
 19. **官网链接**：原始资料里出现的官网 / 签证中心网址，写进对应步骤的 `links`（`kind: official`，`url` 原样照抄）；网址随申请国等回答变化时用 `applies_if`。不要凭记忆补网址。原始资料写了"怎么填表 / 怎么预约"的流程时，另外整理成 `community/forms/<id>.yaml`（流程级，`level: procedure`），再在步骤上用 `{kind: form_guide, form: <id>}` 链接过去。
+20. **来源链接去掉追踪参数**：分享链接（尤其小红书）常带 `shareRedId`、`share_id`、`xsec_token`、`apptime` 等参数，可能追溯到分享者本人。`sources[].url` 只保留帖子本身的地址（例如 `https://www.xiaohongshu.com/explore/<帖子 id>`）。帖子配图含个人信息（证件、批准通知等）时不读取、不引用。
