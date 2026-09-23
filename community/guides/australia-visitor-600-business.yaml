@@ -177,7 +177,7 @@ steps:
     where: 澳洲内政部官网（ImmiAccount）
     estimate: 需要邮箱验证；每次登录要输验证码，可以用 Authenticator 类 App
     links:
-      - {title: ImmiAccount 登录 / 注册, kind: official, url: "https://online.immi.gov.au/lusc/login", evidence: [{source: g1, quote: "地址是：https://online.immi.gov.au/lusc/login"}]}
+      - {title: ImmiAccount 登录 / 注册, kind: official, url: "https://online.immi.gov.au/lusc/login", evidence: [{source: g1, quote: "地址是：https://online.immi.gov.au/lusc/login"}], verified: 2026-09-23}
       - {title: ImmiAccount 网申指南, kind: form_guide, form: immiaccount-600}
     evidence: [{source: g1, quote: "创建一个 ImmiAccount 账号，需要邮箱验证，每次登录需要输入验证码"}]
 

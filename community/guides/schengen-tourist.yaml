@@ -16,12 +16,16 @@ timeline: 递签后通常 15 天左右出签，最长约 45 天；建议出行�
 sources:
   - id: g1
     title: schengen-visa-guide · 申根签证材料清单
-    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/checklist.md
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/references/checklist.md
     as_of: 2025-07-01
   - id: g2
     title: schengen-visa-guide · 申根签申请国对比（各国官网直链）
-    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/country-notes.md
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/references/country-notes.md
     as_of: 2025-07-01
+  - id: g3
+    title: NetherlandsWorldwide（荷兰政府官网）· 在中国申请荷兰申根签证
+    url: https://www.netherlandsworldwide.nl/visa-the-netherlands/schengen-visa/apply-china
+    as_of: 2026-09-23
 
 phases:
   - id: p-online
@@ -390,17 +394,16 @@ steps:
     title: 网上填申请表并预约签证中心
     phase: p-online
     links:
-      - {title: France-Visas 填申请表, kind: official, url: "https://france-visas.gouv.fr/zh", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "先在 France-Visas 填表获取 FV 编号：https://france-visas.gouv.fr/zh"}]}
-      - {title: TLScontact 预约递签, kind: official, url: "https://visas-fr.tlscontact.cn", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "再到 TLScontact 预约递签：https://visas-fr.tlscontact.cn"}]}
+      - {title: France-Visas 填申请表, kind: official, url: "https://france-visas.gouv.fr/zh", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "先在 France-Visas 填表获取 FV 编号：https://france-visas.gouv.fr/zh"}], verified: 2026-09-23}
+      - {title: TLScontact 预约递签（进入后选 China）, kind: official, url: "https://visas-fr.tlscontact.com", applies_if: [{fact: country, in: [法国]}], evidence: [{source: g2, quote: "再到 TLScontact 预约递签：https://visas-fr.tlscontact.cn"}], verified: 2026-09-23}
       - {title: 法国填表指南, kind: form_guide, form: france-visas, applies_if: [{fact: country, in: [法国]}]}
-      - {title: VFS Global 意大利, kind: official, url: "https://visa.vfsglobal.com/chn/zh/ita", applies_if: [{fact: country, in: [意大利]}], evidence: [{source: g2, quote: "预约网站：https://visa.vfsglobal.com/chn/zh/ita"}]}
+      - {title: VFS Global 意大利, kind: official, url: "https://visa.vfsglobal.com/chn/zh/ita", applies_if: [{fact: country, in: [意大利]}], evidence: [{source: g2, quote: "预约网站：https://visa.vfsglobal.com/chn/zh/ita"}], verified: 2026-09-23}
       - {title: 意大利填表指南, kind: form_guide, form: italy-vfs, applies_if: [{fact: country, in: [意大利]}]}
-      - {title: BLS 西班牙（填表 + 预约）, kind: official, url: "https://web.blscn.cn", applies_if: [{fact: country, in: [西班牙]}], evidence: [{source: g2, quote: "填表 + 预约：https://web.blscn.cn"}]}
-      - {title: VFS Global 德国, kind: official, url: "https://visa.vfsglobal.com/chn/zh/deu", applies_if: [{fact: country, in: [德国]}]}
-      - {title: VFS Global 瑞士, kind: official, url: "https://visa.vfsglobal.com/chn/zh/che", applies_if: [{fact: country, in: [瑞士]}]}
-      - {title: VFS Global 荷兰, kind: official, url: "https://visa.vfsglobal.com/chn/zh/nld", applies_if: [{fact: country, in: [荷兰]}]}
-      - {title: TLScontact 荷兰, kind: official, url: "https://cn.tlscontact.com", applies_if: [{fact: country, in: [荷兰]}]}
-      - {title: 全部申根国签证中心网址（原资料）, kind: info, url: "https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/country-notes.md", applies_if: [{fact: country, in: [其他]}]}
+      - {title: BLS 西班牙（填表 + 预约）, kind: official, url: "https://web.blscn.cn", applies_if: [{fact: country, in: [西班牙]}], evidence: [{source: g2, quote: "填表 + 预约：https://web.blscn.cn"}], verified: 2026-09-23}
+      - {title: VFS Global 德国, kind: official, url: "https://visa.vfsglobal.com/chn/zh/deu", applies_if: [{fact: country, in: [德国]}], verified: 2026-09-23}
+      - {title: VFS Global 瑞士, kind: official, url: "https://visa.vfsglobal.com/chn/zh/che", applies_if: [{fact: country, in: [瑞士]}], verified: 2026-09-23}
+      - {title: TLScontact 荷兰（进入后选 China）, kind: official, url: "https://visas-nl.tlscontact.com", applies_if: [{fact: country, in: [荷兰]}], evidence: [{source: g3, quote: "go to the TLScontact application centre"}], verified: 2026-09-23}
+      - {title: 全部申根国签证中心网址（原资料）, kind: info, url: "https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/references/country-notes.md", applies_if: [{fact: country, in: [其他]}]}
     where: 申请国签证官网 + TLScontact / VFS / BLS
     requirements: [r-application-form, r-appointment]
     depends_on: [s-choose-country]
@@ -584,7 +587,6 @@ checks:
 conflicts: []
 
 uncertain:
-  - s-appointment.links            # 原资料里荷兰同时列了 VFS 和 TLScontact 两个网址，以荷兰使领馆官网为准
   - r-flight.note                  # "德国等部分领区"要求已付款机票，取决于申请国/领区，攻略未给完整名单
   - r-sponsor-docs.raw_name        # 攻略在"在职"和"自由职业/无业"两处对出资人材料的描述不同，这里合并成一条
   - s-bank.requirements            # r-salary / r-pension 只对部分身份生效，被挂在同一个步骤上

@@ -212,8 +212,10 @@ def test_links_follow_country_answer(isolated):
     before = step(c.get(f"/api/tracks/{tid}").json())
     assert before["links"] and all(l["applies"] == "undecided" for l in before["links"])
     after = step(c.put(f"/api/tracks/{tid}/facts/country", json={"value": "法国"}).json())
-    assert {l["title"] for l in after["links"]} == {"France-Visas 填申请表", "TLScontact 预约递签", "法国填表指南"}
+    assert {l["title"] for l in after["links"]} == {"France-Visas 填申请表", "TLScontact 预约递签（进入后选 China）", "法国填表指南"}
     assert all(l["applies"] == "yes" for l in after["links"])
+    # 官网链接带核实日期（2026-09-23 用浏览器核实过），填表指南是站内链接，不需要
+    assert all(l["verified"] for l in after["links"] if l["kind"] == "official")
 
 
 def test_form_guide_endpoint(client):

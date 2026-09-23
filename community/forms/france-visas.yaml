@@ -14,11 +14,11 @@ updated: 2026-09-23
 sources:
   - id: g1
     title: schengen-visa-guide · 申根签申请国对比
-    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/references/country-notes.md
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/references/country-notes.md
     as_of: 2025-07-01
   - id: g2
     title: schengen-visa-guide · 设计文档
-    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/main/docs/design.md
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/docs/design.md
     as_of: 2025-07-01
 
 sections:
@@ -34,7 +34,7 @@ sections:
       - {source: g2, quote: "官网填申请表 → 生成申请号（截图保存）"}
   - title: 第二步：在 TLScontact 预约递签
     items:
-      - 打开 TLScontact 法国签证中心网站（visas-fr.tlscontact.cn），注册账号。
+      - 打开 TLScontact 法国签证中心网站（visas-fr.tlscontact.com，原资料写的 .cn 会自动跳转过去），居住地选 China，注册账号。
       - 关联上一步拿到的申请编号，选择递签城市和时间。
       - 预约成功后下载预约确认单并打印。
     tips:
