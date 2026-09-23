@@ -1,0 +1,185 @@
+# 杭州应届生补贴（青荷礼包 / 生活补贴 / 租房补贴 / 就业补贴）。"时间提醒型"攻略：几乎不用准备材料，
+# 关键是在对的时间去申请（spec §3c 可办时间窗）。
+# 整理自小红书帖子「一次性说清楚杭州应届生补贴」（g1，一张汇总图）和小红书 AI 搜索总结（g2，概括 22 篇帖子，二手资料）。
+# evidence 只摘录不超过 60 字的原话。整理过程见 specs/002-guide-to-track/trials/README.md（试验 #3）。
+
+id: hangzhou-graduate-subsidies
+title: 杭州应届生补贴（青荷礼包 / 生活 / 租房 / 就业）
+category: 补贴
+summary: 来杭州工作的应届毕业生能领的四项补贴：什么时候能申请、什么时候截止、去哪申请
+maintainers: []
+updated: 2026-09-23
+timeline: 从在杭州首次缴社保算起：满 1 个月可领青荷礼包，缴满 6 个月可申请生活补贴和租房补贴，同一单位缴满 12 个月可申请就业补贴；生活、租房补贴必须在毕业 2 年内申请。
+
+sources:
+  - id: g1
+    title: 小红书 · 一次性说清楚杭州应届生补贴（2026 最新版汇总图）
+    url: https://www.xiaohongshu.com/explore/6a86be20000000001b033898
+    as_of: 2026-08-20
+  - id: g2
+    title: 小红书 AI 搜索总结（概括 22 篇帖子，二手资料）
+    as_of: 2026-09-23
+
+phases:
+  - id: p-insure
+    title: 入职参保
+    summary: 毕业后在杭州入职并首次缴纳社保。之后所有补贴的时间都从这一天算，而且社保不能断缴、不能补缴。
+    evidence: [{source: g1, quote: "毕业1年内要完成首次参保，连续交6个月社保（不能补缴）"}]
+  - id: p-claim
+    title: 按时间申领
+    mode: online
+    summary: 在杭州市民卡 APP（青荷礼包、生活补贴、租房补贴）和浙里办 APP（就业补贴）上申请。每项补贴都有自己的"可以申请"和"截止"时间。
+    evidence: [{source: g2, quote: "生活补贴 & 租房补贴 & 青荷礼包：主要通过“杭州市民卡APP”申请"}]
+
+facts:
+  graduation_date:
+    question: 你的毕业日期？（以毕业证上的日期为准；记不清就填毕业那个月的 1 号）
+    type: date
+  first_insured:
+    question: 你在杭州第一次缴社保是哪天？（记不清就填第一次缴社保那个月的 1 号）
+    type: date
+  education:
+    question: 你的最高学历？
+    options: [大专, 本科, 硕士, 博士]
+  full_time:
+    question: 是全日制学历吗？
+    options: [是, 否]
+  own_house:
+    question: 申请时你本人在杭州有房吗？
+    options: [没有, 有]
+  small_micro:
+    question: 你所在的公司是小微企业吗？（不确定可以先问公司人事）
+    options: [是, 否]
+
+requirements: []
+
+steps:
+  - id: s-first-insure
+    title: 在杭州入职，首次缴纳社保
+    phase: p-insure
+    where: 线下 · 入职单位办理
+    window:
+      closes: {fact: graduation_date, months: 12}
+    evidence:
+      - {source: g1, quote: "毕业1年内要完成首次参保"}
+      - {source: g2, quote: "毕业1年内在杭州首次缴纳社保"}
+
+  - id: s-talent-code
+    title: 在杭州市民卡 APP 完成人才认定（杭州人才码）
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP 首页「杭州人才码」
+    depends_on: [s-first-insure]
+    evidence:
+      - {source: g2, quote: "进入后根据提示完成人才认定，即可看到各项补贴的申领选项"}
+
+  - id: s-qinghe-1
+    title: 领第 1 年青荷礼包（300 元权益）
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP
+    depends_on: [s-talent-code]
+    window:
+      opens: {fact: first_insured, months: 1}
+    evidence:
+      - {source: g1, quote: "社保只要到账1个月就行"}
+      - {source: g2, quote: "包含公交地铁券、公园年卡等"}
+
+  - id: s-qinghe-2
+    title: 领第 2 年青荷礼包
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP
+    depends_on: [s-qinghe-1]
+    window:
+      opens: {step: s-qinghe-1, months: 12}
+    evidence:
+      - {source: g1, quote: "一年300块，可以领3年，共3笔"}
+      - {source: g1, quote: "每年发一次"}
+
+  - id: s-qinghe-3
+    title: 领第 3 年青荷礼包
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP
+    depends_on: [s-qinghe-2]
+    window:
+      opens: {step: s-qinghe-2, months: 12}
+    evidence:
+      - {source: g1, quote: "一年300块，可以领3年，共3笔"}
+
+  - id: s-living
+    title: 申请应届生生活补贴（本科 1 万 / 硕士 3 万 / 博士 10 万）
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP
+    depends_on: [s-talent-code]
+    applies_if:
+      - {fact: full_time, in: [是]}
+      - {fact: education, in: [本科, 硕士, 博士]}
+    window:
+      opens: {fact: first_insured, months: 6}
+      closes: {fact: graduation_date, months: 24}
+    evidence:
+      - {source: g1, quote: "本科1万、硕士3万、博士10万"}
+      - {source: g1, quote: "毕业2年内必须申请！（逾期直接作废"}
+      - {source: g1, quote: "连续交6个月社保（不能补缴）"}
+
+  - id: s-rent
+    title: 申请应届大学生租房补贴（每年 1 万，最多 3 年）
+    phase: p-claim
+    where: 线上 · 杭州市民卡 APP
+    depends_on: [s-talent-code]
+    applies_if:
+      - {fact: full_time, in: [是]}
+      - {fact: education, in: [本科, 硕士, 博士]}
+      - {fact: own_house, in: [没有]}
+    window:
+      opens: {fact: first_insured, months: 6}
+      closes: {fact: graduation_date, months: 24}
+    evidence:
+      - {source: g1, quote: "一年1万，连领3年，总共3万"}
+      - {source: g1, quote: "毕业2年内申请，逾期不补，抓紧时间"}
+      - {source: g2, quote: "申请时本人在杭州无房，且未享受其他住房优惠政策"}
+
+  - id: s-employment
+    title: 申请高校毕业生就业补贴（每年 2000 元，最多 3 年）
+    phase: p-claim
+    where: 线上 · 浙里办 APP 搜索「大学生就业补贴」
+    depends_on: [s-first-insure]
+    applies_if:
+      - {fact: small_micro, in: [是]}
+      - {fact: full_time, in: [是]}
+    window:
+      opens: {fact: first_insured, months: 12}
+      closes: {fact: first_insured, months: 24, end_of: year}
+    evidence:
+      - {source: g1, quote: "满足条件的次月至次年年底"}
+      - {source: g1, quote: "还得在同一家公司连续缴12个月社保"}
+      - {source: g2, quote: "并在同一家单位连续缴纳社保满12个月"}
+
+checks:
+  - id: c-no-gap
+    text: 从首次参保起连续缴社保，不能断缴也不能补缴；换工作时新旧单位要衔接上
+    evidence:
+      - {source: g2, quote: "断缴或补缴都会导致资格失效，时间需要重新计算"}
+      - {source: g2, quote: "可以换公司，但不能断缴或补缴"}
+  - id: c-rent-exclusive
+    text: 应届生租房补贴和公租房货币补贴不能同时享受，申请前想好选哪个
+    evidence:
+      - {source: g2, quote: "应届生租房补贴和公租房货币补贴不能同时享受"}
+  - id: c-employer-type
+    text: 申请就业补贴前，确认公司属于符合条件的小微企业；公司法人、老板本人不能申请
+    evidence:
+      - {source: g2, quote: "公司法人、老板本人不能申请"}
+      - {source: g2, quote: "务必确认公司是否为符合条件的小微企业"}
+
+conflicts:
+  - id: k-employment-search
+    about: s-employment.where
+    claims:
+      - {source: g1, quote: "打开浙里办APP，搜「大学生就业补贴」"}
+      - {source: g2, quote: "搜索“高校毕业生就业补贴申领”"}
+
+uncertain:
+  - s-first-insure.window        # "毕业 1 年内首次参保"是生活/租房补贴的条件；就业补贴放宽到毕业 2 年内（g1 标签"毕业两年内参保"）
+  - s-living.window.opens        # 原文只说"连续缴满 6 个月"，满了之后多久能提交没写，这里按首次参保日期 + 6 个月计算
+  - s-rent.window.opens          # 同上
+  - s-qinghe-2.window            # 原文只说"每年发一次"，这里按上一次领取后 12 个月计算
+  - s-rent.title                 # 租房补贴"每半年发 5000、连领 3 年"期间是否需要每年重新确认，两份资料都没写
+  - s-employment.title           # 就业补贴"每年 2000，可领 3 年"是否每年都要重新申请，两份资料都没写
