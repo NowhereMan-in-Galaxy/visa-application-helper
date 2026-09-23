@@ -317,3 +317,5 @@ form.add-inline button { padding: 4px 10px; font-size: 12px; }
 /* 上传框里的"放进我的资料" */
 form.upload label.keep { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); cursor: pointer; }
 form.upload label.keep input { accent-color: var(--green); }
+.preview-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.preview-notice .primary { flex: none; }

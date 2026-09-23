@@ -461,9 +461,11 @@
         setView(
           head,
           el(
-            "p",
-            { class: "notice" },
-            "这是预览：已经用你材料库里现有的材料先对了一遍。开始办之后回答几个问题，和你无关的材料会自动隐藏。"
+            "div",
+            { class: "notice preview-notice" },
+            el("span", { text: "这是预览（只读）：已经用你材料库里现有的材料先对了一遍。要上传材料、勾选步骤、回答问题，请先开始办。" }),
+            // 右侧的"开始办"表单在窄屏上会排到页面最底下，这里放一个随时能点到的入口
+            el("button", { class: "primary", type: "button", text: "开始办 →", onclick: function () { form.requestSubmit(); } })
           ),
           trackBody(p, { readonly: true, aside: el("section", { class: "panel" }, form) })
         );
@@ -1309,7 +1311,14 @@
       hints.push(el("div", { class: "mat-note", text: r.freshness_days ? "这份材料已经过期或超过 " + r.freshness_days + " 天，需要重新开一份。" : "这份材料已经过期，需要重新开一份。" }));
     }
     if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.map(function (p) { return p.name; }).join("、") }));
-    if (r.type_unresolved) hints.push(el("div", { class: "mat-note", text: "这类材料没法自动对上材料库，上传或从我的资料里选一份即可。" }));
+    // 预览页是只读的，没有上传按钮：提示要先"开始办"，免得让人以为这里就能传
+    if (r.type_unresolved) {
+      hints.push(el("div", { class: "mat-note", text: ctx.readonly
+        ? "这类材料没法自动对上材料库。开始办之后，可以在这里上传，或从我的资料里选一份。"
+        : "这类材料没法自动对上材料库，上传或从我的资料里选一份即可。" }));
+    } else if (ctx.readonly && r.state === "missing") {
+      hints.push(el("div", { class: "mat-note", text: "开始办之后，可以在这里上传。" }));
+    }
     if (r.state === "undecided") hints.push(el("div", { class: "mat-note", text: "取决于你的回答：" + conditionText(r.conditions, ctx.factsByKey) }));
 
     var note = ctx.readonly ? null : noteBlock(v, "requirements", r.id, r.user_note);
