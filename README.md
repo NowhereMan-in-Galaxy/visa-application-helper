@@ -81,3 +81,28 @@ uv run uvicorn api.app:app --app-dir src --reload    # 启动本地服务
 服务没有登录鉴权，只靠 Origin / Host 校验挡浏览器里的跨站请求（见 `specs/002-guide-to-track/spec.md` B3 安全前提），**不要用 `--host 0.0.0.0` 之类的参数把它暴露到局域网/公网**，否则同一网络里的其他设备也能直接读写你的材料数据。
 
 `materials_index/` 里 `example-` 开头的是**虚构示例数据**，只用来演示格式，不会被匹配给真实的办事；确认能跑通之后可以删掉，换成自己的材料记录（只填元数据，真实文件本体放在材料根目录——复制 `config.example.yaml` 为 `config.yaml` 后按需修改）。
+
+## 用本地 Agent
+
+这个项目不内嵌任何模型 API、不需要 API key——Agent 能力来自**你自己本机已经装好的** Claude Code /
+Codex 等工具，用谁的账号、花谁的额度，由你自己决定（详见 [`specs/002-guide-to-track/spec.md`](./specs/002-guide-to-track/spec.md) "Agent 接入方案"一节）。目前实现了两级：
+
+1. **项目自带指令（skills）**：在仓库根目录打开你自己的 Claude Code / Codex，直接用自然语言描述需求，
+   Agent 会按 `.claude/skills/` 下的指令工作：
+   - `guide-author`：把一篇杂乱的攻略（文字/截图/网页内容）整理成 `community/guides/<id>.yaml`，
+     整理完自动跑校验命令，认不出的材料叫法会先跟你确认再改词表。
+   - `errand-helper`：回答"我这件事下一步做什么""要不要交某份材料"之类的问题；任何会改动你办事
+     进度的操作（改回答、勾步骤、确认材料）都会先复述一遍、等你同意才会真的写。
+
+2. **本地 MCP 服务**：仓库根目录的 [`.mcp.json`](./.mcp.json) 已经配置好，Claude Code 打开这个项目
+   会自动连接。它把"列出攻略 / 读我的办事 / 改回答 / 勾步骤 / 确认材料 / 校验共享区"包装成 Agent 能
+   直接调用的工具（定义在 `src/agent_tools/tools.py`），不经过 HTTP、不需要额外起服务；只暴露必要的
+   读和受控写操作，不提供删除，也不提供读取材料文件内容本身的工具。手动启动看是否正常（正常情况下
+   会挂起等待 stdio 输入，`Ctrl+C` 退出即可）：
+
+   ```bash
+   PYTHONPATH=src uv run python -m agent_tools.mcp_server
+   ```
+
+第三级（界面里点一下"问 Agent"，结果直接显示在页面上）还没实现，需要先做好防跨站请求伪造（CSRF）
+的安全加固，见 spec 里的说明。

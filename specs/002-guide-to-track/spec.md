@@ -225,9 +225,14 @@ types:
 - 命令行校验：`PYTHONPATH=src uv run python -m core.guides`（仓库根目录运行）校验 `community/` 下全部内容，有错误时退出码非 0（给贡献者和将来的 CI 用）。
 
 ### Phase B：Agent 接入（分三级，逐级做，见下方"Agent 接入方案"）
-- B1 项目自带 Agent 指令（skills）：整理攻略、问答、官网填表。
-- B2 本地 MCP 服务：把"读攻略 / 读写我的办事 / 上传材料"做成 Agent 能调用的工具。
-- B3 界面里的"问 Agent"：本地服务调起用户自己安装的 Agent CLI，结果流式显示在页面上。
+- **B1 项目自带 Agent 指令（skills）：已实现。** `.claude/skills/guide-author/SKILL.md`（整理攻略）、
+  `.claude/skills/errand-helper/SKILL.md`（问答，写操作先复述确认）；官网填表指引仍待 Phase D。
+- **B2 本地 MCP 服务：已实现。** `src/agent_tools/mcp_server.py`（官方 `mcp` SDK，stdio 传输）注册了
+  `list_guides`、`get_guide`、`list_tracks`、`get_track`、`set_fact`、`set_step_done`、`confirm_match`、
+  `validate_community` 八个工具，逻辑在 `src/agent_tools/tools.py`（直接调用 `src/core`，不经过
+  HTTP）；仓库根目录 `.mcp.json` 已配置好项目级 MCP server。不提供删除、不提供读取材料文件内容的工具。
+- B3 界面里的"问 Agent"：本地服务调起用户自己安装的 Agent CLI，结果流式显示在页面上。**尚未实现**，
+  需要先完成下方"B3 的安全前提"。
 - **不在应用里内嵌模型 API**（原 Phase C 方案作废）：Agent 能力来自用户自己本地的 Agent，应用本身不需要 API key、不产生模型费用，也不会把任何内容发给第三方。
 
 ### Phase D：官网填表指引（见下方"官网填表指引"）
