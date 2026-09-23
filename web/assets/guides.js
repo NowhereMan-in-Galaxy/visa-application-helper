@@ -48,6 +48,12 @@
     return node;
   }
 
+  // 原生 replaceChildren / append 会把 null 当成文字 "null" 显示出来，统一经过这里过滤掉空值
+  function setView() {
+    var nodes = Array.prototype.slice.call(arguments).filter(function (n) { return n !== null && n !== undefined && n !== false; });
+    view.replaceChildren.apply(view, nodes);
+  }
+
   function showError(msg) {
     errorBox.hidden = !msg;
     errorBox.textContent = msg || "";
@@ -136,29 +142,54 @@
     var hash = location.hash.replace(/^#\/?/, "");
     var parts = hash.split("/");
     document.querySelectorAll("[data-nav]").forEach(function (a) {
-      a.classList.toggle("active", parts[0] === "" || parts[0] === "guide" || parts[0] === "track");
+      a.classList.toggle("active", ["", "guide", "track", "tag"].indexOf(parts[0]) !== -1);
     });
-    view.replaceChildren(el("p", { class: "muted", text: "加载中…" }));
+    setView(el("p", { class: "muted", text: "加载中…" }));
     if (parts[0] === "guide" && parts[1]) return renderGuide(decodeURIComponent(parts[1]));
     if (parts[0] === "track" && parts[1]) return renderTrack(decodeURIComponent(parts[1]));
-    return renderHome();
+    if (parts[0] === "tag" && parts[1]) return renderHome(decodeURIComponent(parts[1]));
+    return renderHome(null);
   }
 
   // ---------- 首页：我正在办的 + 攻略库 ----------
 
-  function renderHome() {
+  function renderHome(tag) {
     Promise.all([request("GET", "/api/tracks"), request("GET", "/api/guides")])
       .then(function (results) {
-        var tracks = results[0];
-        var guides = results[1];
+        var allTracks = results[0];
+        var allGuides = results[1];
         var guideTitle = {};
-        guides.forEach(function (g) { guideTitle[g.id] = g.title; });
+        allGuides.forEach(function (g) { guideTitle[g.id] = g.title; });
 
-        var trackCards = tracks.map(function (t) {
+        // 标签 = 攻略的分类（签证 / 工作 / 社保 / 银行补贴 / 其他）；办事跟着它所照着的攻略走
+        var counts = {};
+        allGuides.forEach(function (g) { if (g.category) counts[g.category] = (counts[g.category] || 0) + 1; });
+        allTracks.forEach(function (t) { if (t.category) counts[t.category] = (counts[t.category] || 0) + 1; });
+        var match = function (cat) { return !tag || cat === tag; };
+        var tracks = allTracks.filter(function (t) { return match(t.category); });
+        var guides = allGuides.filter(function (g) { return match(g.category); });
+        var active = tracks.filter(function (t) { return !t.completed; });
+        var done = tracks.filter(function (t) { return t.completed; });
+
+        var chips = el(
+          "nav",
+          { class: "chips", "aria-label": "按标签筛选" },
+          el("a", { class: "chip", href: "#/", "aria-current": tag ? "false" : "true" }, "全部", el("span", { class: "n", text: allGuides.length + allTracks.length })),
+          Object.keys(counts).map(function (cat) {
+            return el("a", { class: "chip", href: "#/tag/" + encodeURIComponent(cat), "aria-current": cat === tag ? "true" : "false" }, cat, el("span", { class: "n", text: counts[cat] }));
+          })
+        );
+
+        var activeCards = active.map(function (t) {
+          var foot = [el("span", { text: "已进行 " + (t.elapsed_days || 0) + " 天" })];
+          if (t.deadline) {
+            var left = daysBetween(todayIso(), t.deadline);
+            foot.push(el("span", { class: left <= 14 ? "urgent" : null, text: left >= 0 ? "距截止 " + left + " 天" : "已过截止 " + -left + " 天" }));
+          }
           return el(
             "a",
             { class: "card", href: "#/track/" + encodeURIComponent(t.id) },
-            el("span", { class: "meta", text: "照着：" + (guideTitle[t.guide_id] || t.guide_id) }),
+            el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, " 照着：" + (guideTitle[t.guide_id] || t.guide_id)),
             el("h3", { text: t.title }),
             t.error
               ? el("p", { class: "meta", text: "暂时打不开：" + t.error })
@@ -166,9 +197,44 @@
                   progressBar(t.progress_ready, t.progress_total),
                   el("span", { class: "meta", text: "材料 " + t.progress_ready + " / " + t.progress_total + " 已备齐" }),
                   el("div", { class: "next", text: t.next_step_title ? "下一步：" + t.next_step_title : "没有可以马上做的步骤" }),
-                ]
+                ],
+            el("div", { class: "card-foot" }, foot)
           );
         });
+
+        var doneSection = null;
+        if (done.length) {
+          var days = done.map(function (t) { return t.elapsed_days; }).filter(function (d) { return d !== null && d !== undefined; });
+          var avg = days.length ? Math.round(days.reduce(function (a, b) { return a + b; }, 0) / days.length) : null;
+          doneSection = el(
+            "section",
+            { class: "panel" },
+            el("div", { class: "panel-head" }, el("h2", null, "已办完", el("span", { class: "count", text: done.length }))),
+            days.length
+              ? el(
+                  "div",
+                  { class: "stats" },
+                  el("div", { class: "stat" }, el("b", { text: avg + " 天" }), el("span", { text: "平均用时" })),
+                  el("div", { class: "stat" }, el("b", { text: Math.min.apply(null, days) + " 天" }), el("span", { text: "最快" })),
+                  el("div", { class: "stat" }, el("b", { text: Math.max.apply(null, days) + " 天" }), el("span", { text: "最慢" }))
+                )
+              : null,
+            el(
+              "div",
+              { class: "cards" },
+              done.map(function (t) {
+                return el(
+                  "a",
+                  { class: "card done", href: "#/track/" + encodeURIComponent(t.id) },
+                  el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, " 照着：" + (guideTitle[t.guide_id] || t.guide_id)),
+                  el("h3", { text: t.title }),
+                  el("div", { class: "took", text: "用时 " + t.elapsed_days + " 天" }),
+                  el("div", { class: "card-foot" }, el("span", { text: t.created + " → " + t.completed }))
+                );
+              })
+            )
+          );
+        }
 
         var guideCards = guides.map(function (g) {
           if (!g.valid) {
@@ -191,23 +257,27 @@
           );
         });
 
-        view.replaceChildren(
+        setView(
           el(
             "div",
             { class: "heading" },
             el("div", null, el("h1", { text: "照着攻略，一件件办好。" }), el("p", { class: "muted", text: "攻略由大家共同维护；你的进度只保存在这台电脑上。" }))
           ),
+          chips,
           el(
             "section",
             { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "我正在办的", el("span", { class: "count", text: tracks.length }))),
-            trackCards.length ? el("div", { class: "cards" }, trackCards) : el("p", { class: "empty", text: "还没有。从下面的攻略库里挑一份，点进去开始办。" })
+            el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length }))),
+            activeCards.length
+              ? el("div", { class: "cards" }, activeCards)
+              : el("p", { class: "empty", text: tag ? "这个标签下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
           ),
+          doneSection,
           el(
             "section",
             { class: "panel" },
             el("div", { class: "panel-head" }, el("h2", null, "攻略库", el("span", { class: "count", text: guides.length })), el("small", { text: "community/guides/" })),
-            guideCards.length ? el("div", { class: "cards" }, guideCards) : el("p", { class: "empty", text: "攻略库是空的。" })
+            guideCards.length ? el("div", { class: "cards" }, guideCards) : el("p", { class: "empty", text: tag ? "这个标签下还没有攻略，欢迎贡献一份。" : "攻略库是空的。" })
           ),
           el(
             "p",
@@ -225,7 +295,7 @@
         );
       })
       .catch(function (e) {
-        view.replaceChildren();
+        setView();
         showError(e.message);
       });
   }
@@ -248,7 +318,7 @@
           )
         );
         if (!s.valid) {
-          view.replaceChildren(
+          setView(
             head,
             el("div", { class: "banner" }, "这份攻略没有通过校验，暂时不能使用：", el("ul", null, s.errors.map(function (e) { return el("li", { text: e }); })))
           );
@@ -277,7 +347,7 @@
             .catch(function (e) { btn.disabled = false; showError(e.message); });
         });
 
-        view.replaceChildren(
+        setView(
           head,
           el(
             "p",
@@ -288,7 +358,7 @@
         );
       })
       .catch(function (e) {
-        view.replaceChildren();
+        setView();
         showError(e.message);
       });
   }
@@ -299,7 +369,7 @@
     request("GET", "/api/tracks/" + encodeURIComponent(id))
       .then(function (v) { drawTrack(v); })
       .catch(function (e) {
-        view.replaceChildren(el("p", null, el("a", { href: "#/", text: "← 回到攻略库" })));
+        setView(el("p", null, el("a", { href: "#/", text: "← 回到攻略库" })));
         showError(e.message);
       });
   }
@@ -313,14 +383,17 @@
         null,
         el("div", { class: "crumb" }, el("a", { href: "#/", text: "我正在办的" }), " / 照着 ", el("a", { href: "#/guide/" + encodeURIComponent(v.guide_id), text: v.guide_title })),
         el("h1", { text: v.title }),
-        v.deadline
-          ? el("p", { class: "muted", text: "截止 " + v.deadline + "（" + deadlineText(v.deadline) + "）" })
-          : el("p", { class: "muted", text: "创建于 " + v.created })
+        el(
+          "p",
+          { class: "muted" },
+          v.completed ? "已办完 · 用时 " + v.elapsed_days + " 天" : "创建于 " + v.created + " · 已进行 " + v.elapsed_days + " 天",
+          v.deadline && !v.completed ? " · 截止 " + v.deadline + "（" + deadlineText(v.deadline) + "）" : ""
+        )
       )
     );
     // 重新渲染会替换整块内容，先记住滚动位置，避免每点一次就跳回顶部
     var y = window.scrollY;
-    view.replaceChildren(head, trackBody(v, { readonly: false }));
+    setView(head, trackBody(v, { readonly: false }));
     window.scrollTo(0, y);
   }
 
@@ -422,7 +495,7 @@
                 var ph = phaseById[s.phase];
                 items.push(el(
                   "li",
-                  { class: "phase-heading" },
+                  { class: "phase-heading", id: "phase-" + ph.p.id },
                   el("span", { text: "第 " + (ph.i + 1) + " 阶段 · " + ph.p.title }),
                   MODE_LABEL[ph.p.mode] ? el("span", { class: "mode " + ph.p.mode, text: MODE_LABEL[ph.p.mode] }) : null
                 ));
@@ -479,36 +552,94 @@
     return d ? "通常 " + d.typical + " 天，最长 " + d.max + " 天" : null;
   }
 
-  // 页面最上方的"大阶段"进度条：先让人知道整件事分几段、现在走到哪、一般要多久
+  var phaseObserver = null;
+
+  function jumpTo(id) {
+    var target = document.getElementById(id);
+    if (!target) return;
+    // 用户开了"减少动态效果"、或页面不在前台（浏览器会暂停平滑滚动）时，直接跳过去
+    var reduce = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) || document.visibilityState !== "visible";
+    target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }
+
+  // 页面最上方的"大阶段"进度条：先让人知道整件事分几段、现在走到哪、一般要多久。
+  // 每一段都可以点，跳到下面这一段的步骤和材料；往下滑之后，顶部会吸住一条精简版，随时能跳。
   function phaseBar(v) {
+    if (phaseObserver) { phaseObserver.disconnect(); phaseObserver = null; }
     if (!v.phases.length) {
       return v.timeline ? el("p", { class: "notice", text: "⏱ " + v.timeline }) : null;
     }
-    return el(
-      "section",
-      { class: "phases", "aria-label": "办理阶段" },
-      el(
-        "ol",
-        { class: "phase-bar" },
-        v.phases.map(function (p, i) {
-          var meta = [
-            el("span", { text: PHASE_STATE_LABEL[p.state] }),
-            p.steps_total ? el("span", { text: "· " + p.steps_done + "/" + p.steps_total + " 步" }) : null,
-            MODE_LABEL[p.mode] ? el("span", { class: "mode " + p.mode, text: MODE_LABEL[p.mode] }) : null,
-          ];
-          var time = p.estimate || durationText(p.duration_days);
-          return el(
-            "li",
-            { class: "phase " + p.state, "aria-current": p.state === "current" ? "step" : null },
+    var bar = el(
+      "ol",
+      { class: "phase-bar" },
+      v.phases.map(function (p, i) {
+        var meta = [
+          el("span", { text: PHASE_STATE_LABEL[p.state] }),
+          p.steps_total ? el("span", { text: "· " + p.steps_done + "/" + p.steps_total + " 步" }) : null,
+          MODE_LABEL[p.mode] ? el("span", { class: "mode " + p.mode, text: MODE_LABEL[p.mode] }) : null,
+        ];
+        var time = p.estimate || durationText(p.duration_days);
+        return el(
+          "li",
+          { "aria-current": p.state === "current" ? "step" : null },
+          el(
+            "button",
+            {
+              type: "button",
+              class: "phase " + p.state,
+              disabled: p.state === "skipped",
+              "aria-label": "第 " + (i + 1) + " 阶段：" + p.title + "，" + PHASE_STATE_LABEL[p.state] + "，跳到这一阶段的步骤",
+              onclick: function () { jumpTo("phase-" + p.id); },
+            },
             el("div", { class: "phase-no", text: "第 " + (i + 1) + " 阶段" }),
             el("div", { class: "phase-title", text: p.title }),
             el("div", { class: "phase-meta" }, meta),
             time ? el("div", { class: "phase-meta", text: "⏱ " + time }) : null,
-            p.summary ? el("div", { class: "phase-summary", text: p.summary }) : null
-          );
-        })
-      ),
-      v.timeline ? el("p", { class: "timeline-note", text: "⏱ 全程：" + v.timeline }) : null
+            p.summary ? el("div", { class: "phase-summary", text: p.summary }) : null,
+            p.state === "skipped" ? null : el("div", { class: "phase-go", text: "看这一阶段 ↓" })
+          )
+        );
+      })
+    );
+
+    var nextStep = v.steps.filter(function (x) { return x.id === v.next_step; })[0];
+    var strip = el(
+      "nav",
+      { class: "phase-strip", "aria-label": "阶段快捷跳转" },
+      v.phases.map(function (p, i) {
+        return el("button", {
+          type: "button",
+          class: p.state,
+          disabled: p.state === "skipped",
+          text: (p.state === "done" ? "✓ " : (i + 1) + " ") + p.title,
+          onclick: function () { jumpTo("phase-" + p.id); },
+        });
+      }),
+      nextStep
+        ? el("a", { class: "strip-next", href: "#step-" + nextStep.id, text: "下一步：" + nextStep.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + nextStep.id); } })
+        : null
+    );
+
+    // 大进度条滑出屏幕时才显示精简条，避免两条同时出现
+    if ("IntersectionObserver" in window) {
+      phaseObserver = new IntersectionObserver(function (entries) {
+        strip.classList.toggle("visible", !entries[0].isIntersecting);
+      });
+      phaseObserver.observe(bar);
+    } else {
+      strip.classList.add("visible");
+    }
+
+    return el(
+      "div",
+      null,
+      strip,
+      el(
+        "section",
+        { class: "phases", "aria-label": "办理阶段" },
+        bar,
+        v.timeline ? el("p", { class: "timeline-note", text: "⏱ 全程：" + v.timeline }) : null
+      )
     );
   }
 
@@ -522,14 +653,17 @@
         showError("");
         request("POST", "/api/tracks/" + encodeURIComponent(v.id) + "/export")
           .then(function (r) {
-            out.replaceChildren(
+            // 经过 el() 包一层：它会展开数组、跳过空值，原生 replaceChildren 不会
+            out.replaceChildren(el(
+              "div",
+              null,
               el("p", null, "已复制 " + r.copied.length + " 个文件到："),
               el("code", { text: r.folder }),
               r.missing_files.length ? [el("p", { text: "已确认但找不到文件：" }), el("ul", null, r.missing_files.map(function (m) { return el("li", { text: m }); }))] : null,
               r.pending.length
                 ? [el("p", { text: "还没备齐（已写进文件夹里的 清单.txt）：" }), el("ul", null, r.pending.map(function (m) { return el("li", { text: m }); }))]
                 : el("p", { text: "材料全部备齐了。" })
-            );
+            ));
           })
           .catch(function (e) { showError(e.message); })
           .then(function () { btn.disabled = false; });
@@ -559,7 +693,7 @@
         { class: "next-card" + (allDone ? " done-all" : "") },
         el("div", { class: "label", text: allDone ? "全部完成" : "下一步" }),
         el("h2", { text: allDone ? "所有步骤都做完了。" : pending ? "先回答下面的问题" : "暂时没有能马上做的步骤" }),
-        allDone ? el("p", { class: "muted", text: "别忘了最后核对一遍材料之间是否对得上。" }) : null
+        allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null
       );
     }
     var mats = s.requirements
@@ -578,7 +712,7 @@
         "div",
         { class: "actions" },
         el("button", { class: "primary", type: "button", text: "✓ 这一步做完了", onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: true }); } }),
-        el("a", { href: "#step-" + s.id, text: "看详情", onclick: function (ev) { ev.preventDefault(); var t = document.getElementById("step-" + s.id); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); } })
+        el("a", { href: "#step-" + s.id, text: "看详情", onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })
       ),
       el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
     );

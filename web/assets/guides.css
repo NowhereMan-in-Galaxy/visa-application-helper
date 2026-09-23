@@ -164,7 +164,6 @@ form.start input { width: 100%; padding: 10px; border: 1px solid var(--line); ba
 .phases { margin: 0 0 28px; }
 .phase-bar { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); background: var(--paper-2); }
 .phase { position: relative; padding: 14px 16px 14px 18px; border-right: 1px solid var(--line-soft); min-width: 0; }
-.phase:last-child { border-right: 0; }
 .phase::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--line-soft); }
 .phase.done::before { background: var(--green); }
 .phase.current::before { background: var(--ink); }
@@ -193,3 +192,35 @@ form.upload button { padding: 3px 10px; font-size: 12px; }
   .phase-bar { grid-auto-flow: row; }
   .phase { border-right: 0; border-bottom: 1px solid var(--line-soft); }
 }
+
+/* ---- 首页：标签筛选 + 已办完统计 ---- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.chip { text-decoration: none; border: 1px solid var(--line); background: var(--paper-2); padding: 4px 12px; font-size: 13px; }
+.chip:hover { background: #f1f0e6; }
+.chip[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip .n { font: 11px ui-monospace, Menlo, monospace; margin-left: 6px; opacity: .7; }
+.card-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.card-foot .urgent { color: var(--danger); }
+.stats { display: flex; gap: 28px; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--line-soft); }
+.stat b { display: block; font-size: 22px; font-weight: 600; letter-spacing: -.5px; }
+.stat span { font-size: 12px; color: var(--muted); }
+.card.done h3 { color: var(--muted); }
+.card .took { margin-top: 10px; font-size: 13px; }
+
+/* ---- 办事页：阶段可点击 + 吸顶小导航 ---- */
+button.phase { text-align: left; font: inherit; color: inherit; background: transparent; border: 0; border-right: 1px solid var(--line-soft); cursor: pointer; width: 100%; height: 100%; }
+button.phase:hover:not(:disabled) { background: #eef0e4; }
+button.phase:disabled { cursor: default; }
+.phase-bar > li { min-width: 0; }
+.phase-bar > li:last-child button.phase { border-right: 0; }
+.phase-go { font-size: 12px; color: var(--green); margin-top: 6px; }
+.phase-heading, .step { scroll-margin-top: 64px; }
+.phase-strip { position: fixed; top: 0; left: 200px; right: 0; z-index: 10; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding: 8px 42px; background: rgba(246, 243, 235, .96); border-bottom: 1px solid var(--line); box-shadow: 0 2px 6px rgba(48, 56, 46, .08); visibility: hidden; opacity: 0; transition: opacity .15s; }
+.phase-strip.visible { visibility: visible; opacity: 1; }
+.phase-strip button { border: 1px solid var(--line); background: var(--paper-2); padding: 3px 10px; font-size: 12px; }
+.phase-strip button.current { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.phase-strip button.done { border-color: var(--green); color: var(--green); }
+.phase-strip .strip-next { margin-left: auto; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .phase-strip { transition: none; } }
+@media (max-width: 1000px) { .phase-strip { left: 160px; padding: 8px 24px; } }
+@media (max-width: 650px) { .phase-strip { left: 0; padding: 6px 16px; } }
