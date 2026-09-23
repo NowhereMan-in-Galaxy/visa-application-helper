@@ -99,3 +99,10 @@ def test_export_endpoint(isolated):
     r = c.post(f"/api/tracks/{tid}/export").json()
     assert r["copied"] == ["01-旅行保险.pdf"]
     assert r["folder"].startswith(str(root / "exports"))
+
+
+def test_track_summary_has_category_and_elapsed(client):
+    c, _ = client
+    c.post("/api/tracks", json={"guide": "schengen-tourist"})
+    t = c.get("/api/tracks").json()[0]
+    assert t["category"] == "签证" and t["elapsed_days"] == 0 and t["completed"] is None

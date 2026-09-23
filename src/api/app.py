@@ -28,6 +28,7 @@ from core.tracks import (
     load_track,
     load_tracks,
     save_track,
+    sync_completion,
 )
 from core.models import (
     MaterialCategory,
@@ -52,6 +53,7 @@ from core.update_cadence import compute_update_reminder
 from core.uploads import UploadConflictError, save_uploaded_file
 
 app = FastAPI(title="材料资料库")
+
 
 
 class MaterialView(BaseModel):
@@ -327,8 +329,11 @@ class TrackSummary(BaseModel):
     id: str
     title: str
     guide_id: str
+    category: str | None
     created: date
     deadline: date | None
+    completed: date | None
+    elapsed_days: int | None
     progress_ready: int | None
     progress_total: int | None
     next_step_title: str | None
@@ -397,6 +402,15 @@ def _track_view(track: Track) -> TrackView:
     return compute_track_view(guide, track, records, vocab, date.today())
 
 
+def _save_track(track: Track) -> TrackView:
+    """保存前按最新状态维护"办完日期"，再返回新视图。所有会改变步骤完成情况的写操作都走这里。"""
+    view = _track_view(track)
+    before = track.completed
+    sync_completion(track, view, date.today())
+    save_track(get_materials_root(), track)
+    return _track_view(track) if track.completed != before else view
+
+
 def _load_track_or_404(track_id: str) -> Track:
     try:
         return load_track(get_materials_root(), track_id)
@@ -428,16 +442,24 @@ def get_guide(guide_id: str) -> GuideDetail:
 def list_tracks() -> list[TrackSummary]:
     summaries = []
     for track in load_tracks(get_materials_root()):
-        base = dict(id=track.id, title=track.title, guide_id=track.guide, created=track.created, deadline=track.deadline)
+        base = dict(
+            id=track.id, title=track.title, guide_id=track.guide, created=track.created,
+            deadline=track.deadline, completed=track.completed,
+        )
         try:
             view = _track_view(track)
+            _, guide = _valid_guide(track.guide)
         except HTTPException as e:
             # 攻略被删了或改坏了：这件办事照样列出来，只是标上原因，不让它从列表里"凭空消失"
-            summaries.append(TrackSummary(**base, progress_ready=None, progress_total=None, next_step_title=None, error=e.detail))
+            summaries.append(TrackSummary(
+                **base, category=None, elapsed_days=None,
+                progress_ready=None, progress_total=None, next_step_title=None, error=e.detail,
+            ))
             continue
         next_title = next((s.title for s in view.steps if s.id == view.next_step), None)
         summaries.append(TrackSummary(
-            **base, progress_ready=view.progress_ready, progress_total=view.progress_total,
+            **base, category=guide.category, elapsed_days=view.elapsed_days,
+            progress_ready=view.progress_ready, progress_total=view.progress_total,
             next_step_title=next_title, error=None,
         ))
     return summaries
@@ -468,8 +490,7 @@ def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackVie
         raise HTTPException(status_code=422, detail=f"{payload.value!r} 不是这个问题的选项")
     else:
         track.facts[fact] = payload.value
-    save_track(get_materials_root(), track)
-    return _track_view(track)
+    return _save_track(track)
 
 
 @app.put("/api/tracks/{track_id}/steps/{step}", response_model=TrackView)
@@ -480,8 +501,7 @@ def update_track_step(track_id: str, step: str, payload: DoneUpdate) -> TrackVie
         raise HTTPException(status_code=404, detail=f"这份攻略没有步骤 {step}")
     done = [s for s in track.done_steps if s != step]
     track.done_steps = done + [step] if payload.done else done
-    save_track(get_materials_root(), track)
-    return _track_view(track)
+    return _save_track(track)
 
 
 @app.put("/api/tracks/{track_id}/checks/{check}", response_model=TrackView)

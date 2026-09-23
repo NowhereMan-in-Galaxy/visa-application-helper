@@ -152,7 +152,11 @@ done_steps: [s-copy-ids]                 # 已完成的步骤 id
 matches:                                 # 用户确认过的匹配；没确认的不出现
   r-passport: [passport-bio-page, passport-visa-page, passport-stamped-pages]
 done_checks: [c-hotel-itinerary]         # 最终核对里已勾选的项
+completed: 2026-10-20                    # 办完的日期，由服务端自动维护，用户不直接编辑
 ```
+
+- **办完**：所有生效的步骤都已完成、且没有"取决于还没回答的问题"的步骤。每次修改步骤或回答问题后，服务端重新判断：刚满足时记下当天日期；已经记过的日期不因之后的保存而改变；一旦又有没做完的步骤就清空。
+- **用时** = `completed`（没办完则取今天）− `created`，单位天。首页按"办理中 / 已办完"分组，已办完的一组显示平均、最快、最慢用时。
 
 - 攻略被别人修订后，Track 里引用了已不存在的 step / requirement / check / fact 的条目：**读取时忽略，不报错，不自动删**（用户可能还要切回旧版本）。
 - 写入只经过 API，每次写入整文件覆盖；文件不存在时 API 返回 404，不自动创建。

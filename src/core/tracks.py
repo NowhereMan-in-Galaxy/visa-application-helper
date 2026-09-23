@@ -43,6 +43,8 @@ class Track(BaseModel):
     done_steps: list[str] = []
     matches: dict[str, list[str]] = {}
     done_checks: list[str] = []
+    # 所有适用步骤都做完的那一天；由 sync_completion 自动维护，取消任一步骤会清空。首页据此算"用时"
+    completed: date | None = None
 
 
 # ---------- 读写（个人区） ----------
@@ -176,6 +178,8 @@ class TrackView(BaseModel):
     guide_title: str
     created: date
     deadline: date | None
+    completed: date | None
+    elapsed_days: int  # 从创建到完成（没完成就到今天）经过的天数
     facts: list[FactView]
     requirements: list[RequirementView]
     steps: list[StepView]
@@ -359,7 +363,8 @@ def compute_track_view(
 
     return TrackView(
         id=track.id, title=track.title, guide_id=guide.id, guide_title=guide.title,
-        created=track.created, deadline=track.deadline,
+        created=track.created, deadline=track.deadline, completed=track.completed,
+        elapsed_days=((track.completed or today) - track.created).days,
         facts=facts, requirements=req_views, steps=step_views, next_step=next_step,
         timeline=guide.timeline, phases=phase_views,
         progress_ready=sum(r.state == "ready" for r in counted), progress_total=len(counted),
@@ -402,3 +407,18 @@ def _phase_views(guide: Guide, steps: list[StepView], next_step: str | None) -> 
         if first_open is not None:
             first_open.state = "current"
     return views
+
+
+def is_track_complete(view: TrackView) -> bool:
+    """全部生效的步骤都做完、且没有"取决于还没回答的问题"的步骤，才算办完。"""
+    relevant = [s for s in view.steps if s.applies != "no"]
+    return bool(relevant) and all(s.applies == "yes" and s.done for s in relevant)
+
+
+def sync_completion(track: Track, view: TrackView, today: date) -> None:
+    """根据最新状态维护 track.completed：刚办完记下今天；已经记过就保留原日期；又有没做完的就清空。"""
+    if is_track_complete(view):
+        if track.completed is None:
+            track.completed = today
+    else:
+        track.completed = None

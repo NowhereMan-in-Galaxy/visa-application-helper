@@ -201,3 +201,33 @@ def test_phase_done_when_all_applicable_steps_done():
     prep = v.phases[0]
     assert prep.state == "done" and (prep.steps_done, prep.steps_total) == (2, 2)  # s-job 不适用，不计
     assert v.phases[1].state == "current"
+
+
+# ---- 办完与用时 ----
+
+from core.tracks import is_track_complete, sync_completion  # noqa: E402
+
+
+def test_complete_when_all_applicable_steps_done():
+    v = view({"facts": {"identity": "学生"}, "done_steps": ["s-bank", "s-docs", "s-submit"]})
+    assert is_track_complete(v)
+
+
+def test_not_complete_while_a_step_is_undecided():
+    v = view({"done_steps": ["s-bank", "s-docs", "s-submit"]})  # s-job 还取决于"身份"
+    assert not is_track_complete(v)
+
+
+def test_sync_completion_records_first_day_and_clears_on_undo():
+    guide = make_guide()
+    track = Track(id="t", guide=guide.id, title="t", created=date(2026, 9, 1),
+                  facts={"identity": "学生"}, done_steps=["s-bank", "s-docs", "s-submit"])
+    sync_completion(track, compute_track_view(guide, track, [], VOCAB, TODAY), TODAY)
+    assert track.completed == TODAY
+    later = date(2026, 10, 1)
+    sync_completion(track, compute_track_view(guide, track, [], VOCAB, later), later)
+    assert track.completed == TODAY  # 已经记过的日期不会被后来的保存改掉
+    assert compute_track_view(guide, track, [], VOCAB, later).elapsed_days == 22
+    track.done_steps = ["s-bank"]
+    sync_completion(track, compute_track_view(guide, track, [], VOCAB, later), later)
+    assert track.completed is None
