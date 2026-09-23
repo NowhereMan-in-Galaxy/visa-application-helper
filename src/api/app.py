@@ -20,10 +20,13 @@ from pydantic import BaseModel
 from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
+import core.adjustments as adj
+from core.adjustments import AdjustmentError
 from core.export import export_track
 from core.forms import load_all_forms
 from core.tracks import (
     Pitfall,
+    apply_adjustments,
     Track,
     TrackNotFoundError,
     TrackView,
@@ -743,8 +746,8 @@ def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackVie
 def update_track_step(track_id: str, step: str, payload: DoneUpdate) -> TrackView:
     track = _load_track_or_404(track_id)
     _, guide = _valid_guide(track.guide)
-    if not any(s.id == step for s in guide.steps):
-        raise HTTPException(status_code=404, detail=f"这份攻略没有步骤 {step}")
+    if not any(s.id == step for s in apply_adjustments(guide, track).steps):
+        raise HTTPException(status_code=404, detail=f"这件办事里没有步骤 {step}")
     done = [s for s in track.done_steps if s != step]
     track.done_steps = done + [step] if payload.done else done
     return _save_track(track)
@@ -857,6 +860,102 @@ def delete_pitfall(track_id: str, pitfall_id: str) -> TrackView:
     return _track_view(track)
 
 
+# ---------- 个人调整：隐藏 / 备注 / 自己加步骤和材料（逻辑在 core/adjustments.py，MCP 共用） ----------
+
+
+class HiddenUpdate(BaseModel):
+    hidden: bool
+
+
+class NoteUpdate(BaseModel):
+    note: str | None  # null 或空字符串表示删除备注
+
+
+class CustomStepCreate(BaseModel):
+    title: str
+    phase: str | None = None
+    after: str | None = None  # 插在哪个步骤后面
+    where: str | None = None
+
+
+class CustomStepPatch(BaseModel):
+    title: str | None = None
+    where: str | None = None
+
+
+class CustomMaterialCreate(BaseModel):
+    name: str
+    step: str
+    material_type: str | None = None
+    optional: bool = False
+
+
+class CustomMaterialPatch(BaseModel):
+    name: str | None = None
+    optional: bool | None = None
+
+
+def _adjust(track_id: str, action) -> TrackView:
+    """个人调整的统一入口：取出办事和攻略 → 执行调整 → 保存（并维护办完日期）。"""
+    track = _load_track_or_404(track_id)
+    vocab, guide = _valid_guide(track.guide)
+    try:
+        action(guide, track, vocab)
+    except AdjustmentError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return _save_track(track)
+
+
+@app.put("/api/tracks/{track_id}/hidden/steps/{step}", response_model=TrackView)
+def hide_step(track_id: str, step: str, payload: HiddenUpdate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.set_step_hidden(g, t, step, payload.hidden))
+
+
+@app.put("/api/tracks/{track_id}/hidden/requirements/{requirement}", response_model=TrackView)
+def hide_requirement(track_id: str, requirement: str, payload: HiddenUpdate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.set_requirement_hidden(g, t, requirement, payload.hidden))
+
+
+@app.put("/api/tracks/{track_id}/notes/steps/{step}", response_model=TrackView)
+def note_step(track_id: str, step: str, payload: NoteUpdate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.set_step_note(g, t, step, payload.note))
+
+
+@app.put("/api/tracks/{track_id}/notes/requirements/{requirement}", response_model=TrackView)
+def note_requirement(track_id: str, requirement: str, payload: NoteUpdate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.set_requirement_note(g, t, requirement, payload.note))
+
+
+@app.post("/api/tracks/{track_id}/custom-steps", response_model=TrackView)
+def create_custom_step(track_id: str, payload: CustomStepCreate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.add_custom_step(g, t, payload.title, payload.phase, payload.after, payload.where))
+
+
+@app.put("/api/tracks/{track_id}/custom-steps/{step}", response_model=TrackView)
+def edit_custom_step(track_id: str, step: str, payload: CustomStepPatch) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.update_custom_step(t, step, payload.title, payload.where))
+
+
+@app.delete("/api/tracks/{track_id}/custom-steps/{step}", response_model=TrackView)
+def remove_custom_step(track_id: str, step: str) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.delete_custom_step(t, step))
+
+
+@app.post("/api/tracks/{track_id}/custom-materials", response_model=TrackView)
+def create_custom_material(track_id: str, payload: CustomMaterialCreate) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.add_custom_material(g, t, v, payload.name, payload.step, payload.material_type, payload.optional))
+
+
+@app.put("/api/tracks/{track_id}/custom-materials/{material}", response_model=TrackView)
+def edit_custom_material(track_id: str, material: str, payload: CustomMaterialPatch) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.update_custom_material(t, material, payload.name, payload.optional))
+
+
+@app.delete("/api/tracks/{track_id}/custom-materials/{material}", response_model=TrackView)
+def remove_custom_material(track_id: str, material: str) -> TrackView:
+    return _adjust(track_id, lambda g, t, v: adj.delete_custom_material(t, material))
+
+
 class ExportRequest(BaseModel):
     # 导出到哪个文件夹，例如 "~/Desktop"；不传时用这件办事上次选的位置，再没有就用材料根目录下的 exports/
     dest: str | None = None
@@ -894,7 +993,19 @@ async def upload_for_requirement(
     if req.state == "not_applicable":
         raise HTTPException(status_code=422, detail="这条材料对你不适用，不需要上传")
     if req.material_type is None:
-        raise HTTPException(status_code=422, detail="词表还不认识这种材料，暂时没法归档；请先补充 community/material_types.yaml")
+        if not req.custom:
+            raise HTTPException(status_code=422, detail="词表还不认识这种材料，暂时没法归档；请先补充 community/material_types.yaml")
+        # 自己加的材料、词表不认识：按材料名建一条"其他"类记录，并直接确认给这项材料
+        created = await _create_material(
+            belongs_to=None, category=MaterialCategory.OTHER, type_=req.name,
+            obtained_date=obtained_date or date.today(),
+            sublabel=sublabel.strip() if sublabel and sublabel.strip() else None,
+            validity_days=None, recommended_update_interval_days=None, recommended_update_day_of_month=None,
+            file=file,
+        )
+        track.matches[requirement] = [created.id]
+        save_track(get_materials_root(), track)
+        return _track_view(track)
     parts = vocab.types[req.material_type].parts
     if parts:
         if part not in parts:

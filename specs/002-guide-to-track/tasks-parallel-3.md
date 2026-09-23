@@ -22,5 +22,6 @@
 **验收**（机械可查）：
 - `node --check web/assets/guides.js` 通过；`uv run pytest tests -q` 全绿。
 - 攻略预览页（`#/guide/<id>`）上不出现"⋯"、"＋ 加一步"、"＋ 加材料"。
-- 办事页：隐藏一步后它从时间线消失、出现在"已隐藏"里，点恢复后回来；加一步后它出现在对应阶段末尾并带"我加的"；给材料加备注后刷新页面仍显示。（用一个**临时创建**的办事验证，验证完用 `DELETE`？——办事本身没有删除接口，所以请在隔离的材料根目录下测：启动服务前 `export`……不方便的话只做 `node --check` + 代码自查，并在报告里说明未做浏览器验证。）
+- 办事页：隐藏一步后它从时间线消失、出现在"已隐藏"里，点恢复后回来；加一步后它出现在对应阶段末尾并带"我加的"；给材料加备注后刷新页面仍显示。
+  - 验证方法：在你的 worktree 里启动服务（`uv run uvicorn api.app:app --app-dir src --port 8016`）。worktree 里没有 `config.yaml`，材料根目录默认是 worktree 自己的 `materials/`（被 .gitignore 忽略、和主目录隔离），所以可以放心**新建办事**来测试；但**不要上传文件、不要编辑材料**（那会改动 `materials_index/records/`）。测完关掉服务，删除 worktree 里的 `materials/tracks/`。
 - 页面上不出现 "null"、"undefined"、"[object"。

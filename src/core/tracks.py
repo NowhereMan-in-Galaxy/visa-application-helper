@@ -15,7 +15,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel
 
-from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide
+from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide, Requirement, Step
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
 from core.status import compute_status
@@ -41,6 +41,26 @@ class Pitfall(BaseModel):
     done: bool = False
 
 
+class CustomStep(BaseModel):
+    """用户自己加的步骤（个人调整）。插在 after 指定的步骤后面；没写 after 就放在所属阶段的末尾。"""
+
+    id: str  # cs-xxxxxxxx
+    title: str
+    phase: str | None = None
+    after: str | None = None
+    where: str | None = None
+
+
+class CustomMaterial(BaseModel):
+    """用户自己加的材料（个人调整），挂在某个步骤（攻略原有的或自己加的）下面。"""
+
+    id: str  # cm-xxxxxxxx
+    name: str
+    step: str
+    material_type: str | None = None  # 填了词表类型就能自动匹配材料库；不填就靠手动挑选
+    optional: bool = False
+
+
 class Track(BaseModel):
     id: str
     guide: str
@@ -56,6 +76,50 @@ class Track(BaseModel):
     # 上次导出材料时选的文件夹（例如 ~/Desktop），下次导出默认用它；None 表示用材料根目录下的 exports/
     export_dir: str | None = None
     pitfalls: list[Pitfall] = []
+    # ---- 个人调整（只存在个人区，不改共享攻略）----
+    hidden_steps: list[str] = []  # 隐藏的步骤：不再算"下一步"、不计进度和倒排时间，可以随时恢复
+    hidden_requirements: list[str] = []  # 隐藏的材料：不计进度、不导出，可以随时恢复
+    step_notes: dict[str, str] = {}  # 给步骤加的备注（攻略原有步骤或自己加的都可以）
+    requirement_notes: dict[str, str] = {}  # 给材料加的备注
+    custom_steps: list[CustomStep] = []
+    custom_materials: list[CustomMaterial] = []
+
+
+def apply_adjustments(guide: Guide, track: Track) -> Guide:
+    """把用户自己加的步骤和材料叠加到攻略上，得到"这件办事实际要做的流程"。
+
+    叠加后的攻略只在内存里用，不写回共享区；后面的匹配、上传、倒排时间、进度统计全部照常工作，
+    不需要为"自定义项"另写一套逻辑。引用了已不存在的步骤的自定义项会被跳过（攻略被修订后也不报错）。
+    """
+    if not track.custom_steps and not track.custom_materials:
+        return guide
+    steps = [s.model_copy(deep=True) for s in guide.steps]
+    phase_ids = {p.id for p in guide.phases}
+    for cs in track.custom_steps:
+        phase = cs.phase if cs.phase in phase_ids else None
+        step = Step(id=cs.id, title=cs.title, phase=phase, where=cs.where)
+        ids = [x.id for x in steps]
+        if cs.after in ids:
+            pos = ids.index(cs.after) + 1
+            if step.phase is None:
+                step.phase = steps[pos - 1].phase
+        elif phase is not None and any(x.phase == phase for x in steps):
+            pos = max(i for i, x in enumerate(steps) if x.phase == phase) + 1
+        else:
+            pos = len(steps)
+            if step.phase is None and guide.phases:
+                step.phase = guide.phases[-1].id
+        steps.insert(pos, step)
+    by_id = {x.id: x for x in steps}
+    requirements = list(guide.requirements)
+    for cm in track.custom_materials:
+        if cm.step not in by_id:
+            continue
+        requirements.append(Requirement(
+            id=cm.id, kind="obtain", material_type=cm.material_type, raw_name=cm.name, optional=cm.optional,
+        ))
+        by_id[cm.step].requirements.append(cm.id)
+    return guide.model_copy(update={"steps": steps, "requirements": requirements})
 
 
 # ---------- 读写（个人区） ----------
@@ -144,6 +208,9 @@ class RequirementView(BaseModel):
     export_name: str | None  # 攻略里指定的导出文件名（不含序号模板以外的部分）
     conditions: list[dict]  # 原样的 applies_if，界面用来解释"为什么待定/取决于什么"
     evidence: list[dict]
+    custom: bool = False  # 用户自己加的材料
+    hidden: bool = False
+    user_note: str | None = None  # 用户自己加的备注（note 是攻略里写的说明）
 
 
 class PhaseView(BaseModel):
@@ -183,6 +250,9 @@ class StepView(BaseModel):
     latest_start: date | None = None
     # today > latest_start；没有 latest_start 时恒为 False
     late: bool = False
+    custom: bool = False  # 用户自己加的步骤
+    hidden: bool = False
+    user_note: str | None = None
 
 
 class CheckView(BaseModel):
@@ -215,6 +285,8 @@ class TrackView(BaseModel):
     export_pattern: str
     export_dir: str | None
     pitfalls: list[Pitfall]
+    # 被隐藏的步骤和材料 [{kind: "step"|"requirement", id, title}]，界面上用来"恢复"
+    hidden_items: list[dict] = []
     sources: list[dict]
     stale_sources: list[str]
 
@@ -296,6 +368,9 @@ def _is_stale(record: MaterialRecord, freshness_days: int | None, today: date) -
 def compute_track_view(
     guide: Guide, track: Track, records: list[MaterialRecord], vocab: Vocabulary, today: date
 ) -> TrackView:
+    guide = apply_adjustments(guide, track)
+    custom_ids = {c.id for c in track.custom_steps} | {c.id for c in track.custom_materials}
+    hidden_steps, hidden_reqs = set(track.hidden_steps), set(track.hidden_requirements)
     answers = {k: v for k, v in track.facts.items() if k in guide.facts}
     records_by_id = {r.id: r for r in records}
     by_type: dict[str, list[MaterialRecord]] = {}
@@ -317,7 +392,8 @@ def compute_track_view(
     req_views: list[RequirementView] = []
     for q in guide.requirements:
         type_key = q.material_type or vocab.lookup(q.raw_name)
-        applies = _evaluate(guide, answers, q.applies_if)
+        # 隐藏的材料按"不适用"处理：不计进度、不导出
+        applies = "no" if q.id in hidden_reqs else _evaluate(guide, answers, q.applies_if)
         confirmed_ids = track.matches.get(q.id)
         confirmed = bool(confirmed_ids) and all(i in records_by_id for i in confirmed_ids)
 
@@ -351,6 +427,7 @@ def compute_track_view(
             ]
 
         req_views.append(RequirementView(
+            custom=q.id in custom_ids, hidden=q.id in hidden_reqs, user_note=track.requirement_notes.get(q.id),
             id=q.id,
             name=vocab.name_of(type_key) or q.raw_name or q.id,
             raw_name=q.raw_name,
@@ -379,7 +456,10 @@ def compute_track_view(
             evidence=[e.model_dump() for e in q.evidence],
         ))
 
-    step_applies = {s.id: _evaluate(guide, answers, s.applies_if) for s in guide.steps}
+    # 隐藏的步骤按"不适用"处理：不是下一步、不计完成、不参与倒排时间
+    step_applies = {
+        s.id: "no" if s.id in hidden_steps else _evaluate(guide, answers, s.applies_if) for s in guide.steps
+    }
     done = set(track.done_steps)
     latest_start, latest_finish, late = _deadline_times(guide, step_applies, done, track.deadline, today)
     step_views: list[StepView] = []
@@ -388,6 +468,7 @@ def compute_track_view(
         applies = step_applies[s.id]
         is_done = s.id in done
         step_views.append(StepView(
+            custom=s.id in custom_ids, hidden=s.id in hidden_steps, user_note=track.step_notes.get(s.id),
             id=s.id, title=s.title, phase=s.phase, where=s.where, estimate=s.estimate,
             duration_days=s.duration_days.model_dump() if s.duration_days else None,
             applies=applies, done=is_done,
@@ -420,6 +501,12 @@ def compute_track_view(
         export_pattern=guide.export_pattern or DEFAULT_EXPORT_PATTERN,
         export_dir=track.export_dir,
         pitfalls=track.pitfalls,
+        hidden_items=[
+            {"kind": "step", "id": s.id, "title": s.title} for s in guide.steps if s.id in hidden_steps
+        ] + [
+            {"kind": "requirement", "id": q.id, "title": vocab.name_of(q.material_type or vocab.lookup(q.raw_name)) or q.raw_name or q.id}
+            for q in guide.requirements if q.id in hidden_reqs
+        ],
         sources=[s.model_dump(mode="json") for s in guide.sources],
         stale_sources=stale_sources,
     )
