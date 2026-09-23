@@ -21,6 +21,8 @@ config.yaml
 # （具体是 .claude/settings.local.json 这类本机私有配置）。
 .claude/*
 !.claude/skills/
+# spec-kit 安装时生成到 skills/ 里的命令属于工具产物，每个人装 spec-kit 时会自己生成，不进仓库
+.claude/skills/speckit-*/
 
 # 其他 AI 工具的本地记忆/产物目录：含个人称呼和本机路径，且只对那个工具有意义
 .workbuddy-ai/
