@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import re
+import string
 import sys
 from dataclasses import dataclass, field
 from datetime import date
@@ -23,6 +24,10 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 
 CATEGORIES = ("签证", "工作", "社保", "银行补贴", "其他")
+# 导出文件名模板里允许的占位符：{seq} 序号（可写 {seq:02d}）、{name} 材料名、{part} 组合材料的部分名
+EXPORT_PLACEHOLDERS = {"seq", "name", "part"}
+DEFAULT_EXPORT_PATTERN = "{seq:02d}-{name}"
+_BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|\r\n]')
 MAX_QUOTE_CHARS = 60
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
@@ -67,6 +72,7 @@ class Requirement(_Strict):
     kind: Literal["obtain", "generate", "output"]
     material_type: str | None = None
     raw_name: str | None = None
+    export_name: str | None = None  # 导出时用的名字（例如按官方清单编号"01-护照复印件"）；不写就用标准材料名
     optional: bool = False
     applies_if: list[Condition] = []
     freshness_days: int | None = None
@@ -91,10 +97,22 @@ class Phase(_Strict):
     evidence: list[Evidence] = []
 
 
+class Link(_Strict):
+    """步骤上挂的链接：官网、填表指南（本仓库 community/forms/ 里另写的一份）或参考资料。"""
+
+    title: str
+    kind: Literal["official", "form_guide", "info"] = "info"
+    url: str | None = None  # 外部链接，仅 http/https
+    form: str | None = None  # 填表指南 id，对应 community/forms/<id>.yaml；和 url 二选一
+    applies_if: list[Condition] = []  # 例如只有"申请国 = 法国"时才显示法国官网
+    evidence: list[Evidence] = []
+
+
 class Step(_Strict):
     id: str
     title: str
     phase: str | None = None
+    links: list[Link] = []
     where: str | None = None
     requirements: list[str] = []
     depends_on: list[str] = []
@@ -130,6 +148,8 @@ class Guide(_Strict):
     maintainers: list[str] = []
     updated: date | None = None
     timeline: str | None = None  # 一句话说明全程一般要多久、要提前多久开始
+    # 导出文件名模板，占位符见 EXPORT_PLACEHOLDERS；不写时用 DEFAULT_EXPORT_PATTERN
+    export_pattern: str | None = None
     sources: list[Source]
     phases: list[Phase] = []
     facts: dict[str, Fact] = {}
@@ -153,8 +173,33 @@ class GuideLoadResult:
         return self.guide is not None and not self.errors
 
 
-def validate_guide(guide: Guide, vocab: Vocabulary, file_stem: str | None = None) -> list[str]:
-    """逐条检查 spec 里的校验规则，返回全部错误（不在第一个错误处停下，方便一次改完）。"""
+def validate_export_pattern(pattern: str) -> str | None:
+    """检查导出文件名模板；合格返回 None，否则返回中文错误原因。"""
+    try:
+        fields = [f for _, f, _, _ in string.Formatter().parse(pattern) if f is not None]
+    except ValueError as e:
+        return f"export_pattern 格式错误：{e}"
+    unknown = [f for f in fields if f not in EXPORT_PLACEHOLDERS]
+    if unknown:
+        return f"export_pattern 只能用占位符 {{seq}} {{name}} {{part}}，出现了：{', '.join(unknown)}"
+    if "name" not in fields and "seq" not in fields:
+        return "export_pattern 至少要包含 {seq} 或 {name}，否则导出的文件会重名"
+    try:
+        sample = pattern.format(seq=1, name="材料", part="部分")
+    except (ValueError, KeyError, IndexError) as e:
+        return f"export_pattern 无法套用：{e}"
+    if _BAD_FILENAME_CHARS.search(sample):
+        return "export_pattern 里不能有 / \\ : * ? \" < > | 等文件名不允许的字符"
+    return None
+
+
+def validate_guide(
+    guide: Guide, vocab: Vocabulary, file_stem: str | None = None, form_ids: set[str] | None = None
+) -> list[str]:
+    """逐条检查 spec 里的校验规则，返回全部错误（不在第一个错误处停下，方便一次改完）。
+
+    `form_ids` 为 None 时不检查链接引用的填表指南是否存在（例如单元测试里没有 forms 目录）。
+    """
     errors: list[str] = []
 
     if not _ID_PATTERN.match(guide.id):
@@ -251,6 +296,28 @@ def validate_guide(guide: Guide, vocab: Vocabulary, file_stem: str | None = None
         if p.id not in used_phases:
             errors.append(f"phase {p.id}：没有任何步骤属于这个阶段")
 
+    if guide.export_pattern is not None:
+        problem = validate_export_pattern(guide.export_pattern)
+        if problem:
+            errors.append(problem)
+    for r in guide.requirements:
+        if r.export_name is not None and (not r.export_name.strip() or _BAD_FILENAME_CHARS.search(r.export_name)):
+            errors.append(f"requirement {r.id}：export_name 不能为空，也不能含文件名不允许的字符")
+
+    for s in guide.steps:
+        for i, link in enumerate(s.links):
+            owner = f"step {s.id} 的第 {i + 1} 个链接"
+            if (link.url is None) == (link.form is None):
+                errors.append(f"{owner}：url 和 form 必须二选一")
+            if link.url is not None and not link.url.startswith(("http://", "https://")):
+                errors.append(f"{owner}：url 必须以 http:// 或 https:// 开头")
+            if link.form is not None and form_ids is not None and link.form not in form_ids:
+                errors.append(f"{owner}：填表指南 {link.form} 不存在（community/forms/{link.form}.yaml）")
+            if link.kind == "form_guide" and link.form is None:
+                errors.append(f"{owner}：kind 为 form_guide 时必须用 form 指向 community/forms/ 里的指南")
+            check_conditions(owner, link.applies_if)
+            check_evidence(owner, link.evidence, required=False)
+
     for rid in sorted(req_ids - attached):
         errors.append(f"requirement {rid}：没有挂在任何 step 上（用户照着步骤做会漏掉它）")
 
@@ -299,7 +366,7 @@ def _find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
     return None
 
 
-def load_guide(path: Path, vocab: Vocabulary) -> GuideLoadResult:
+def load_guide(path: Path, vocab: Vocabulary, form_ids: set[str] | None = None) -> GuideLoadResult:
     try:
         with path.open("r", encoding="utf-8") as f:
             raw = yaml.safe_load(f)
@@ -312,13 +379,16 @@ def load_guide(path: Path, vocab: Vocabulary) -> GuideLoadResult:
             f"{'.'.join(str(p) for p in err['loc'])}：{err['msg']}" for err in e.errors()
         ]
         return GuideLoadResult(path, None, messages)
-    return GuideLoadResult(path, guide, validate_guide(guide, vocab, file_stem=path.stem))
+    return GuideLoadResult(path, guide, validate_guide(guide, vocab, file_stem=path.stem, form_ids=form_ids))
 
 
 def load_all_guides(guides_dir: Path, vocab: Vocabulary) -> list[GuideLoadResult]:
+    """读一个目录下的全部攻略。旁边有 forms/ 目录时（community/forms），顺带检查链接引用的填表指南是否存在。"""
     if not guides_dir.is_dir():
         return []
-    return [load_guide(p, vocab) for p in sorted(guides_dir.glob("*.yaml"))]
+    forms_dir = guides_dir.parent / "forms"
+    form_ids = {p.stem for p in forms_dir.glob("*.yaml")} if forms_dir.is_dir() else None
+    return [load_guide(p, vocab, form_ids) for p in sorted(guides_dir.glob("*.yaml"))]
 
 
 def main() -> int:
@@ -347,6 +417,18 @@ def main() -> int:
             failed += 1
             print(f"✗ {rel}：")
             for msg in r.errors:
+                print(f"    - {msg}")
+
+    from core.forms import load_all_forms  # 放在这里导入：forms 模块依赖本模块，避免循环导入
+
+    for f in load_all_forms(COMMUNITY_DIR / "forms"):
+        rel = f.path.relative_to(COMMUNITY_DIR.parent)
+        if f.valid:
+            print(f"✓ {rel}：{len(f.form.sections)} 节（{'流程级' if f.form.level == 'procedure' else '字段级'}）")
+        else:
+            failed += 1
+            print(f"✗ {rel}：")
+            for msg in f.errors:
                 print(f"    - {msg}")
     return 1 if failed else 0
 

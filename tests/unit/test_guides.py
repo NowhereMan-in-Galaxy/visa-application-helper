@@ -183,3 +183,42 @@ def test_phase_mode_must_be_known():
     d = with_phases(); d["phases"][0]["mode"] = "mail"
     with pytest.raises(ValidationError):
         Guide.model_validate(d)
+
+
+
+# ---- 链接与导出命名 ----
+
+def test_link_needs_exactly_one_of_url_and_form():
+    d = guide_dict(); d["steps"][0]["links"] = [{"title": "x"}]
+    assert_rejected(d, "url 和 form 必须二选一")
+
+
+def test_link_url_scheme():
+    d = guide_dict(); d["steps"][0]["links"] = [{"title": "x", "url": "ftp://a"}]
+    assert_rejected(d, "http:// 或 https://")
+
+
+def test_link_form_must_exist_when_forms_known():
+    d = guide_dict(); d["steps"][0]["links"] = [{"title": "x", "kind": "form_guide", "form": "nope"}]
+    errors = validate_guide(Guide.model_validate(d), VOCAB, file_stem="demo-guide", form_ids={"other"})
+    assert any("填表指南 nope 不存在" in e for e in errors)
+
+
+def test_export_pattern_rules():
+    d = guide_dict(); d["export_pattern"] = "{foo}"
+    assert_rejected(d, "export_pattern")
+    d = guide_dict(); d["export_pattern"] = "fixed"
+    assert_rejected(d, "至少要包含")
+
+
+def test_export_name_no_slash():
+    d = guide_dict(); d["requirements"][0]["export_name"] = "a/b"
+    assert_rejected(d, "export_name")
+
+
+def test_repository_forms_are_valid():
+    from core.forms import load_all_forms
+    results = load_all_forms(COMMUNITY_DIR / "forms")
+    assert results
+    for r in results:
+        assert r.valid, f"{r.path.name}: {r.errors}"
