@@ -15,7 +15,7 @@ from uuid import uuid4
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
 from core.guides import Guide, GuideLoadResult, load_all_guides
@@ -46,10 +46,17 @@ from core.models import (
     MaterialRecord,
     MaterialStatus,
     PersonalProfile,
+    PROFILE_GROUPS,
     TravelHistoryEntry,
     VisaApplication,
+    describe_personal_profile,
 )
-from core.profile_storage import load_personal_profile, save_personal_profile
+from core.profile_storage import (
+    ProfileFileError,
+    load_personal_profile,
+    save_personal_profile,
+    save_profile_group,
+)
 from core.pdf_merge import UnsupportedPageFormatError, append_page
 from core.status import compute_status
 from core.storage import (
@@ -404,9 +411,45 @@ async def append_material_page(material_id: str, file: UploadFile = File(...)) -
     return _to_material_view(record, date.today())
 
 
+@app.exception_handler(ProfileFileError)
+async def _profile_file_error(request: Request, exc: ProfileFileError) -> JSONResponse:
+    # 本机的 personal-profile.yaml 读不懂：明确报错，不返回空白资料（否则一保存就把原内容覆盖了）
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
 @app.get("/api/personal-profile", response_model=PersonalProfile)
 def get_personal_profile() -> PersonalProfile:
     return load_personal_profile(get_materials_root())
+
+
+@app.get("/api/personal-profile/fields")
+def get_personal_profile_fields() -> list[dict]:
+    """「基本信息」表单的字段说明（分组 → 字段：key / 中文标签 / 类型 / 敏感 / DS-160 提示）。
+
+    网页按这份说明生成表单，标签只在 src/core/models.py 里写一次。见 specs/003-personal-profile。
+    """
+    return describe_personal_profile()
+
+
+def _validation_message(error: ValidationError) -> str:
+    parts = []
+    for err in error.errors(include_url=False):
+        loc = ".".join(str(x) for x in err["loc"])
+        parts.append(f"{loc}：{err['msg']}" if loc else err["msg"])
+    return "填写有误——" + "；".join(parts)
+
+
+@app.put("/api/personal-profile/{group}", response_model=PersonalProfile)
+def put_personal_profile_group(group: str, body: dict) -> PersonalProfile:
+    """整组保存「基本信息」的一个分组（identity / passport / contact / family / education /
+    employment / travel / social_media / background）。只替换这一组，其余分组和出行记录不动；
+    列表条目（学校、工作、前配偶……）的增删改就是把改好的整个分组发回来。"""
+    if group not in PROFILE_GROUPS:
+        raise HTTPException(status_code=404, detail=f"没有叫 {group} 的分组")
+    try:
+        return save_profile_group(get_materials_root(), group, body)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=_validation_message(e)) from e
 
 
 class TravelHistoryCreate(BaseModel):

@@ -1,4 +1,4 @@
-/* 「02 我的资料」：维护个人材料库和出行记录（specs/002-guide-to-track/tasks-parallel-1.md 任务 A，
+/* 「02 我的资料」：维护个人材料库、出行记录和基本信息（基本信息见 specs/003-personal-profile；specs/002-guide-to-track/tasks-parallel-1.md 任务 A，
  * 重新排版见 specs/002-guide-to-track/tasks-parallel-2.md 任务 E）。
  *
  * 单页面：一次性加载材料库 + 材料用途 + 词表候选 + 出行记录，全部渲染在 #view 里，
@@ -28,13 +28,17 @@
 
   // 页面状态：标签页记在 URL # 里，其余（筛选、搜索词、展开的编辑区）只存在这一次加载里
   var state = {
-    tab: "materials", // "materials" | "travel"
+    tab: "materials", // "materials" | "travel" | "profile"
     statusFilter: null, // 点概览格子时设置，null 表示不筛选
     categoryFilter: "all",
     search: "",
     newFormOpen: false,
     materialsExpanded: null, // { id, mode: "edit" | "append" } | null，同一时间最多一个
     travelExpanded: null, // { mode: "add" } | { mode: "edit", index } | null
+    // 基本信息：每个分组一份编辑中的草稿（保存成功前只在内存里），切换标签页不丢
+    profileDrafts: {}, // { group: object }
+    profileStatus: {}, // { group: { ok: bool, text } } 保存按钮旁的提示
+    profileOpen: null, // { group: bool } 哪些分组面板展开着；null = 还没初始化（默认展开第一个）
   };
 
   // 加载到的数据（reload() 整体重新拉取；筛选/展开只是本地重画，不重新请求）
@@ -127,6 +131,7 @@
       request("GET", "/api/material-types"),
       request("GET", "/api/personal-profile"),
       request("GET", "/api/tracks"),
+      request("GET", "/api/personal-profile/fields"),
     ])
       .then(function (results) {
         // 长期资料 vs 本次专用：页面上的统计、筛选、"需要处理"只看长期资料；
@@ -138,6 +143,7 @@
         data.usage = results[1];
         data.types = results[2];
         data.profile = results[3];
+        data.profileFields = results[5];
         render();
       })
       .catch(function (e) {
@@ -151,10 +157,10 @@
     return load();
   }
 
-  // ---------- 标签页路由：#materials / #travel，刷新后保持 ----------
+  // ---------- 标签页路由：#materials / #travel / #profile，刷新后保持 ----------
 
   function syncTabFromHash() {
-    state.tab = location.hash === "#travel" ? "travel" : "materials";
+    state.tab = location.hash === "#travel" ? "travel" : location.hash === "#profile" ? "profile" : "materials";
   }
 
   function switchTab(tab) {
@@ -210,7 +216,7 @@
     return el(
       "div",
       { class: "heading" },
-      el("div", null, el("h1", { text: "我的资料" }), el("p", { class: "muted", text: "材料库和出行记录，只保存在这台电脑上。" })),
+      el("div", null, el("h1", { text: "我的资料" }), el("p", { class: "muted", text: "材料库、出行记录和基本信息，只保存在这台电脑上。" })),
       el("button", {
         class: "primary",
         type: "button",
@@ -378,6 +384,12 @@
         class: "tab" + (state.tab === "travel" ? " active" : ""),
         "aria-current": state.tab === "travel" ? "page" : "false",
         text: "出行记录（" + (data.profile.travel_history || []).length + "）",
+      }),
+      el("a", {
+        href: "#profile",
+        class: "tab" + (state.tab === "profile" ? " active" : ""),
+        "aria-current": state.tab === "profile" ? "page" : "false",
+        text: "基本信息",
       })
     );
   }
@@ -764,6 +776,257 @@
     );
   }
 
+  // ---------- 基本信息标签页（specs/003-personal-profile） ----------
+  //
+  // 表单完全按 GET /api/personal-profile/fields 的字段说明生成（标签、类型、下拉选项都来自后端），
+  // 这里不写死任何字段名。每个分组一份草稿（state.profileDrafts），输入时直接改草稿；
+  // 增删列表条目只重画这一个分组面板（别的面板里没保存的输入不受影响）；
+  // 点「保存」把整个分组 PUT 回去。
+
+  function deepCopy(v) {
+    return v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+  }
+
+  function emptyValue(f) {
+    if (f.type === "list" || f.type === "list_text") return [];
+    if (f.type === "object") return emptyObject(f.fields);
+    return null;
+  }
+
+  function emptyObject(fields) {
+    var o = {};
+    fields.forEach(function (f) { o[f.key] = emptyValue(f); });
+    return o;
+  }
+
+  // 提交前整理：去掉首尾空格、空字符串变 null、去掉完全没填的列表条目
+  function cleanValue(f, v) {
+    if (f.type === "list_text") {
+      return (v || []).map(function (x) { return (x || "").trim(); }).filter(function (x) { return x; });
+    }
+    if (f.type === "list") {
+      return (v || [])
+        .map(function (item) { return cleanObject(f.item_fields, item); })
+        .filter(function (item) { return !isBlank(item); });
+    }
+    if (f.type === "object") return cleanObject(f.fields, v);
+    if (typeof v === "string") { v = v.trim(); return v === "" ? null : v; }
+    return v === undefined ? null : v;
+  }
+
+  function cleanObject(fields, obj) {
+    var out = {};
+    fields.forEach(function (f) { out[f.key] = cleanValue(f, obj ? obj[f.key] : undefined); });
+    return out;
+  }
+
+  function isBlank(v) {
+    if (v === null || v === undefined || v === "") return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).every(function (k) { return isBlank(v[k]); });
+    return false;
+  }
+
+  function profileDraft(group) {
+    if (!state.profileDrafts[group.key]) {
+      var saved = data.profile[group.key];
+      state.profileDrafts[group.key] = saved ? deepCopy(saved) : emptyObject(group.fields);
+    }
+    return state.profileDrafts[group.key];
+  }
+
+  function fieldLabel(f) {
+    return el(
+      "span",
+      { class: "pf-label" },
+      f.label,
+      f.sensitive ? el("span", { class: "badge sens", text: "敏感", title: "敏感信息：只保存在这台电脑上" }) : null
+    );
+  }
+
+  // 鼠标悬停时提示对应 DS-160 的哪一问（给想核对的人看）
+  function ds160Title(f) {
+    return f.ds160 ? "DS-160：" + f.ds160 : null;
+  }
+
+  // obj[f.key] 的输入控件；rerender() 重画所在的分组面板（只在增删条目时用）
+  function fieldControl(f, obj, rerender) {
+    if (f.type === "object") {
+      if (!obj[f.key] || typeof obj[f.key] !== "object") obj[f.key] = emptyObject(f.fields);
+      return el(
+        "fieldset",
+        { class: "pf-object", title: ds160Title(f) },
+        el("legend", null, fieldLabel(f)),
+        el("div", { class: "pf-grid" }, f.fields.map(function (sub) { return fieldControl(sub, obj[f.key], rerender); }))
+      );
+    }
+    if (f.type === "list") return listControl(f, obj, rerender);
+    if (f.type === "list_text") return listTextControl(f, obj, rerender);
+
+    var value = obj[f.key];
+    var input;
+    if (f.type === "select" || f.type === "bool") {
+      var options = f.type === "bool"
+        ? [{ value: "true", label: "是" }, { value: "false", label: "否" }]
+        : f.options;
+      var current = value === null || value === undefined ? "" : String(value);
+      input = el(
+        "select",
+        { name: f.key },
+        el("option", { value: "", text: "未填" }),
+        options.map(function (o) { return el("option", { value: o.value, text: o.label, selected: current === o.value }); })
+      );
+      input.addEventListener("change", function () {
+        var v = input.value;
+        obj[f.key] = v === "" ? null : f.type === "bool" ? v === "true" : v;
+      });
+    } else if (f.type === "textarea") {
+      input = el("textarea", { name: f.key, rows: "3" });
+      input.value = value || "";
+      input.addEventListener("input", function () { obj[f.key] = input.value; });
+    } else {
+      input = el("input", { type: f.type === "date" ? "date" : "text", name: f.key, value: value || "" });
+      input.addEventListener("input", function () { obj[f.key] = input.value; });
+    }
+    return el(
+      "label",
+      { class: "pf-field" + (f.type === "textarea" ? " wide" : ""), title: ds160Title(f) },
+      fieldLabel(f),
+      input
+    );
+  }
+
+  function listTextControl(f, obj, rerender) {
+    if (!Array.isArray(obj[f.key])) obj[f.key] = [];
+    var arr = obj[f.key];
+    return el(
+      "div",
+      { class: "pf-list wide", title: ds160Title(f) },
+      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 项" : "没有" })),
+      arr.map(function (item, i) {
+        var input = el("input", { type: "text", value: item || "", "aria-label": f.label + " 第 " + (i + 1) + " 项" });
+        input.addEventListener("input", function () { arr[i] = input.value; });
+        return el(
+          "div",
+          { class: "pf-text-item" },
+          input,
+          el("button", { type: "button", class: "linkish", text: "删除", onclick: function () { arr.splice(i, 1); rerender(); } })
+        );
+      }),
+      el("button", { type: "button", class: "pf-add", text: "＋ 添加", onclick: function () { arr.push(""); rerender(); } })
+    );
+  }
+
+  function listControl(f, obj, rerender) {
+    if (!Array.isArray(obj[f.key])) obj[f.key] = [];
+    var arr = obj[f.key];
+    return el(
+      "div",
+      { class: "pf-list wide", title: ds160Title(f) },
+      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 条" : "没有" })),
+      arr.map(function (item, i) {
+        return el(
+          "div",
+          { class: "pf-item" },
+          el(
+            "div",
+            { class: "pf-item-head" },
+            el("b", { text: "第 " + (i + 1) + " 条" }),
+            el("button", { type: "button", class: "linkish", text: "删除这条", onclick: function () { arr.splice(i, 1); rerender(); } })
+          ),
+          el("div", { class: "pf-grid" }, f.item_fields.map(function (sub) { return fieldControl(sub, item, rerender); }))
+        );
+      }),
+      el("button", {
+        type: "button",
+        class: "pf-add",
+        text: "＋ 添加一条",
+        onclick: function () { arr.push(emptyObject(f.item_fields)); rerender(); },
+      })
+    );
+  }
+
+  function nowHm() {
+    var d = new Date();
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  function profileGroupPanel(group) {
+    var draft = profileDraft(group);
+    var panel;
+    function rerender() {
+      panel.replaceWith(profileGroupPanel(group));
+    }
+    var status = state.profileStatus[group.key];
+    var saveBtn = el("button", { class: "primary", type: "submit", text: "保存「" + group.label + "」" });
+    var statusEl = el("span", {
+      class: "pf-status" + (status && !status.ok ? " error" : ""),
+      role: "status",
+      text: status ? status.text : "",
+    });
+    var form = el(
+      "form",
+      { class: "pf-form", novalidate: true },
+      group.key === "travel"
+        ? el("p", { class: "muted pf-note", text: "逐次的出入境记录在「出行记录」标签页里维护；这里记以往签证、拒签、去美国的记录等。" })
+        : null,
+      el("div", { class: "pf-grid" }, group.fields.map(function (f) { return fieldControl(f, draft, rerender); })),
+      el("div", { class: "form-actions pf-actions" }, saveBtn, statusEl)
+    );
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      saveBtn.disabled = true;
+      statusEl.className = "pf-status";
+      statusEl.textContent = "保存中…";
+      showError("");
+      request("PUT", "/api/personal-profile/" + encodeURIComponent(group.key), cleanObject(group.fields, draft))
+        .then(function (profile) {
+          data.profile = profile;
+          state.profileDrafts[group.key] = deepCopy(profile[group.key]);
+          state.profileStatus[group.key] = { ok: true, text: "已保存 " + nowHm() };
+          rerender();
+        })
+        .catch(function (e) {
+          saveBtn.disabled = false;
+          state.profileStatus[group.key] = { ok: false, text: "保存失败：" + e.message };
+          statusEl.className = "pf-status error";
+          statusEl.textContent = state.profileStatus[group.key].text;
+        });
+    });
+
+    panel = el(
+      "details",
+      { class: "panel pgroup", open: !!state.profileOpen[group.key], id: "pgroup-" + group.key },
+      el(
+        "summary",
+        { class: "panel-head" },
+        el("h2", { text: group.label }),
+        status && status.ok ? el("small", { text: status.text }) : null
+      ),
+      form
+    );
+    panel.addEventListener("toggle", function () { state.profileOpen[group.key] = panel.open; });
+    return panel;
+  }
+
+  function profileTabSection() {
+    var groups = data.profileFields || [];
+    if (!state.profileOpen) {
+      state.profileOpen = {};
+      if (groups.length) state.profileOpen[groups[0].key] = true;
+    }
+    return el(
+      "div",
+      { class: "profile-tab" },
+      el(
+        "p",
+        { class: "muted profile-intro" },
+        "可以反复用到的个人资料：姓名拼音、护照、住址、学历、工作、家庭、签证历史……每个分组单独保存，只存在这台电脑的材料根目录里，以后填 DS-160 等表格时可以直接取用。没把握的先留空。"
+      ),
+      groups.map(profileGroupPanel)
+    );
+  }
+
   // ---------- 整页 ----------
 
   function render() {
@@ -774,7 +1037,7 @@
       attentionPanel(),
       newMaterialPanel(),
       tabsNav(),
-      state.tab === "travel" ? travelTabSection() : materialsTabSection()
+      state.tab === "travel" ? travelTabSection() : state.tab === "profile" ? profileTabSection() : materialsTabSection()
     );
   }
 

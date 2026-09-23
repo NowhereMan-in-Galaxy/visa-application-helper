@@ -17,6 +17,7 @@ mcp = MCPServer(
     instructions=(
         "本地个人办事助手：只读共享区的流程攻略、读写你自己的「我的办事」进度。"
         "不提供删除工具，也不提供读取材料文件内容本身的工具——只看结构化的状态。"
+        "「基本信息」（PersonalProfile）只读，没有写工具。"
     ),
 )
 
@@ -95,6 +96,18 @@ def add_custom_material(track_id: str, name: str, step: str, material_type: str 
 @mcp.tool(description="把一条避坑点记到办事页右侧的核对清单里（1–300 字）")
 def add_pitfall(track_id: str, text: str) -> dict:
     return tools.add_pitfall(track_id, text)
+
+
+@mcp.tool(
+    description=(
+        "只读：读取用户的「基本信息」（姓名拼音、护照、联系方式、家庭、教育、工作、旅行与签证历史、社交媒体等）"
+        "和字段说明（中文标签、sensitive、对应 DS-160 哪一问）。用于辅助填写 DS-160 等表格。"
+        "内容是真实个人信息：只在填表需要时使用，不要在对话里整段复述 sensitive 字段；"
+        "空值 / 空列表表示用户没填，不等于回答“否”，要先问用户。没有写工具，改资料请让用户去网页「我的资料 → 基本信息」"
+    )
+)
+def get_personal_profile() -> dict:
+    return tools.get_personal_profile()
 
 
 def main() -> None:

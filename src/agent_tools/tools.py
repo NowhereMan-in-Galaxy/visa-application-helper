@@ -24,6 +24,8 @@ from pathlib import Path
 import config
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
+from core.models import describe_personal_profile
+from core.profile_storage import load_personal_profile
 from core.storage import load_material_records
 import core.adjustments as adj
 from core.adjustments import AdjustmentError
@@ -422,3 +424,19 @@ def add_pitfall(
         t.pitfalls.append(Pitfall(id=f"p-{uuid4().hex[:8]}", text=clean))
 
     return _adjust(track_id, fn, materials_root, community_dir, materials_index_dir, today)
+
+
+# ---------- 基本信息（PersonalProfile，specs/003-personal-profile）：只读 ----------
+
+
+def get_personal_profile(*, materials_root: Path | None = None) -> dict:
+    """读取「基本信息」整份内容 + 字段说明，给将来的填表 Agent（DS-160 等）用。
+
+    返回 {"profile": ..., "fields": ...}：
+    - profile：PersonalProfile 的 JSON（日期是 YYYY-MM-DD；没填的是 null / 空列表）
+    - fields：describe_personal_profile() 的输出，每个字段带中文标签、类型、sensitive、ds160 提示
+    只读——故意不提供写工具：个人资料只能由用户本人在「我的资料 → 基本信息」里改。
+    文件格式有误时抛 core.profile_storage.ProfileFileError（ValueError 的子类，消息是中文）。
+    """
+    profile = load_personal_profile(_materials_root(materials_root))
+    return {"profile": profile.model_dump(mode="json"), "fields": describe_personal_profile()}
