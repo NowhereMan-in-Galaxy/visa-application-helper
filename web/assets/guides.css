@@ -271,3 +271,4 @@ form.pick button { padding: 3px 10px; font-size: 12px; }
 form.pit-add { display: flex; gap: 6px; margin-top: 10px; }
 form.pit-add input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); background: #fffef9; font-size: 13px; }
 form.pit-add button { padding: 4px 10px; font-size: 12px; }
+.state-optional { background: #ececec; color: var(--muted); }

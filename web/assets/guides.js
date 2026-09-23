@@ -18,8 +18,9 @@
     missing: "缺",
     undecided: "待定",
     not_applicable: "不适用",
+    optional: "可选",
   };
-  var STATE_ORDER = ["missing", "stale", "unconfirmed", "ready"];
+  var STATE_ORDER = ["missing", "stale", "unconfirmed", "ready", "optional"];
   var KIND_LABEL = { generate: "可让 AI 起草", output: "做完某一步后得到" };
 
   var view = document.getElementById("view");
@@ -123,6 +124,11 @@
 
   function stateChip(state) {
     return el("span", { class: "state state-" + state, text: STATE_LABEL[state] || state });
+  }
+
+  // 加分项没有时不算"缺"：它不计入进度、导出时也不算没备齐，所以显示成灰色的"可选"，别吓人
+  function displayState(r) {
+    return r.optional && r.state === "missing" ? "optional" : r.state;
   }
 
   function evidenceBlock(evidence, sources) {
@@ -803,7 +809,7 @@
         ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
         : null,
       mats.length
-        ? el("p", { class: "muted" }, "这一步涉及：", mats.map(function (r, i) { return el("span", null, i ? "、" : "", r.name + "（" + STATE_LABEL[r.state] + "）"); }))
+        ? el("p", { class: "muted" }, "这一步涉及：", mats.map(function (r, i) { return el("span", null, i ? "、" : "", r.name + "（" + STATE_LABEL[displayState(r)] + "）"); }))
         : null,
       el(
         "div",
@@ -948,7 +954,7 @@
       el(
         "div",
         { class: "mat-top" },
-        stateChip(r.state),
+        stateChip(displayState(r)),
         el("span", { class: "mat-name", text: r.name }),
         r.raw_name && r.raw_name !== r.name ? el("span", { class: "mat-raw", text: "攻略写作「" + r.raw_name + "」" }) : null,
         KIND_LABEL[r.kind] ? el("span", { class: "badge" + (r.kind === "generate" ? " ai" : ""), text: KIND_LABEL[r.kind] }) : null,
@@ -1051,9 +1057,9 @@
     var undecided = v.requirements.filter(function (r) { return r.state === "undecided"; }).length;
     var body = el("div", { class: "summary-list" });
     STATE_ORDER.forEach(function (state) {
-      var group = relevant.filter(function (r) { return r.state === state; });
+      var group = relevant.filter(function (r) { return displayState(r) === state; });
       if (!group.length) return;
-      body.append(el("div", { class: "summary-group", text: STATE_LABEL[state] + " · " + group.length }));
+      body.append(el("div", { class: "summary-group", text: (state === "optional" ? "加分项（没有也行）" : STATE_LABEL[state]) + " · " + group.length }));
       group.forEach(function (r) {
         body.append(
           el(
