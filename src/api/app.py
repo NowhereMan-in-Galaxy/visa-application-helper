@@ -55,6 +55,17 @@ from core.uploads import UploadConflictError, save_uploaded_file
 app = FastAPI(title="材料资料库")
 
 
+@app.middleware("http")
+async def no_stale_frontend(request, call_next):
+    """让浏览器每次都向服务器确认页面和脚本是否更新（有 ETag，没变化时只回 304，几乎不花时间）。
+
+    否则改完 web/ 下的文件，浏览器可能继续用缓存里的旧脚本，看起来像"改了没生效"。
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
 
 class MaterialView(BaseModel):
     """材料记录 + 核心库算出来的状态，一起返回给前端，前端不用再自己算一遍。"""
