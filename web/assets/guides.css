@@ -105,6 +105,15 @@ p { margin: 6px 0; }
 .step-title { font-weight: 600; font-size: 15px; }
 .step-meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
 .blocked { font-size: 12px; color: var(--amber); margin-top: 4px; }
+.window { font-size: 13px; margin-top: 6px; color: var(--muted); }
+.window.open { color: var(--green); }
+.window.closing { color: var(--danger); font-weight: 600; }
+.window.missed { color: var(--danger); text-decoration: line-through; }
+.reminders ul { list-style: none; margin: 0 0 12px; padding: 0; }
+.reminders li { display: flex; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.reminders li .when { flex: none; min-width: 7.5em; font-variant-numeric: tabular-nums; color: var(--muted); }
+.reminders li.closes .when { color: var(--danger); }
+.fact input[type="date"] { font: inherit; padding: 4px 8px; }
 
 .mats { margin-top: 10px; display: grid; gap: 8px; }
 .mat { border: 1px solid var(--line-soft); background: #fff; padding: 10px 12px; }

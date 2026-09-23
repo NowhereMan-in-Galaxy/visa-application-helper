@@ -113,6 +113,35 @@
     return parseInt(parts[1], 10) + "月" + parseInt(parts[2], 10) + "日";
   }
 
+  // 时间窗的日期可能在一两年后，今年内只显示"M月D日"，否则带上年份
+  function fmtDate(iso) {
+    return iso.slice(0, 4) === todayIso().slice(0, 4) ? fmtMD(iso) : iso.slice(0, 4) + "年" + fmtMD(iso);
+  }
+
+  // 步骤的可办时间窗（spec §3c）：还没到时间 / 可以办了 / 只剩 N 天 / 已错过 / 先回答问题
+  function windowLine(s, factsByKey, stepById) {
+    var w = s.window;
+    if (!w) return null;
+    var until = w.closes ? "截止 " + fmtDate(w.closes) : "";
+    var text;
+    if (w.state === "waiting") {
+      var names = w.waiting_for.map(function (k) {
+        if (factsByKey[k]) return "回答「" + factsByKey[k].question.replace(/[（(].*$/, "").replace(/[？?]$/, "") + "」";
+        return "完成「" + (stepById[k] ? stepById[k].title : k) + "」";
+      });
+      text = "🗓 " + names.join("、") + "后，这里会算出什么时候可以办";
+    } else if (w.state === "upcoming") {
+      text = "🗓 " + fmtDate(w.opens) + " 起可以办（还有 " + w.days + " 天）" + (until ? " · " + until : "");
+    } else if (w.state === "closing") {
+      text = "⏰ " + (w.days === 0 ? "今天是最后一天" : "只剩 " + w.days + " 天") + " · " + until;
+    } else if (w.state === "missed") {
+      text = "已错过：" + until.replace("截止 ", "截止于 ");
+    } else {
+      text = "🗓 现在可以办" + (until ? " · " + until + "（还有 " + w.days + " 天）" : "");
+    }
+    return el("div", { class: "window " + w.state, text: text });
+  }
+
   function progressBar(ready, total) {
     var pct = total ? Math.round((ready / total) * 100) : 0;
     var bar = el("div", { class: "progress", role: "img", "aria-label": "进度 " + ready + " / " + total });
@@ -202,6 +231,7 @@
 
         var activeCards = active.map(function (t) {
           var foot = [el("span", { text: "已进行 " + (t.elapsed_days || 0) + " 天" })];
+          if (t.next_reminder && t.next_step_title) foot.push(el("span", { text: "🗓 " + reminderText(t.next_reminder) }));
           if (t.deadline) {
             var left = daysBetween(todayIso(), t.deadline);
             foot.push(el("span", { class: left <= 14 ? "urgent" : null, text: left >= 0 ? "距截止 " + left + " 天" : "已过截止 " + -left + " 天" }));
@@ -214,9 +244,9 @@
             t.error
               ? el("p", { class: "meta", text: "暂时打不开：" + t.error })
               : [
-                  progressBar(t.progress_ready, t.progress_total),
-                  el("span", { class: "meta", text: "材料 " + t.progress_ready + " / " + t.progress_total + " 已备齐" }),
-                  el("div", { class: "next", text: t.next_step_title ? "下一步：" + t.next_step_title : "没有可以马上做的步骤" }),
+                  t.progress_total ? progressBar(t.progress_ready, t.progress_total) : null,
+                  t.progress_total ? el("span", { class: "meta", text: "材料 " + t.progress_ready + " / " + t.progress_total + " 已备齐" }) : null,
+                  el("div", { class: "next", text: t.next_step_title ? "下一步：" + t.next_step_title : t.next_reminder ? "下一件事：" + reminderText(t.next_reminder) : "没有可以马上做的步骤" }),
                 ],
             el("div", { class: "card-foot" }, foot)
           );
@@ -558,7 +588,7 @@
                 "div",
                 { class: "fact" + (f.value !== null ? " answered" : "") },
                 el("div", { class: "q", text: f.question }),
-                el(
+                f.type === "date" ? dateFactInput(v, f, readonly) : el(
                   "div",
                   { class: "options" },
                   f.options.map(function (opt) {
@@ -635,9 +665,13 @@
     // --- 侧栏 ---
     var side = el("div", { class: "sticky" });
     if (opts.aside) side.append(opts.aside);
+    var remindersNode = readonly ? null : remindersPanel(v);  // 没有时间窗的攻略返回 null，原生 append(null) 会显示成文字 "null"
+    if (remindersNode) side.append(remindersNode);
     side.append(checklistPanel(v, readonly));
-    side.append(materialSummary(v));
-    if (!readonly) side.append(exportPanel(v));
+    if (v.requirements.length) {
+      side.append(materialSummary(v));
+      if (!readonly) side.append(exportPanel(v));
+    }
 
     return el("div", null, phaseBar(v, stepById), el("div", { class: "layout" }, main, el("div", null, side)));
   }
@@ -795,6 +829,22 @@
     );
   }
 
+  // 日期类问题：选好日期就保存；"清除"撤回回答
+  function dateFactInput(v, f, readonly) {
+    var input = el("input", {
+      type: "date", value: f.value || null, disabled: readonly, "aria-label": f.question,
+      onchange: function () { if (input.value) update(v, "/facts/" + encodeURIComponent(f.key), { value: input.value }); },
+    });
+    return el(
+      "div",
+      { class: "options" },
+      input,
+      f.value && !readonly
+        ? el("button", { type: "button", text: "清除", onclick: function () { update(v, "/facts/" + encodeURIComponent(f.key), { value: null }); } })
+        : null
+    );
+  }
+
   function nextCard(v, stepById, reqById) {
     var s = v.next_step ? stepById[v.next_step] : null;
     if (!s) {
@@ -805,6 +855,9 @@
         { class: "next-card" + (allDone ? " done-all" : "") },
         el("div", { class: "label", text: allDone ? "全部完成" : "下一步" }),
         el("h2", { text: allDone ? "所有步骤都做完了。" : pending ? "先回答下面的问题" : "暂时没有能马上做的步骤" }),
+        !allDone && v.reminders && v.reminders.length
+          ? el("p", { class: "muted", text: "最近的一件事：" + reminderText(v.reminders[0]) + "。到时候来这里，或者把提醒加到日历里。" })
+          : null,
         allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null
       );
     }
@@ -817,6 +870,7 @@
       el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
       el("h2", { text: s.title }),
       el("div", { class: "step-meta" }, stepMeta(s)),
+      windowLine(s, factsFromView(v), stepById),
       linksBlock(s, factsFromView(v)),
       s.late
         ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
@@ -830,7 +884,10 @@
         el("button", { class: "primary", type: "button", text: "✓ 这一步做完了", onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: true }); } }),
         el("a", { href: "#step-" + s.id, text: "看详情", onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })
       ),
-      el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
+      // 时间提醒型攻略可能一份材料都没有，这时不显示"材料 0 / 0"
+      v.requirements.length
+        ? el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
+        : null
     );
   }
 
@@ -1218,6 +1275,7 @@
           menu
         ),
         el("div", { class: "step-meta" }, stepMeta(s)),
+        windowLine(s, ctx.factsByKey, ctx.stepById),
         linksBlock(s, ctx.factsByKey),
         blocked,
         note ? note.node : null,
@@ -1416,6 +1474,39 @@
   }
 
   // 右侧核对清单：攻略里"材料之间必须对得上"的核对项 + 用户自己记的避坑点
+  function reminderText(r) {
+    return fmtDate(r.date) + (r.kind === "opens" ? " 起可以办：" : " 截止：") + r.title;
+  }
+
+  // 右侧"时间提醒"：以后开始可以办 / 截止的日子（spec §3c），可以导出成日历文件
+  function remindersPanel(v) {
+    var hasWindows = v.steps.some(function (s) { return s.window; });
+    if (!hasWindows && !(v.reminders || []).length) return null;
+    var list = (v.reminders || []).map(function (r) {
+      return el(
+        "li",
+        { class: r.kind },
+        el("span", { class: "when", text: fmtDate(r.date) }),
+        el("span", null, (r.kind === "opens" ? "起可以办：" : "截止：") + r.title)
+      );
+    });
+    return el(
+      "section",
+      { class: "panel reminders" },
+      el("div", { class: "panel-head" }, el("h2", { text: "时间提醒" }), el("small", { text: list.length ? list.length + " 个日子" : "" })),
+      list.length
+        ? el("ul", null, list)
+        : el("p", { class: "muted", text: "回答上面的日期问题后，这里会列出每项什么时候开始可以办、什么时候截止。" }),
+      list.length
+        ? el("a", {
+            class: "link-btn", href: "/api/tracks/" + encodeURIComponent(v.id) + "/calendar.ics", download: v.id + ".ics",
+            title: "下载 .ics 文件，用手机或电脑的日历打开即可导入；截止前 7 天会提醒",
+            text: "📅 加到日历",
+          })
+        : null
+    );
+  }
+
   function checklistPanel(v, readonly) {
     var checks = v.checks.map(function (c) {
       var box = el("input", {
