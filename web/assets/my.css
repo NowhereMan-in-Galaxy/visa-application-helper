@@ -1,0 +1,62 @@
+/* 「02 我的资料」页面。基础框架（.app / aside / nav / .panel / .card / .state / .mat …）
+   来自 web/assets/guides.css，这里只补充这个页面自己用到的几个类，颜色继续用 guides.css
+   里定义的令牌（--green-soft / --amber-soft / --red-soft 等）。 */
+
+.mat-list { display: grid; gap: 10px; padding: 14px 20px; }
+.mat-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.mat-actions button { padding: 4px 12px; font-size: 12px; }
+
+/* 材料状态徽章：复用 .state 的形状，只补背景色，跟 guides.css 的 state-* 系列同一套逻辑 */
+.mstate-ok { background: var(--green-soft); }
+.mstate-missing { background: var(--red-soft); color: var(--danger); }
+.mstate-soon { background: var(--amber-soft); color: var(--amber); }
+.mstate-expired { background: var(--red-soft); color: var(--danger); }
+
+form.edit-form,
+form.append-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line-soft);
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+}
+form.edit-form label,
+form.append-form label { display: grid; gap: 4px; }
+form.edit-form input,
+form.append-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  font-size: 12px;
+}
+.form-actions { display: flex; gap: 8px; align-items: center; }
+.form-actions button { padding: 4px 12px; font-size: 12px; }
+
+/* ---- 出行记录表格 ---- */
+.travel-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.travel-table th,
+.travel-table td { text-align: left; padding: 8px 20px; border-bottom: 1px solid var(--line-soft); }
+.travel-table th { font-weight: 600; color: var(--muted); font-size: 12px; }
+.travel-table tr.edit-row td { background: #f1f0e6; padding: 12px 20px; }
+.travel-add { padding: 14px 20px; border-top: 1px solid var(--line-soft); }
+
+form.travel-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+form.travel-form label { font-size: 13px; display: grid; gap: 4px; }
+form.travel-form input {
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+}
+
+@media (max-width: 650px) {
+  .travel-table th:nth-child(4),
+  .travel-table td:nth-child(4) { display: none; }
+}
