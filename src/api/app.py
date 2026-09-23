@@ -23,6 +23,7 @@ from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.export import export_track
 from core.forms import load_all_forms
 from core.tracks import (
+    Pitfall,
     Track,
     TrackNotFoundError,
     TrackView,
@@ -800,6 +801,58 @@ def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) ->
                 record.material_type = slot
                 overwrite_material_record(MATERIALS_INDEX_DIR, record)
         track.matches[requirement] = list(payload.records)
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+class PitfallCreate(BaseModel):
+    text: str
+
+
+class PitfallUpdate(BaseModel):
+    text: str | None = None
+    done: bool | None = None
+
+
+def _pitfall_text(text: str) -> str:
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="避坑点不能为空")
+    if len(text) > 300:
+        raise HTTPException(status_code=422, detail="避坑点太长了（最多 300 字），可以拆成几条")
+    return text
+
+
+@app.post("/api/tracks/{track_id}/pitfalls", response_model=TrackView)
+def add_pitfall(track_id: str, payload: PitfallCreate) -> TrackView:
+    """记一条自己的避坑点（只存在这件办事里，不会进共享攻略）。"""
+    track = _load_track_or_404(track_id)
+    track.pitfalls.append(Pitfall(id=f"p-{uuid4().hex[:8]}", text=_pitfall_text(payload.text)))
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.put("/api/tracks/{track_id}/pitfalls/{pitfall_id}", response_model=TrackView)
+def update_pitfall(track_id: str, pitfall_id: str, payload: PitfallUpdate) -> TrackView:
+    track = _load_track_or_404(track_id)
+    item = next((p for p in track.pitfalls if p.id == pitfall_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"没有找到这条避坑点：{pitfall_id}")
+    if payload.text is not None:
+        item.text = _pitfall_text(payload.text)
+    if payload.done is not None:
+        item.done = payload.done
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.delete("/api/tracks/{track_id}/pitfalls/{pitfall_id}", response_model=TrackView)
+def delete_pitfall(track_id: str, pitfall_id: str) -> TrackView:
+    track = _load_track_or_404(track_id)
+    before = len(track.pitfalls)
+    track.pitfalls = [p for p in track.pitfalls if p.id != pitfall_id]
+    if len(track.pitfalls) == before:
+        raise HTTPException(status_code=404, detail=f"没有找到这条避坑点：{pitfall_id}")
     save_track(get_materials_root(), track)
     return _track_view(track)
 

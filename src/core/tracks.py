@@ -33,6 +33,14 @@ class TrackNotFoundError(Exception):
     pass
 
 
+class Pitfall(BaseModel):
+    """用户自己从攻略、帖子里记下的避坑点，显示在办事页右侧的核对清单里。只属于这一件办事（个人区）。"""
+
+    id: str
+    text: str
+    done: bool = False
+
+
 class Track(BaseModel):
     id: str
     guide: str
@@ -47,6 +55,7 @@ class Track(BaseModel):
     completed: date | None = None
     # 上次导出材料时选的文件夹（例如 ~/Desktop），下次导出默认用它；None 表示用材料根目录下的 exports/
     export_dir: str | None = None
+    pitfalls: list[Pitfall] = []
 
 
 # ---------- 读写（个人区） ----------
@@ -205,6 +214,7 @@ class TrackView(BaseModel):
     uncertain: list[str]
     export_pattern: str
     export_dir: str | None
+    pitfalls: list[Pitfall]
     sources: list[dict]
     stale_sources: list[str]
 
@@ -409,6 +419,7 @@ def compute_track_view(
         uncertain=guide.uncertain,
         export_pattern=guide.export_pattern or DEFAULT_EXPORT_PATTERN,
         export_dir=track.export_dir,
+        pitfalls=track.pitfalls,
         sources=[s.model_dump(mode="json") for s in guide.sources],
         stale_sources=stale_sources,
     )

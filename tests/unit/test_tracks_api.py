@@ -221,3 +221,29 @@ def test_form_guide_endpoint(client):
     f = c.get("/api/forms/france-visas").json()
     assert f["site"]["url"].startswith("https://") and f["sections"]
     assert c.get("/api/forms/nope").status_code == 404
+
+
+
+# ---- 我的避坑点 ----
+
+def test_pitfalls_add_toggle_edit_delete(client):
+    c, _ = client
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    v = c.post(f"/api/tracks/{tid}/pitfalls", json={"text": "  流水别用网银截图  "}).json()
+    item = v["pitfalls"][0]
+    assert item["text"] == "流水别用网银截图" and item["done"] is False
+    pid = item["id"]
+    v = c.put(f"/api/tracks/{tid}/pitfalls/{pid}", json={"done": True}).json()
+    assert v["pitfalls"][0]["done"] is True
+    v = c.put(f"/api/tracks/{tid}/pitfalls/{pid}", json={"text": "流水要柜台打印盖章"}).json()
+    assert v["pitfalls"][0]["text"] == "流水要柜台打印盖章"
+    assert c.get(f"/api/tracks/{tid}").json()["pitfalls"][0]["done"] is True  # 确实存下来了
+    assert c.delete(f"/api/tracks/{tid}/pitfalls/{pid}").json()["pitfalls"] == []
+    assert c.delete(f"/api/tracks/{tid}/pitfalls/{pid}").status_code == 404
+
+
+def test_pitfall_text_validation(client):
+    c, _ = client
+    tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
+    assert c.post(f"/api/tracks/{tid}/pitfalls", json={"text": "   "}).status_code == 422
+    assert c.post(f"/api/tracks/{tid}/pitfalls", json={"text": "字" * 301}).status_code == 422
