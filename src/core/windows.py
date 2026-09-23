@@ -19,6 +19,8 @@ WindowState = Literal["waiting", "upcoming", "open", "closing", "missed"]
 CLOSING_SOON_DAYS = 30
 # 日历里的截止事件提前这么多天提醒
 CALENDAR_ALARM_DAYS = 7
+# "可以办了"事件当天几点提醒（全天事件的提醒相对当天 0 点）
+CALENDAR_OPENS_ALARM_HOUR = 9
 
 
 def add_months(d: date, months: int) -> date:
@@ -124,12 +126,26 @@ def calendar_ics(track_id: str, track_title: str, items: list[dict], now_stamp: 
             f"DESCRIPTION:{_ics_escape(track_title)}",
         ]
         if r["kind"] == "closes":
-            lines += [
-                "BEGIN:VALARM", "ACTION:DISPLAY", f"TRIGGER:-P{CALENDAR_ALARM_DAYS}D",
-                f"DESCRIPTION:{_ics_escape('还有 ' + str(CALENDAR_ALARM_DAYS) + ' 天截止：' + r['title'])}",
-                "END:VALARM",
-            ]
+            trigger, alarm = f"-P{CALENDAR_ALARM_DAYS}D", f"还有 {CALENDAR_ALARM_DAYS} 天截止：{r['title']}"
+        else:
+            trigger, alarm = f"PT{CALENDAR_OPENS_ALARM_HOUR}H", f"今天起可以办：{r['title']}"
+        lines += ["BEGIN:VALARM", "ACTION:DISPLAY", f"TRIGGER:{trigger}", f"DESCRIPTION:{_ics_escape(alarm)}", "END:VALARM"]
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
-    # iCalendar 规定用 CRLF 换行
-    return "\r\n".join(lines) + "\r\n"
+    # iCalendar 规定用 CRLF 换行，每行不超过 75 字节（超过的折到下一行，下一行以空格开头）
+    return "".join(_fold(line) + "\r\n" for line in lines)
+
+
+def _fold(line: str, limit: int = 75) -> str:
+    """按 RFC 5545 折行：按 UTF-8 字节数切，不把一个汉字切成两半。"""
+    parts, current, size = [], "", 0
+    for ch in line:
+        n = len(ch.encode("utf-8"))
+        # 续行开头的空格也算 1 字节
+        if size + n > (limit if not parts else limit - 1):
+            parts.append(current)
+            current, size = "", 0
+        current += ch
+        size += n
+    parts.append(current)
+    return "\r\n ".join(parts)

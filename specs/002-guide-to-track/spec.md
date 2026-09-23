@@ -233,7 +233,7 @@ types:
   5. `open`：其余；`closes` 已知时 `days` = 剩余天数，否则 null。
 - `available` 在原有条件上再加一条：`window.state` 不是 `upcoming`、`missed`。所以"下一步"不会指向还没到时间或已经错过的步骤。
 - `TrackView.reminders`：`applies == "yes"`、未完成、未隐藏的步骤里，`opens > today` 的记一条 `{date: opens, kind: "opens", step, title}`，`closes >= today` 的记一条 `{date: closes, kind: "closes", ...}`，按日期升序。
-- **日历导出**：`GET /api/tracks/{id}/calendar.ics` 返回 `text/calendar`，每条 reminder 一个全天事件，标题"可以办了：<步骤>"或"截止：<步骤>"，截止事件带提前 7 天的提醒；`UID` = `<track>-<step>-<kind>@youtiaoyouli`，重复导入同一文件不会出现重复事件。没有任何 reminder 时返回一个没有事件的日历。
+- **日历导出**：`GET /api/tracks/{id}/calendar.ics` 返回 `text/calendar`，每条 reminder 一个全天事件，标题"可以办了：<步骤>"或"截止：<步骤>"，截止事件提前 7 天提醒，"可以办了"事件当天上午 9 点提醒；每行按标准折到 75 字节以内；`UID` = `<track>-<step>-<kind>@youtiaoyouli`，重复导入同一文件不会出现重复事件。没有任何 reminder 时返回一个没有事件的日历。
 
 界面：日期类问题显示日期选择框；步骤上显示时间窗和状态（还没到时间，还有 N 天 / 可以办了 / 只剩 N 天 / 已错过 / 先回答「…」）；办事页有"时间提醒"清单和"加到日历"按钮。
 

@@ -115,9 +115,19 @@ def test_reminders_sorted_and_calendar():
     ]
     ics = calendar_ics(t.id, v.title, v.reminders, "20260715T000000Z")
     assert ics.startswith("BEGIN:VCALENDAR\r\n") and ics.endswith("END:VCALENDAR\r\n")
-    assert ics.count("BEGIN:VEVENT") == 3 and ics.count("BEGIN:VALARM") == 1
+    assert ics.count("BEGIN:VEVENT") == 3 and ics.count("BEGIN:VALARM") == 3
+    assert "TRIGGER:-P7D" in ics and "TRIGGER:PT9H" in ics
     assert "DTSTART;VALUE=DATE:20280630" in ics and "SUMMARY:截止：申请" in ics
     assert "UID:t-s-apply-closes@youtiaoyouli" in ics
+
+
+def test_calendar_folds_long_lines():
+    title = "申请一项名字非常非常长的补贴" * 5
+    ics = calendar_ics("t", "t", [{"date": "2027-01-01", "kind": "opens", "step": "s", "title": title}], "20260101T000000Z")
+    lines = ics.split("\r\n")
+    assert all(len(line.encode("utf-8")) <= 75 for line in lines)
+    unfolded = ics.replace("\r\n ", "")
+    assert "SUMMARY:可以办了：" + title in unfolded
 
 
 # ---- 回答日期问题 ----
