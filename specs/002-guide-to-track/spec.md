@@ -161,6 +161,13 @@ completed: 2026-10-20                    # 办完的日期，由服务端自动�
 
 - **办完**：所有生效的步骤都已完成、且没有"取决于还没回答的问题"的步骤。每次修改步骤或回答问题后，服务端重新判断：刚满足时记下当天日期；已经记过的日期不因之后的保存而改变；一旦又有没做完的步骤就清空。
 - `pitfalls: [{id, text, done}]`：用户自己记的避坑点（2026-09-23 新增），显示在办事页右侧"核对清单"里，和攻略的 `checks` 放在一起勾选；只属于这件办事，不进共享攻略。接口：`POST /api/tracks/{id}/pitfalls`（`{text}`，去首尾空格后 1–300 字）、`PUT .../pitfalls/{pid}`（`{text?, done?}`）、`DELETE .../pitfalls/{pid}`。
+- **个人调整**（2026-09-23 新增，只存在个人区，不改共享攻略）：
+  - `hidden_steps: [step_id]`、`hidden_requirements: [req_id]`：隐藏。计算时按"不适用"处理（不是下一步、不计进度/完成/倒排时间、不导出）；视图里 `hidden: true`，并在 `TrackView.hidden_items` 列出，界面据此"恢复"。隐藏步骤**不会**连带隐藏它下面的材料（材料可能被别的步骤共用），需要单独隐藏；隐藏材料时清掉它的确认。
+  - `step_notes: {step_id: text}`、`requirement_notes: {req_id: text}`：个人备注，1–500 字，空值表示删除；视图字段 `user_note`（`note` 仍是攻略自带说明）。
+  - `custom_steps: [{id: cs-xxxxxxxx, title, phase, after, where}]`：插在 `after` 步骤之后；没有 `after` 时放在 `phase` 阶段末尾；都没有时放在最后一个阶段末尾。可改名、可删除（删除时一并删掉挂在它下面的自己加的材料及相关完成状态、备注、确认）。
+  - `custom_materials: [{id: cm-xxxxxxxx, name, step, material_type, optional}]`：挂在任意步骤下；不指定 `material_type` 时按名字查词表，能认出就自动匹配。词表不认识的，上传文件时按材料名建一条 `other` 类记录并直接确认给它；也可以用"从我的资料里选"手动确认。
+  - 实现：`core.tracks.apply_adjustments` 把自定义步骤/材料叠加到攻略上得到"实际流程"，后续匹配、上传、倒排、进度全部照常计算；视图里 `custom: true` 标出自己加的。修改逻辑在 `core/adjustments.py`，网页 API 和 MCP 工具共用。
+  - 接口（均返回 `TrackView`，错误 422 带中文原因）：`PUT /api/tracks/{id}/hidden/steps/{step}`、`PUT .../hidden/requirements/{req}`（`{hidden}`）；`PUT .../notes/steps/{step}`、`PUT .../notes/requirements/{req}`（`{note}`）；`POST .../custom-steps`（`{title, phase?, after?, where?}`）、`PUT/DELETE .../custom-steps/{cs}`；`POST .../custom-materials`（`{name, step, material_type?, optional?}`）、`PUT/DELETE .../custom-materials/{cm}`。勾选自己加的步骤仍用 `PUT .../steps/{step}`。
 - `export_dir`：上次导出时用户选的文件夹（原样保存用户输入，例如 `~/Desktop`），下次导出默认用它。
 - **用时** = `completed`（没办完则取今天）− `created`，单位天。首页按"办理中 / 已办完"分组，已办完的一组显示平均、最快、最慢用时。
 
