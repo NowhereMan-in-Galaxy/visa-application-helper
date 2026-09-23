@@ -18,3 +18,8 @@ config.yaml
 
 # spec-kit 的 Claude Code 集成目录，可能缓存凭证/私有产物（工具自身安装时提示）
 .claude/
+
+# 其他 AI 工具的本地记忆/产物目录：含个人称呼和本机路径，且只对那个工具有意义
+.workbuddy-ai/
+# 一次性原型、临时导出物，不属于项目源码
+outputs/
