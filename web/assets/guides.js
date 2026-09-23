@@ -99,6 +99,12 @@
     return d.getFullYear() + "-" + m + "-" + day;
   }
 
+  // "2026-10-17" -> "10月17日"（倒排时间的界面展示格式，见 specs/002-guide-to-track/tasks-parallel-1.md 任务 D）
+  function fmtMD(iso) {
+    var parts = iso.split("-");
+    return parseInt(parts[1], 10) + "月" + parseInt(parts[2], 10) + "日";
+  }
+
   function progressBar(ready, total) {
     var pct = total ? Math.round((ready / total) * 100) : 0;
     var bar = el("div", { class: "progress", role: "img", "aria-label": "进度 " + ready + " / " + total });
@@ -389,12 +395,33 @@
           v.completed ? "已办完 · 用时 " + v.elapsed_days + " 天" : "创建于 " + v.created + " · 已进行 " + v.elapsed_days + " 天",
           v.deadline && !v.completed ? " · 截止 " + v.deadline + "（" + deadlineText(v.deadline) + "）" : ""
         )
-      )
+      ),
+      v.completed ? null : deadlineEditor(v)
     );
     // 重新渲染会替换整块内容，先记住滚动位置，避免每点一次就跳回顶部
     var y = window.scrollY;
     setView(head, trackBody(v, { readonly: false }));
     window.scrollTo(0, y);
+  }
+
+  // 办事页标题区：设置/修改/清除截止日期，用于倒排时间（PUT /api/tracks/{id}/deadline）
+  function deadlineEditor(v) {
+    var input = el("input", { type: "date", name: "deadline", value: v.deadline || null });
+    return el(
+      "form",
+      {
+        class: "deadline-edit",
+        onsubmit: function (ev) {
+          ev.preventDefault();
+          update(v, "/deadline", { deadline: input.value || null });
+        },
+      },
+      el("label", null, "截止日期", input),
+      el("button", { type: "submit", text: v.deadline ? "修改" : "设置" }),
+      v.deadline
+        ? el("button", { type: "button", text: "清除", onclick: function () { update(v, "/deadline", { deadline: null }); } })
+        : null
+    );
   }
 
   function deadlineText(deadline) {
@@ -595,6 +622,7 @@
             el("div", { class: "phase-title", text: p.title }),
             el("div", { class: "phase-meta" }, meta),
             time ? el("div", { class: "phase-meta", text: "⏱ " + time }) : null,
+            p.latest_finish ? el("div", { class: "phase-meta", text: "🕐 最晚 " + fmtMD(p.latest_finish) + " 完成" }) : null,
             p.summary ? el("div", { class: "phase-summary", text: p.summary }) : null,
             p.state === "skipped" ? null : el("div", { class: "phase-go", text: "看这一阶段 ↓" })
           )
@@ -701,10 +729,13 @@
       .filter(function (r) { return r && r.state !== "not_applicable"; });
     return el(
       "section",
-      { class: "next-card" },
+      { class: "next-card" + (s.late ? " late" : "") },
       el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
       el("h2", { text: s.title }),
       el("div", { class: "step-meta" }, stepMeta(s)),
+      s.late
+        ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
+        : null,
       mats.length
         ? el("p", { class: "muted" }, "这一步涉及：", mats.map(function (r, i) { return el("span", null, i ? "、" : "", r.name + "（" + STATE_LABEL[r.state] + "）"); }))
         : null,
@@ -730,6 +761,11 @@
     if (s.where) bits.push(el("span", { text: "📍 " + s.where }));
     if (s.estimate) bits.push(el("span", { text: "⏱ " + s.estimate }));
     if (s.duration_days) bits.push(el("span", { text: "⌛ 通常 " + s.duration_days.typical + " 天，最长 " + s.duration_days.max + " 天" }));
+    if (s.latest_start) {
+      var text = "最晚 " + fmtMD(s.latest_start) + " 开始";
+      if (s.late) text += "，已经晚了 " + daysBetween(s.latest_start, todayIso()) + " 天";
+      bits.push(el("span", { class: s.late ? "late" : null, text: (s.late ? "⚠ " : "🕐 ") + text }));
+    }
     return bits;
   }
 
