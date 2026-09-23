@@ -56,9 +56,14 @@ description: 用户想把一篇或多篇杂乱的攻略（文字、截图描述�
 7. **完成后提醒用户自己检视一遍**：告诉用户启动本地服务后打开浏览器访问 `/guides.html`，
    点进刚整理的攻略看预览，模拟回答几个问题，确认步骤和材料符合常识，再决定要不要提交。
 
+## 别漏掉的两件事
+
+- **导出命名**：原始资料有官方清单编号时，按 `prompt.md` 第 18 条给每条材料写 `export_name`。
+- **官网链接和填表指南**：按 `prompt.md` 第 19 条，把原始资料里的网址挂到步骤的 `links` 上；写了填表/预约流程的，另写一份 `community/forms/<id>.yaml` 并链接过去。
+
 ## 输出要求
 
-- 只产出一个文件：`community/guides/<id>.yaml`（以及经用户同意后才改动的 `community/material_types.yaml`）。
+- 产出 `community/guides/<id>.yaml`；原始资料写了填表流程时再加 `community/forms/<id>.yaml`；经用户同意后才改动 `community/material_types.yaml`。
 - 不要创建、修改仓库里的任何 Track 文件（那些只存在于材料根目录，不属于这个 skill 的工作范围）。
 - 不要执行 `git add` / `git commit`——整理完把结果和校验通过的证据（第 5 步命令的输出）告诉用户，
   由用户自己决定是否提交；如果用户明确要求提交，提交信息按仓库 `community/README.md` 的建议格式

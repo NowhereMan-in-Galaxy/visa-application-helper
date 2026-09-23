@@ -139,6 +139,10 @@ uncertain: [r-bank.note]                 # 整理者没把握的字段路径，�
 - `sources[].url` 非空时必须以 `http://` 或 `https://` 开头。
 - 定义了 `phases` 时：每个 step 必须写 `phase` 且引用存在的阶段；每个阶段至少有一个 step；`phases[].mode` 只能是 `online` / `offline` 或不写。
 
+**步骤链接**（2026-09-23 新增）：`steps[].links: [{title, kind, url | form, applies_if, evidence}]`。`kind` 为 `official`（官网）/ `form_guide`（填表指南）/ `info`（参考）；`url`（仅 http/https）和 `form`（`community/forms/<id>.yaml` 的 id，必须存在）二选一；`kind: form_guide` 必须用 `form`。`applies_if` 让链接随回答变化（例如只有"申请国 = 法国"时才显示法国官网），这也解决了待决问题"`where` 随某个 fact 变化"。界面上：适用的链接显示成按钮；取决于还没回答的问题的链接不展开，只提示"先回答哪个问题"。
+
+**导出命名**（2026-09-23 新增）：攻略级 `export_pattern`（默认 `{seq:02d}-{name}`，只能用占位符 `{seq}` `{name}` `{part}`，至少含 `{seq}` 或 `{name}`，套用后不能含文件名非法字符）；需求级 `export_name`（例如按官方清单编号写 `01-护照复印件`）。导出时 `{name}` = `export_name`，没有则用标准材料名；组合材料导出多个文件而模板里没有 `{part}` 时自动追加 `-部分名`；同名文件自动追加 `-2`、`-3`，绝不覆盖。
+
 ### 2. 我的办事：`<材料根目录>/tracks/<track-id>.yaml`
 
 ```yaml
@@ -156,6 +160,7 @@ completed: 2026-10-20                    # 办完的日期，由服务端自动�
 ```
 
 - **办完**：所有生效的步骤都已完成、且没有"取决于还没回答的问题"的步骤。每次修改步骤或回答问题后，服务端重新判断：刚满足时记下当天日期；已经记过的日期不因之后的保存而改变；一旦又有没做完的步骤就清空。
+- `export_dir`：上次导出时用户选的文件夹（原样保存用户输入，例如 `~/Desktop`），下次导出默认用它。
 - **用时** = `completed`（没办完则取今天）− `created`，单位天。首页按"办理中 / 已办完"分组，已办完的一组显示平均、最快、最慢用时。
 
 - 攻略被别人修订后，Track 里引用了已不存在的 step / requirement / check / fact 的条目：**读取时忽略，不报错，不自动删**（用户可能还要切回旧版本）。
@@ -202,6 +207,8 @@ types:
 
 **候选记录**：`materials_index/` 里以 `example-` 开头的虚构示例记录不参与匹配。同类型、且已拿到手（`obtained_date` 非空；状态为"待补"的占位记录不算）的记录里 `obtained_date` 最新的一条（没有日期的排最后）；组合类型：有直接标成该组合类型的记录时优先用它，否则每个 part 各取一条。用户确认时，把候选写入 `matches`。
 
+**手动挑选**（2026-09-23 新增）：自动识别没认出来时（例如签证页和盖章页扫在同一份 PDF 里），用户可以直接从"我的资料"里挑记录确认给这条需求：组合类型按 `parts` 顺序每部分一条，否则一条；示例记录不能选。挑中的记录如果词表推断不出类型（`material_type` 为空且 `type` 认不出），就把对应类型写到记录的 `material_type` 上，下次自动识别；已经能识别出类型的记录不改。
+
 **步骤**：条件判定同上；`available` = 生效、未完成、`depends_on` 中每个**生效的**步骤都已完成（不生效的依赖视为已满足）。**下一步** = 攻略中顺序最靠前的 `available` 步骤；没有则为 null。
 
 **进度** = `ready` 需求数 / (非 optional 且状态不是 `not_applicable`、`undecided` 的需求数)。
@@ -229,7 +236,10 @@ types:
   - `GET /api/tracks`、`POST /api/tracks`（body: `guide`、可选 `title`、`deadline`）。
   - `GET /api/tracks/{id}` → 合并后的视图：facts（含是否要问）、需求（含状态、候选记录）、步骤（含是否生效/完成/可做）、下一步、进度、checks、conflicts、`stale_sources`。
   - `POST /api/tracks/{id}/requirements/{requirement}/upload`（multipart：`file` 必填；可选 `obtained_date` 默认今天、`part` 组合类型必填、`sublabel`）→ 新建一条材料记录进个人材料库（`material_type` 为需求的类型或所选 part；`category` 取词表，词表为 null 时用新增的 `other`），丢弃该需求旧的确认，材料凑齐时自动确认。
-  - `POST /api/tracks/{id}/export` → 把状态为 `ready` 的材料**复制**到 `<材料根目录>/exports/<track-id>-<YYYYMMDD-HHMMSS>/`（已存在则加 `-2`…），文件名 `<两位序号>-<需求名>[-<部分名>]<原后缀>`，附 `清单.txt`（已导出 / 已确认但找不到文件 / 还没备齐）。`file_ref` 解析后不在材料根目录内的一律拒绝复制。
+  - `POST /api/tracks/{id}/export`（可选 body `{dest}`）→ 把状态为 `ready` 的材料**复制**到目标文件夹下新建的 `<办事标题>-<YYYYMMDD-HHMM>/`（已存在则加 `-2`…），文件名按上面的"导出命名"规则，附 `清单.txt`（已导出 / 已确认但找不到文件 / 还没备齐）。目标文件夹：body 里的 `dest` → 这件办事上次的 `export_dir` → `<材料根目录>/exports/`。`dest` 必须是已存在的绝对路径（支持 `~`），且不能在项目仓库里面（材料根目录除外），防止把个人材料复制进会被提交的目录。`file_ref` 解析后不在材料根目录内的一律拒绝复制。
+  - `GET /api/export-locations` → 快捷选项（桌面、下载——只列本机存在的；以及材料根目录）。
+  - `PUT /api/tracks/{id}/matches/{requirement}` 的 body 可带 `records: [id, ...]` 表示手动挑选（见"手动挑选"）。
+  - `GET /api/forms/{id}` → 填表指南内容。
   - `PUT /api/tracks/{id}/facts/{fact}`（body: `value`，null 表示清除）、`PUT /api/tracks/{id}/steps/{step}`（body: `done`）、`PUT /api/tracks/{id}/matches/{requirement}`（body: `confirmed`，true 写入当前候选，false 删除）、`PUT /api/tracks/{id}/checks/{check}`（body: `done`）。
 - 前端 `web/guides.html`：攻略库列表 → 攻略预览 → "开始办这件事" → 我的办事详情（回答问题、勾步骤、确认材料、最终核对）。
 - 命令行校验：`PYTHONPATH=src uv run python -m core.guides`（仓库根目录运行）校验 `community/` 下全部内容，有错误时退出码非 0（给贡献者和将来的 CI 用）。
@@ -268,7 +278,9 @@ B3 的安全前提（实现 B3 之前必须先做）：
 - Agent 只能用白名单里的工具；任何写文件、上传、提交表单的动作都要在页面上由用户点确认。
 - 在 B3 做好之前，页面上可以先放"复制给 Agent"按钮：把当前办事的上下文（攻略 id、下一步、缺哪些材料）拼成一段提示词，用户粘贴到自己的 Agent 里。
 
-## 官网填表指引（Phase D，方向已定，数据结构待细化）
+## 官网填表指引（Phase D：流程级已实现，字段级待做）
+
+**已实现（2026-09-23）**：`community/forms/<id>.yaml`，由 `src/core/forms.py` 校验（`PYTHONPATH=src uv run python -m core.guides` 一并检查）。字段：`id`（= 文件名）、`title`、`level`（`procedure` 流程级 / `field` 字段级）、`site {name, url}`、`summary`、`updated`、`sources`、`sections [{title, items[], tips[], evidence[]}]`、`uncertain`。攻略步骤通过 `links` 里的 `form: <id>` 链接过去，页面路由 `#/form/<id>`。已有两份流程级指南：`france-visas`、`italy-vfs`（都来自原始资料，没有凭常识补写）。
 
 观察：大多数签证流程都是"官网填表"+"准备材料"两大块，区别只在递交是线上还是线下。材料这一块由现有的流程攻略负责；填表这一块新增**填表指引**：`community/forms/<form-id>.yaml`，被攻略里的步骤引用（step 新增可选字段 `form: <form-id>`）。
 
@@ -295,7 +307,7 @@ B3 的安全前提（实现 B3 之前必须先做）：
 
 ## 待决问题（不要擅自决定，先提方案）
 
-- **`where` 随某个 fact 变化**（例如申请国不同，预约网站不同）：暂不支持，观察更多攻略后再定。
+- ~~**`where` 随某个 fact 变化**~~：已由步骤 `links` 的 `applies_if` 解决（2026-09-23），`where` 本身仍是自由文本。
 - **填表指引的具体字段**：Phase D 开始时，先用一个真实官网（候选：澳大利亚 ImmiAccount 访客签证 600、法国 France-Visas）走一遍，再定格式。
 - **攻略版本**：攻略被修订后，已有 Track 是否要提示"攻略有更新"、是否允许锁定旧版本。Phase A 只做"忽略已不存在的条目"。
 - **个人材料索引的位置**：`materials_index/records/` 目前在仓库里（只含元数据）。项目转为公开的共同维护仓库后，个人材料索引应迁出到材料根目录，否则每个贡献者都会把自己的材料元数据提交上来。迁移方案单独讨论。
