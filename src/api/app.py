@@ -11,7 +11,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -65,6 +66,119 @@ async def no_stale_frontend(request, call_next):
     if not request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-cache"
     return response
+
+
+# ---------- 防跨站请求（CSRF）/ DNS 重绑定 ----------
+#
+# 威胁模型：本地服务没有登录鉴权，浏览器里打开的任何网页（包括恶意网页、被 DNS 重绑定劫持指向
+# 本机的域名）原则上都能直接向 127.0.0.1:8000 发请求。下面这个中间件挡的是"浏览器里的网页发起
+# 的跨站请求"；挡不住本机上能直接发 HTTP 请求的其他进程（curl、脚本、本地 Agent 进程）——这些
+# 进程根本不会带 Origin / Sec-Fetch-Site，属于"两个头都没有 → 放行"那一支，本来就在信任边界内
+# （spec 002 里 B3 的安全前提对此有说明）。
+
+# Host 头去掉端口后，允许出现的值（大小写不敏感）。testserver 是 FastAPI TestClient 的默认 Host，
+# 只在测试环境出现，不影响真实浏览器请求。
+_ALLOWED_HOSTS = {"127.0.0.1", "localhost", "::1", "testserver"}
+# 没写端口时，各协议的默认端口——用来判断 "http://127.0.0.1" 和 Host "127.0.0.1:80" 是不是同一个源。
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _split_hostport(hostport: str) -> tuple[str, str | None] | None:
+    """把 `host[:port]` 或 `[ipv6][:port]` 拆成 `(host, port字符串或None)`。
+
+    host 统一转小写、去掉 IPv6 的方括号，这样 `[::1]` 和裸的 `::1` 按同一个值比较。
+    解析失败（例如方括号不闭合）返回 None。
+    """
+    hostport = hostport.strip()
+    if not hostport:
+        return None
+    if hostport.startswith("["):
+        end = hostport.find("]")
+        if end == -1:
+            return None
+        host = hostport[1:end].lower()
+        rest = hostport[end + 1 :]
+        if rest == "":
+            return host, None
+        if rest.startswith(":"):
+            return host, rest[1:]
+        return None
+    if hostport.count(":") == 1:
+        # 正好一个冒号：当成 "host:port"（IPv6 裸地址至少有两个冒号，不会走到这支）。
+        host, _, port = hostport.partition(":")
+        return host.lower(), port
+    return hostport.lower(), None
+
+
+def _origin_tuple(scheme: str, hostport: str) -> tuple[str, str, int] | None:
+    """算出 `(scheme, host, port)` 形式的"源"，缺端口时按 scheme 补默认端口，便于精确比较。"""
+    split = _split_hostport(hostport)
+    if split is None:
+        return None
+    host, port_str = split
+    if port_str:
+        try:
+            port = int(port_str)
+        except ValueError:
+            return None
+    else:
+        port = _DEFAULT_PORTS.get(scheme.lower())
+        if port is None:
+            return None
+    return scheme.lower(), host, port
+
+
+def _parse_origin_header(value: str) -> tuple[str, str, int] | None:
+    """解析形如 `http://127.0.0.1:8000` 的 Origin 头；解析不出来（例如 `null`）返回 None。"""
+    scheme, sep, rest = value.partition("://")
+    if not sep or not scheme:
+        return None
+    hostport = rest.split("/", 1)[0]
+    if not hostport:
+        return None
+    return _origin_tuple(scheme, hostport)
+
+
+def _forbidden(reason: str) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": reason})
+
+
+@app.middleware("http")
+async def anti_csrf(request: Request, call_next):
+    """挡跨站写请求（CSRF）和 DNS 重绑定，规则见 specs/002-guide-to-track/spec.md 的 B3 安全前提。
+
+    1. 所有请求：Host 头去掉端口后必须在 `_ALLOWED_HOSTS` 里，否则 403（防 DNS 重绑定——如果
+       攻击者让某个外部域名解析到 127.0.0.1，浏览器发过来的 Host 头会是那个外部域名，不在白名单
+       里，直接拒绝）。
+    2. 写请求（POST/PUT/PATCH/DELETE）：
+       - 带 Origin 头时，其 `scheme://host:port` 必须与"本次请求的 Host 头对应的源"完全一致
+         （正确处理默认端口：`http://127.0.0.1` 等价于 Host `127.0.0.1:80`；`localhost` 和
+         `127.0.0.1` 主机名不同，即使都指向本机也算跨源，不放行）。
+       - 带 Sec-Fetch-Site 头且值为 `cross-site` 或 `same-site` 时拒绝（`localhost:3000` 对
+         `localhost:8000` 主机名相同但端口不同，浏览器会标成 `same-site` 而不是 `same-origin`，
+         同样要拦）。
+       - 两个头都没有（curl、TestClient、本机其他进程发的请求）→ 放行，见上面的威胁模型说明。
+    3. GET / HEAD / OPTIONS 只做第 1 条。
+    """
+    host_header = request.headers.get("host", "")
+    split_host = _split_hostport(host_header)
+    if split_host is None or split_host[0] not in _ALLOWED_HOSTS:
+        return _forbidden(f"不接受这个 Host：{host_header!r}，可能是 DNS 重绑定攻击")
+
+    if request.method.upper() in _UNSAFE_METHODS:
+        origin = request.headers.get("origin")
+        if origin is not None:
+            expected = _origin_tuple(request.url.scheme, host_header)
+            got = _parse_origin_header(origin)
+            if got is None or got != expected:
+                return _forbidden(f"跨站请求被拒绝：Origin（{origin}）与当前站点不一致")
+
+        sec_fetch_site = request.headers.get("sec-fetch-site")
+        if sec_fetch_site in ("cross-site", "same-site"):
+            return _forbidden(f"跨站请求被拒绝：Sec-Fetch-Site 是 {sec_fetch_site}")
+
+    return await call_next(request)
 
 
 class MaterialView(BaseModel):
