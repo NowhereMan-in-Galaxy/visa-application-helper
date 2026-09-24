@@ -53,9 +53,11 @@ from core.models import (
 )
 from core.profile_storage import (
     ProfileFileError,
+    confirm_profile_none,
     load_personal_profile,
     save_personal_profile,
     save_profile_group,
+    unconfirm_profile_none,
 )
 from core.pdf_merge import UnsupportedPageFormatError, append_page
 from core.status import compute_status
@@ -437,6 +439,24 @@ def _validation_message(error: ValidationError) -> str:
         loc = ".".join(str(x) for x in err["loc"])
         parts.append(f"{loc}：{err['msg']}" if loc else err["msg"])
     return "填写有误——" + "；".join(parts)
+
+
+class ConfirmedNoneChange(BaseModel):
+    path: str  # 分组.字段，例如 identity.other_names
+    none: bool  # true：确认"没有"；false：撤销
+
+
+@app.put("/api/personal-profile/confirmed-none", response_model=PersonalProfile)
+def put_personal_profile_confirmed_none(body: ConfirmedNoneChange) -> PersonalProfile:
+    """网页上把一个空字段标成"确认没有"，或撤销。规则和 Agent 的 confirm_personal_profile_none 相同：
+    路径不存在、是非题、字段已有值 → 422，文件不变。见 specs/003-personal-profile。"""
+    root = get_materials_root()
+    if not body.none:
+        return unconfirm_profile_none(root, [body.path])[0]
+    try:
+        return confirm_profile_none(root, [body.path])[0]
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @app.put("/api/personal-profile/{group}", response_model=PersonalProfile)

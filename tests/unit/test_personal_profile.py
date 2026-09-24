@@ -375,6 +375,28 @@ def test_confirmed_none_pruned_when_field_gets_a_value(tmp_path):
     assert load_personal_profile(tmp_path).confirmed_none == []
 
 
+def test_confirmed_none_toggle_via_api(client):
+    c, root = client
+    _write(root, LEGACY_YAML)
+    r = c.put("/api/personal-profile/confirmed-none", json={"path": "travel.refusals", "none": True})
+    assert r.status_code == 200 and r.json()["confirmed_none"] == ["travel.refusals"]
+    r = c.put("/api/personal-profile/confirmed-none", json={"path": "travel.refusals", "none": False})
+    assert r.status_code == 200 and r.json()["confirmed_none"] == []
+    # 撤销一个本来就不在清单里的路径：不报错、不改文件
+    original = (root / PROFILE_FILENAME).read_text(encoding="utf-8")
+    assert c.put("/api/personal-profile/confirmed-none", json={"path": "travel.refusals", "none": False}).status_code == 200
+    assert (root / PROFILE_FILENAME).read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize("path", ["identity.nope", "family.other_relatives_in_us", "identity.native_full_name"])
+def test_confirmed_none_api_rejects_bad_bool_and_filled(client, path):
+    c, root = client
+    _write(root, LEGACY_YAML)
+    r = c.put("/api/personal-profile/confirmed-none", json={"path": path, "none": True})
+    assert r.status_code == 422
+    assert load_personal_profile(root).confirmed_none == []
+
+
 # ---------- 填表前查缺口 ----------
 
 
