@@ -1,7 +1,7 @@
 """把用户上传的材料文件保存到"材料根目录"（FR-012）。
 
-跟 storage.py 不是一回事：storage.py 读写的是 materials_index/（仓库追踪的元数据），
-这里写的是材料根目录（不进仓库，见 docs/SPEC-mvp.md 第 3 条），保存的是文件本身。
+跟 storage.py 不是一回事：storage.py 读写的是材料索引（每份材料的元数据 YAML），
+这里保存的是文件本身。两者都在材料根目录下，不进仓库（见 docs/SPEC-mvp.md 第 3 条）。
 """
 
 from __future__ import annotations

@@ -23,7 +23,7 @@ from core.windows import reminders as _reminders, window_view
 
 # 原始资料的时效日期距今超过这么多天，界面提示"可能过时"
 SOURCE_STALE_AFTER_DAYS = 365
-# materials_index/ 里以此开头的记录是虚构示例（见 README），不参与匹配
+# 以此开头的记录是虚构示例（格式示例见 docs/examples/material-index/），不参与匹配
 EXAMPLE_PREFIX = "example-"
 
 RequirementState = Literal["not_applicable", "undecided", "missing", "stale", "unconfirmed", "ready"]

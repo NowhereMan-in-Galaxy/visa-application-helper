@@ -1,7 +1,7 @@
 """读写 PersonalProfile（spec.md FR-011）。
 
-跟 materials_index/ 里的其它记录不一样：PersonalProfile 的实际内容是真实个人信息，
-必须存在"材料根目录"下（不被 git 追踪），不能进仓库。这里固定用一个约定路径
+跟材料索引（材料根目录/index/）里的记录不一样：PersonalProfile 也是真实个人信息、
+存在"材料根目录"下（不被 git 追踪），但它只有一份。这里固定用一个约定路径
 （materials_root/personal-profile.yaml），不需要像 MaterialRecord 那样走 file_ref 间接引用——
 它是申请人级别的单一文档，本来就不需要那套"多条记录、按 id 区分"的机制。
 
