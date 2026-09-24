@@ -61,7 +61,7 @@ types:
   - key: employment_letter
     name: 在职证明
     category: employment_doc
-    aliases: [在职证明, 工作证明, 单位证明, employment letter]
+    aliases: [在职证明, 工作证明, 单位证明, 就职证明, employment letter]
   - key: employer_business_license
     name: 雇主营业执照复印件
     category: employment_doc
@@ -87,11 +87,11 @@ types:
   - key: bank_statement
     name: 银行流水
     category: financial_snapshot
-    aliases: [银行流水, 流水, 银行对账单, 近半年银行流水, bank statement]
+    aliases: [银行流水, 流水, 银行对账单, 银行月结单, 近半年银行流水, bank statement]
   - key: salary_statement
     name: 工资流水
     category: financial_snapshot
-    aliases: [工资流水, 工资卡流水]
+    aliases: [工资流水, 工资卡流水, 工资单]
   - key: pension_statement
     name: 退休金流水
     category: financial_snapshot
@@ -99,7 +99,7 @@ types:
   - key: individual_tax_record
     name: 个人所得税纳税记录
     category: financial_snapshot
-    aliases: [个人所得税纳税记录, 个人所得税缴纳记录, 个税纳税记录, 个税缴纳记录, 完税证明, 纳税证明]
+    aliases: [个人所得税纳税记录, 个人所得税缴纳记录, 个税纳税记录, 个税缴纳记录, 完税证明, 纳税证明, 纳税单]
   - key: funding_declaration
     name: 资金来源声明
     category: financial_snapshot
