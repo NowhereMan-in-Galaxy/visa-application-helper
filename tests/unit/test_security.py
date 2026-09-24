@@ -131,3 +131,9 @@ def test_get_cross_site_origin_not_rejected_by_origin_rule(client):
     # GET 是安全方法，规则 2 不适用；带一个跨站 Origin 也应该正常返回。
     resp = client.get("/api/guides", headers={"Origin": "http://evil.example"})
     assert resp.status_code == 200
+
+
+def test_root_redirects_to_guide_library(client):
+    r = client.get("/", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/guides.html"
+    assert client.get("/index.html").status_code == 404  # 旧材料维护页已删除

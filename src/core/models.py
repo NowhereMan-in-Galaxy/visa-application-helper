@@ -23,7 +23,7 @@ class MaterialCategory(str, Enum):
     EMPLOYMENT_DOC = "employment_doc"
     ID_PHOTO = "id_photo"
     # specs/002：攻略里很多材料（保险、行程单、机酒预订单……）不属于上面四类，
-    # 在攻略页面上传时归到这里。旧的材料维护页不展示这一类，不影响原有功能。
+    # 在攻略页面上传时归到这里。（旧的材料维护页已删除。）
     OTHER = "other"
 
 
@@ -488,8 +488,8 @@ class PersonalProfile(_ProfilePart):
     这份数据本身就是"真实个人信息"，实际内容 MUST NOT 出现在 materials_index/（仓库会追踪
     的部分）——存储位置见 src/core/profile_storage.py 的说明。
 
-    travel_history 留在顶层（而不是挪进 travel 分组）：旧版材料维护页、工作台、「出行记录」
-    标签页都按 `profile.travel_history` 读它，挪位置会把这些页面全弄坏，得不偿失。
+    travel_history 留在顶层（而不是挪进 travel 分组）：「出行记录」标签页和出行记录接口
+    都按 `profile.travel_history` 读它，挪位置得不偿失。
     """
 
     schema_version: int = PROFILE_SCHEMA_VERSION

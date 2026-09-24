@@ -69,7 +69,7 @@ travel_history:
 - 新旧位置都有值时，**以新位置为准**（说明用户已经在新界面改过），旧值丢弃。
 - **下一次保存时才以新格式写回**（旧字段名从文件里消失，出现 `schema_version: 2`）。只读不写的话，磁盘上的旧文件保持原样。
 - Python 代码里 `profile.full_name` / `.date_of_birth` / `.nationality` / `.passport_number` 仍然可以读（只读属性，指向新位置），也可以用旧关键字构造 `PersonalProfile(full_name=...)`，所以已有调用方不用改。JSON / YAML 里不再出现这四个旧 key。
-- `travel_history` 的结构（`TravelHistoryEntry`）完全不变，旧版材料维护页、工作台、「出行记录」标签页都不受影响。
+- `travel_history` 的结构（`TravelHistoryEntry`）完全不变，「出行记录」标签页不受影响（旧版材料维护页和工作台已于 2026-09-24 删除）。
 - 以后再改结构时：把 `schema_version` 加一，在同一个 `model_validator` 里按版本号补迁移分支。
 
 ## 数据校验

@@ -77,7 +77,7 @@ PYTHONPATH=src uv run python -m core.guides          # 校验 community/ 下的�
 uv run uvicorn api.app:app --app-dir src --reload    # 启动本地服务
 ```
 
-启动之后浏览器打开 <http://127.0.0.1:8000/guides.html>：攻略库和"我正在办的事"。<http://127.0.0.1:8000> 是原来的材料维护页。
+启动之后浏览器打开 <http://127.0.0.1:8000>（会自动跳到攻略库 `/guides.html`）：攻略库和"我正在办的事"；「我的资料」在 `/my.html`。
 
 服务没有登录鉴权，只靠 Origin / Host 校验挡浏览器里的跨站请求（见 `specs/002-guide-to-track/spec.md` B3 安全前提），**不要用 `--host 0.0.0.0` 之类的参数把它暴露到局域网/公网**，否则同一网络里的其他设备也能直接读写你的材料数据。
 

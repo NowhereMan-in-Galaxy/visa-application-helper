@@ -14,6 +14,8 @@
 
 **已删除（2026-09-24）**：项目主决定删掉 `web/workbench.html` 和 `web/assets/workbench.js`，侧边栏去掉「04 旧版工作台」，旧材料页的横幅改为指回 `/guides.html`。它的功能已经被新页面覆盖：新建办事 → 攻略库「开始办」+ 个人调整；材料 → 「我的资料」。"工作笔记"（周报 / 简历素材）没有搬过去，仍按 BACKLOG 处理。删除前核对过，项目主浏览器里的 `pa-workbench-v1` 草稿是空的。下面几段关于 workbench 的描述只作为历史记录保留。
 
+**同日再次删除（2026-09-24）**：旧的材料维护页 `web/index.html` 及其 `app.js` / `style.css` 也删除，侧边栏去掉「03 旧版材料维护」，根地址 `/` 改为跳转到 `/guides.html`。它的功能已由「我的资料」（`/my.html`）覆盖：新增材料、上传文件、给 PDF 追加一页、维护出行记录。按"申请"查看材料清单的旧视图没有搬过去，已被「我的办事」（Track）取代；对应的 `/api/visa-applications` 接口暂时保留。现在前端只有 `guides.html`（攻略与办事）和 `my.html`（我的资料）两个页面。
+
 按"真实 / 草稿 / 未来"划清当前能力边界，避免把演示当成已实现：
 
 - **真实接通（只读展示）**：`GET /api/visa-applications`、`GET /api/visa-applications/{id}/materials`、`GET /api/materials`、`GET /api/personal-profile`（**只取 `travel_history`，不展示也不缓存证件号等其他字段**）。每路数据独立请求、独立错误处理，一个失败不影响其余内容；真实文本一律 `textContent` 写入防 XSS；`example-` 前缀的申请会标为"示例"。
