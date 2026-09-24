@@ -32,6 +32,20 @@ def test_id_format():
     assert_rejected(d, "只能包含小写字母", file_stem=None)
 
 
+@pytest.mark.parametrize(
+    "tags, fragment",
+    [(["美国", "美国"], "重复"), ([" 美国"], "空格"), (["这是一个特别特别长的标签名字"], "1–12"), (["签证"], "分类")],
+)
+def test_tags_rules(tags, fragment):
+    d = guide_dict(); d["tags"] = tags
+    assert_rejected(d, fragment)
+
+
+def test_tags_are_optional_and_accepted():
+    d = guide_dict(); d["tags"] = ["申根", "旅游"]
+    assert errors_for(d) == []
+
+
 def test_category_must_be_known():
     d = guide_dict(); d["category"] = "旅游"
     assert_rejected(d, "category")

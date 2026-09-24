@@ -613,6 +613,7 @@ class GuideSummary(BaseModel):
     file: str
     title: str | None
     category: str | None
+    tags: list[str] = []
     summary: str | None
     updated: date | None
     requirement_count: int
@@ -688,6 +689,7 @@ def _summarize(result: GuideLoadResult) -> GuideSummary:
         file=f"community/guides/{result.path.name}",
         title=g.title if g else None,
         category=g.category if g else None,
+        tags=g.tags if g else [],
         summary=g.summary if g else None,
         updated=g.updated if g else None,
         requirement_count=len(g.requirements) if g else 0,
