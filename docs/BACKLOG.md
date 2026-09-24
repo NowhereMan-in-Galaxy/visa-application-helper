@@ -13,3 +13,4 @@
   - **（仍是 backlog）托管式多租户服务**：打包成一个大家共用的托管服务/开放 API，一套后端服务多个用户。这会把项目性质从"个人工具"变成"要对他人敏感数据负责的产品"，涉及认证、数据隔离、隐私合规等全新的设计维度，当前不做。
 - **（已采纳，不再是 backlog）Track 模板 vs 实例**（2026-09-23）：已拆成共享的"流程攻略"（`community/guides/`）和个人的"我的办事"（材料根目录 `tracks/`），见 `specs/002-guide-to-track/spec.md`。
 - **PersonalProfile 字段扩展参考 visa-form-copilot**（2026-09-23）：[huaxialucaicaizi/visa-form-copilot](https://github.com/huaxialucaicaizi/visa-form-copilot) 的 `references/profile-schema.md` 给出了一份跨美签/英签/申根/澳签复用的申请人档案结构（身份、护照、联系方式、家庭、工作、教育、出行和签证历史、拒签记录等），其中"未知一律填 null，绝不当成否"的原则值得照搬。等做 MVP 第 2 项"表单代填"时再参考。注意：该仓库没有开源许可证，只借鉴思路，不复制内容。
+- **一段话生成基本信息**（2026-09-24，借鉴 auto-ds160-filler）：用户粘贴简历 / 自我介绍，Agent 提议要填的基本信息字段，逐条复述、用户同意后才写入。解决"第一次填基本信息太累"。属 Agent 层；写入仍走 `update_personal_profile` 的确认规则。未采纳。
