@@ -12,7 +12,7 @@ from datetime import date
 from enum import Enum
 from typing import Any, Literal, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class MaterialCategory(str, Enum):
@@ -503,6 +503,24 @@ class PersonalProfile(_ProfilePart):
     social_media: SocialMediaInfo = Field(default_factory=SocialMediaInfo)
     background: BackgroundInfo = Field(default_factory=BackgroundInfo)
     travel_history: list[TravelHistoryEntry] = Field(default_factory=list)
+    # 用户亲口确认"没有"的字段路径（例如 "identity.other_names"）。空值本身只表示"没填"，
+    # 进了这个清单才表示"确认没有"，填表 Agent 可以直接答 No。字段有值时保存会自动移出清单。
+    confirmed_none: list[str] = Field(default_factory=list)
+
+    @field_validator("confirmed_none")
+    @classmethod
+    def _check_confirmed_none(cls, paths: list[str]) -> list[str]:
+        out: list[str] = []
+        for path in paths:
+            group, _, key = path.partition(".")
+            if group not in PROFILE_GROUPS or key not in PROFILE_GROUPS[group][1].model_fields:
+                raise ValueError(f"confirmed_none 里的字段路径不存在：{path}")
+            annotation = _strip_optional(PROFILE_GROUPS[group][1].model_fields[key].annotation)
+            if annotation is bool:
+                raise ValueError(f"{path} 是是非题，直接写 false，不用放进 confirmed_none")
+            if path not in out:
+                out.append(path)
+        return out
 
     @model_validator(mode="before")
     @classmethod

@@ -273,7 +273,10 @@ def test_mcp_server_registers_read_and_single_write_tool_for_profile():
     src = Path(mcp_server.__file__).read_text(encoding="utf-8")
     assert "def get_personal_profile" in src
     # 写工具只有一个：只改指定字段的 update_personal_profile；没有整份覆盖或删除的工具
-    assert re.findall(r"def ((?:set|save|update|put|delete)_\w*profile\w*)", src) == ["update_personal_profile"]
+    assert re.findall(r"def ((?:set|save|update|put|delete|confirm)_\w*profile\w*)", src) == [
+        "update_personal_profile",
+        "confirm_personal_profile_none",
+    ]
 
 
 # ---------- MCP 写工具（填表时写回用户的回答） ----------
@@ -331,6 +334,45 @@ def test_update_fields_rejects_bad_input_without_touching_file(tmp_path, group, 
     with pytest.raises(ValueError):
         tools.update_personal_profile(group, changes, materials_root=tmp_path)
     assert (tmp_path / PROFILE_FILENAME).read_text(encoding="utf-8") == original
+
+
+# ---------- confirmed_none：用户确认"没有"的字段 ----------
+
+
+def test_confirm_none_records_paths_and_persists(tmp_path):
+    _write(tmp_path, LEGACY_YAML)
+    result = tools.confirm_personal_profile_none(
+        ["identity.other_names", "travel.refusals", "identity.other_names"], materials_root=tmp_path
+    )
+    assert result["added"] == ["identity.other_names", "travel.refusals"]
+    assert load_personal_profile(tmp_path).confirmed_none == ["identity.other_names", "travel.refusals"]
+    assert tools.get_personal_profile(materials_root=tmp_path)["profile"]["confirmed_none"] == [
+        "identity.other_names", "travel.refusals"]
+    # 再记一次不重复、不写文件
+    assert tools.confirm_personal_profile_none(["travel.refusals"], materials_root=tmp_path)["added"] == []
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [["identity.nope"], ["nope.other_names"], ["family.other_relatives_in_us"], ["identity.native_full_name"]],
+)
+def test_confirm_none_rejects_bad_paths_bool_fields_and_filled_fields(tmp_path, paths):
+    _write(tmp_path, LEGACY_YAML)  # native_full_name 已有值「张三」
+    original = (tmp_path / PROFILE_FILENAME).read_text(encoding="utf-8")
+    with pytest.raises(ValueError):
+        tools.confirm_personal_profile_none(paths, materials_root=tmp_path)
+    assert (tmp_path / PROFILE_FILENAME).read_text(encoding="utf-8") == original
+
+
+def test_confirmed_none_pruned_when_field_gets_a_value(tmp_path):
+    tools.confirm_personal_profile_none(["identity.other_names", "travel.refusals"], materials_root=tmp_path)
+    tools.update_personal_profile(
+        "identity", {"other_names": [{"surname": "ZHANG", "given_names": "XIAOSAN"}]}, materials_root=tmp_path
+    )
+    assert load_personal_profile(tmp_path).confirmed_none == ["travel.refusals"]
+    # 网页整组保存也会清理
+    save_profile_group(tmp_path, "travel", {"refusals": [{"country": "UNITED STATES", "explanation": "示例"}]})
+    assert load_personal_profile(tmp_path).confirmed_none == []
 
 
 def test_constructor_accepts_legacy_kwargs():

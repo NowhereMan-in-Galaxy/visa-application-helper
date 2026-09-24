@@ -103,7 +103,9 @@ def add_pitfall(track_id: str, text: str) -> dict:
         "只读：读取用户的「基本信息」（姓名拼音、护照、联系方式、家庭、教育、工作、旅行与签证历史、社交媒体等）"
         "和字段说明（中文标签、sensitive、对应 DS-160 哪一问）。用于辅助填写 DS-160 等表格。"
         "内容是真实个人信息：只在填表需要时使用，不要在对话里整段复述 sensitive 字段；"
-        "空值 / 空列表表示用户没填，不等于回答“否”，要先问用户。用户回答后可用 update_personal_profile 写回"
+        "空值 / 空列表表示用户没填，不等于回答“否”，要先问用户；profile.confirmed_none 里列出的字段路径"
+        "表示用户已确认“没有”，可以直接答 No。用户回答后用 update_personal_profile 写回值，"
+        "回答“没有”的用 confirm_personal_profile_none 记下"
     )
 )
 def get_personal_profile() -> dict:
@@ -123,6 +125,19 @@ def get_personal_profile() -> dict:
 )
 def update_personal_profile(group: str, changes: dict) -> dict:
     return tools.update_personal_profile(group, changes)
+
+
+@mcp.tool(
+    description=(
+        "把用户在填表时亲口确认“没有”的字段记进「基本信息」（例如没有曾用名 → [\"identity.other_names\"]），"
+        "下次填表不用再问。路径格式是 分组.字段（字段 key 见 get_personal_profile 的 fields）。"
+        "只用于列表字段和可空的文本/对象字段；是非题请用 update_personal_profile 直接写 false。"
+        "硬性规则同 update_personal_profile：只记用户亲口说的“没有”，记之前逐条复述并征得同意；"
+        "本次行程专属信息和 Security/Background 法律声明题不要记。字段以后被填上值时会自动移出清单"
+    )
+)
+def confirm_personal_profile_none(fields: list[str]) -> dict:
+    return tools.confirm_personal_profile_none(fields)
 
 
 def main() -> None:

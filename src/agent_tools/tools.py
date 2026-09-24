@@ -27,7 +27,7 @@ import config
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.models import describe_personal_profile
-from core.profile_storage import load_personal_profile, update_profile_fields
+from core.profile_storage import confirm_profile_none, load_personal_profile, update_profile_fields
 from core.storage import load_material_records
 import core.adjustments as adj
 from core.adjustments import AdjustmentError
@@ -458,3 +458,13 @@ def update_personal_profile(group: str, changes: dict, *, materials_root: Path |
     except ValidationError as e:
         raise ValueError(f"基本信息「{group}」写入失败，文件未改动：{e}") from e
     return {"group": group, "changed": changed}
+
+
+def confirm_personal_profile_none(fields: list[str], *, materials_root: Path | None = None) -> dict:
+    """把用户亲口确认"没有"的字段记进「基本信息」的 confirmed_none（例如 ["identity.other_names"]）。
+
+    只收列表字段和可空的文本/对象字段；是非题请用 update_personal_profile 直接写 false。
+    字段已经有值、路径不存在时抛 ValueError（中文消息），文件不变。返回 {"added": [...], "confirmed_none": [...]}。
+    """
+    profile, added = confirm_profile_none(_materials_root(materials_root), fields)
+    return {"added": added, "confirmed_none": profile.confirmed_none}

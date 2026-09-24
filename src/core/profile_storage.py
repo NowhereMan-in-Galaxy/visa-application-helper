@@ -66,6 +66,7 @@ def save_profile_group(materials_root: Path, group: str, value: BaseModel | dict
 
 
 def save_personal_profile(materials_root: Path, profile: PersonalProfile) -> None:
+    prune_confirmed_none(profile)
     materials_root.mkdir(parents=True, exist_ok=True)
     path = _profile_path(materials_root)
     with path.open("w", encoding="utf-8") as f:
@@ -115,3 +116,43 @@ def update_profile_fields(materials_root: Path, group: str, changes: dict) -> tu
         setattr(profile, group, part)
         save_personal_profile(materials_root, profile)
     return profile, changed
+
+
+def _is_empty(value) -> bool:
+    """None / 空串 / 空列表 / 所有子字段都空的对象，都算"没有值"。"""
+    if value in (None, "", []):
+        return True
+    if isinstance(value, dict):
+        return all(_is_empty(v) for v in value.values())
+    return False
+
+
+def _field_value(profile: PersonalProfile, path: str):
+    group, _, key = path.partition(".")
+    return getattr(profile, group).model_dump(mode="json")[key]
+
+
+def prune_confirmed_none(profile: PersonalProfile) -> None:
+    """已经有值的字段移出 confirmed_none，避免"清单说没有、实际又填了"的矛盾。"""
+    profile.confirmed_none = [p for p in profile.confirmed_none if _is_empty(_field_value(profile, p))]
+
+
+def confirm_profile_none(materials_root: Path, paths: list[str]) -> tuple[PersonalProfile, list[str]]:
+    """把用户确认"没有"的字段加进 confirmed_none，返回 (保存后的资料, 新加进去的路径)。
+
+    路径不存在、是是非题（应直接写 false）或该字段已经有值时抛 ValueError，文件不改动。
+    """
+    profile = load_personal_profile(materials_root)
+    try:
+        candidate = PersonalProfile.model_validate(
+            {**profile.model_dump(mode="json"), "confirmed_none": [*profile.confirmed_none, *paths]}
+        )
+    except ValidationError as e:
+        raise ValueError(str(e)) from e
+    filled = [p for p in paths if not _is_empty(_field_value(candidate, p))]
+    if filled:
+        raise ValueError(f"这些字段已经有值，不能标记为「没有」：{', '.join(filled)}")
+    added = [p for p in candidate.confirmed_none if p not in profile.confirmed_none]
+    if added:
+        save_personal_profile(materials_root, candidate)
+    return candidate, added
