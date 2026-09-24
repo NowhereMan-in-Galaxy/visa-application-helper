@@ -1,0 +1,179 @@
+/* 「02 我的资料」页面。基础框架（.app / aside / nav / .panel / .heading / .stats /
+   .chips / .chip / .state 等）来自 web/assets/guides.css，这里只补充这个页面自己的
+   紧凑表格行、需要处理面板、标签页导航，颜色继续用 guides.css 里定义的令牌。
+   （specs/002-guide-to-track/tasks-parallel-2.md 任务 E：重新排版） */
+
+/* 材料状态徽章：复用 .state 的形状，只补背景色，跟 guides.css 的 state-* 系列同一套逻辑 */
+.mstate-ok { background: var(--green-soft); }
+.mstate-missing { background: var(--red-soft); color: var(--danger); }
+.mstate-soon { background: var(--amber-soft); color: var(--amber); }
+.mstate-expired { background: var(--red-soft); color: var(--danger); }
+
+/* ---- 概览数字：四个可点击的小格子，点一下按该状态筛选下方列表，再点一次取消 ---- */
+.stats .stat {
+  display: block;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--paper-2);
+  padding: 8px 16px;
+  min-width: 100px;
+  box-shadow: none;
+}
+.stats .stat:hover { background: #f1f0e6; }
+.stats .stat[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.stats .stat.zero b,
+.stats .stat.zero span { color: var(--muted); opacity: .65; }
+.stats .stat.danger b { color: var(--danger); }
+.stats .stat[aria-pressed="true"].danger b { color: inherit; }
+
+/* ---- 需要处理：紧凑、醒目的待办面板 ---- */
+.panel.attention { border-color: var(--danger); }
+.panel.attention .panel-head { background: var(--red-soft); border-bottom-color: var(--danger); }
+.attention-list { padding: 4px 20px 12px; }
+.attention-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line-soft); flex-wrap: wrap; }
+.attention-row:last-child { border-bottom: 0; }
+.attention-name { font-weight: 600; }
+.attention-reason { font-size: 12px; color: var(--muted); flex: 1 1 160px; }
+.attention-row button { margin-left: auto; padding: 3px 12px; font-size: 12px; }
+
+/* ---- 标签页：材料库 / 出行记录 ---- */
+.tabs { display: flex; gap: 4px; margin: 8px 0 20px; border-bottom: 1px solid var(--line); }
+.tabs .tab { text-decoration: none; padding: 8px 16px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs .tab:hover { background: #f1f0e6; }
+.tabs .tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+
+/* ---- 工具栏：分类筛选 chip + 搜索框 ---- */
+.toolbar { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line-soft); }
+.toolbar .chips { margin: 0; }
+label.search { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-left: auto; }
+label.search input { padding: 6px 10px; border: 1px solid var(--line); background: #fffef9; font-size: 13px; min-width: 220px; }
+
+/* ---- 紧凑表格行：材料库 / 出行记录共用，一条记录一行，宽屏一行、窄屏两行堆叠 ---- */
+.mtable { display: flex; flex-direction: column; }
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+}
+.mrow:last-child { border-bottom: 0; }
+.mrow-head { font-size: 11px; letter-spacing: .5px; color: var(--muted); background: var(--side); text-transform: uppercase; }
+.mrow.travel-warn { background: var(--amber-soft); }
+
+.mrow-line1 { display: flex; align-items: center; gap: 8px; flex: 0 0 260px; min-width: 0; }
+.mrow-line1 .mat-name { font-weight: 600; overflow-wrap: anywhere; }
+.mrow-line1 .mat-name.warn { color: var(--amber); }
+.mrow-line1 .mat-sub { font-size: 12px; color: var(--muted); }
+
+.mrow-line2 { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.mrow-line2 .col-usage { overflow-wrap: anywhere; }
+.mrow-line2 .sep { opacity: .6; }
+.mrow-line2 .col-actions { margin-left: auto; display: flex; gap: 8px; }
+.mrow-line2 .col-actions button { padding: 3px 10px; font-size: 12px; }
+.mrow-head .mrow-line2 .col-actions { margin-left: auto; }
+
+/* 编辑 / 追加新页 / 新增出行记录：在对应行正下方展开的一整行 */
+.edit-row { padding: 12px 20px; background: #f1f0e6; border-bottom: 1px solid var(--line-soft); }
+
+form.edit-form,
+form.append-form {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+}
+form.edit-form label,
+form.append-form label { display: grid; gap: 4px; }
+form.edit-form input,
+form.append-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  font-size: 12px;
+}
+.form-actions { display: flex; gap: 8px; align-items: center; }
+.form-actions button { padding: 4px 12px; font-size: 12px; }
+
+form.travel-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+form.travel-form label { font-size: 13px; display: grid; gap: 4px; }
+form.travel-form input {
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+}
+
+@media (max-width: 650px) {
+  .mrow-head { display: none; }
+  .mrow { flex-direction: column; align-items: stretch; gap: 4px; }
+  .mrow-line1 { flex: none; }
+  .mrow-line2 { font-size: 12px; }
+  label.search { margin-left: 0; width: 100%; }
+  label.search input { flex: 1; min-width: 0; }
+}
+
+/* 办事专用的材料（折叠分组） */
+details.one-off { border-top: 1px solid var(--line); padding: 12px 20px; font-size: 13px; }
+details.one-off summary { cursor: pointer; color: var(--muted); }
+.one-off-group { margin-top: 12px; }
+.one-off-title { font-weight: 600; margin-bottom: 4px; }
+.one-off-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.one-off-row button { margin-left: auto; padding: 3px 10px; font-size: 12px; }
+
+/* ---- 基本信息（specs/003-personal-profile）：按分组折叠的表单，表单由 /api/personal-profile/fields 生成 ---- */
+.profile-intro { margin: 0 0 16px; font-size: 13px; max-width: 760px; }
+details.pgroup > summary { cursor: pointer; list-style: none; }
+details.pgroup > summary::-webkit-details-marker { display: none; }
+details.pgroup > summary h2::before { content: "▸"; display: inline-block; width: 1.2em; color: var(--muted); }
+details.pgroup[open] > summary h2::before { content: "▾"; }
+details.pgroup:not([open]) > summary { border-bottom: 0; }
+details.pgroup + details.pgroup { margin-top: 12px; }
+
+form.pf-form { padding: 16px 20px 18px; }
+.pf-note { margin: 0 0 12px; font-size: 12px; }
+.pf-grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-items: start; }
+.pf-grid > .wide, .pf-grid > .pf-object { grid-column: 1 / -1; }
+
+.pf-field { display: grid; gap: 4px; font-size: 13px; min-width: 0; }
+.pf-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
+.badge.sens { border-color: var(--amber); color: var(--amber); background: var(--amber-soft); }
+.pf-form input[type=text], .pf-form input[type=date], .pf-form select, .pf-form textarea {
+  width: 100%; min-width: 0; padding: 7px 8px; border: 1px solid var(--line); background: #fffef9;
+  font: inherit; font-size: 13px; color: inherit;
+}
+.pf-form textarea { resize: vertical; }
+
+fieldset.pf-object { border: 1px dashed var(--line); padding: 10px 14px 14px; margin: 0; min-width: 0; }
+fieldset.pf-object legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+
+.pf-list { border-top: 1px dashed var(--line-soft); padding-top: 10px; display: grid; gap: 8px; min-width: 0; }
+.pf-list-head { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.pf-list-head small { font-weight: 400; }
+.pf-item { border: 1px solid var(--line); background: #fbfaf4; padding: 10px 14px 14px; min-width: 0; }
+.pf-item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.pf-text-item { display: flex; gap: 8px; align-items: center; max-width: 480px; }
+.pf-text-item input { flex: 1; }
+button.pf-add { justify-self: start; padding: 4px 12px; font-size: 12px; border-style: dashed; }
+
+.pf-actions { margin-top: 16px; flex-wrap: wrap; }
+.pf-actions button.primary { padding: 6px 16px; font-size: 13px; }
+.pf-status { font-size: 12px; color: var(--green); }
+.pf-status.error { color: var(--danger); }
+
+@media (max-width: 650px) {
+  form.pf-form { padding: 12px 14px 14px; }
+  .pf-grid { grid-template-columns: 1fr; }
+  .pf-text-item { max-width: none; }
+  fieldset.pf-object, .pf-item { padding: 8px 10px 12px; }
+  .tabs { overflow-x: auto; }
+  .tabs .tab { padding: 8px 12px; white-space: nowrap; }
+}
+.pf-none { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--green); margin-top: 4px; }
+.pf-none-btn { font-size: 12px; margin-top: 4px; align-self: flex-start; }

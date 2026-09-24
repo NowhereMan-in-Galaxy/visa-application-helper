@@ -16,5 +16,22 @@ node_modules/
 .venv/
 config.yaml
 
-# spec-kit 的 Claude Code 集成目录，可能缓存凭证/私有产物（工具自身安装时提示）
-.claude/
+# spec-kit 的 Claude Code 集成目录，可能缓存凭证/私有产物（工具自身安装时提示）；
+# 但项目自带的 Agent 指令（skills）要跟着仓库走，所以只忽略 skills/ 以外的部分
+# （具体是 .claude/settings.local.json 这类本机私有配置）。
+.claude/*
+!.claude/skills/
+# spec-kit 安装时生成到 skills/ 里的命令属于工具产物，每个人装 spec-kit 时会自己生成，不进仓库
+.claude/skills/speckit-*/
+
+# 其他 AI 工具的本地记忆/产物目录：含个人称呼和本机路径，且只对那个工具有意义
+.workbuddy-ai/
+# 一次性原型、临时导出物，不属于项目源码
+outputs/
+
+# 个人材料的索引记录（类型、日期、文件路径）也属于个人信息：只在本机保留，不进仓库。
+# 以 example- 开头的是虚构示例，用来演示格式，继续跟着仓库走。
+materials_index/records/*
+!materials_index/records/example-*
+materials_index/applications/*
+!materials_index/applications/example-*

@@ -12,6 +12,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MATERIALS_INDEX_DIR = REPO_ROOT / "materials_index"
+# 共享区（specs/002）：大家共同维护的流程攻略和材料类型词表，跟着仓库走，不含个人信息，所以同样不需要配置。
+COMMUNITY_DIR = REPO_ROOT / "community"
 
 _CONFIG_FILE = REPO_ROOT / "config.yaml"
 _EXAMPLE_CONFIG_FILE = REPO_ROOT / "config.example.yaml"

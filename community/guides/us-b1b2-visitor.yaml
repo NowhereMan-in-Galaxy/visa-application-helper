@@ -1,0 +1,475 @@
+# 美国 B1/B2 商务/旅游签证（中国大陆护照，在美国驻华使领馆申请）流程攻略。
+# 整理自（试验 #5，2026-09-24）：全部来自美国签证信息服务中国网站（USTravelDocs，美国国务院授权的官方预约网站），
+#   用浏览器实际打开核实；travel.state.gov 当天对本机 IP 返回 Cloudflare 封禁页，没能读取。
+#   没有使用小红书等个人经验帖——官方页面没写的"经验"（如面签技巧、存款金额）一律不补。
+# evidence 只摘录不超过 60 字的原话；不含任何个人信息。
+
+id: us-b1b2-visitor
+title: 美国 B1/B2 商务/旅游签证（中国大陆申请）
+category: 签证
+tags: [美国, 商务, 旅游, 面签]
+summary: 短期商务（B-1）或旅游、探亲、就医（B-2）赴美：填 DS-160 → 在 USTravelDocs 缴费并预约面谈（续签符合条件可免面谈）→ 备齐材料去使领馆面谈 → 预约领取护照；拿到 10 年签证后按要求登记 EVUS。
+maintainers: []
+updated: 2026-09-24
+timeline: 官方页面没有给出整体准备周期；面谈后签证处理通常 3 个工作日；免面谈（续签）处理可能需要数周，期间不能取回护照。
+
+sources:
+  - id: g1
+    title: USTravelDocs 中国 · 商务/旅行签证 B-1/B-2
+    url: https://www.ustraveldocs.com/cn/zh/business-visa
+    as_of: 2026-09-24
+  - id: g2
+    title: USTravelDocs 中国 · 免面谈和续签
+    url: https://www.ustraveldocs.com/cn/zh/renew-visa
+    as_of: 2026-09-24
+  - id: g3
+    title: USTravelDocs 中国 · 完成您的申请表（含 DS-160 填写指南、照片和指纹）
+    url: https://www.ustraveldocs.com/cn/zh/step-2
+    as_of: 2026-09-24
+  - id: g4
+    title: USTravelDocs 中国 · 了解您的签证类型（含签证费）
+    url: https://www.ustraveldocs.com/cn/zh/step-1
+    as_of: 2026-09-24
+  - id: g5
+    title: USTravelDocs 中国 · 非移民签证首页（重要通知）
+    url: https://www.ustraveldocs.com/cn/zh/nonimmigrant-visa
+    as_of: 2026-09-24
+  - id: g6
+    title: USTravelDocs 中国 · 预约面谈时间
+    url: https://www.ustraveldocs.com/cn/zh/step-4
+    as_of: 2026-09-23
+  - id: g7
+    title: CEAC · 在线非移民签证申请（DS-160）
+    url: https://ceac.state.gov/GenNIV/Default.aspx
+    as_of: 2026-09-23
+
+phases:
+  - id: p-online
+    title: 填 DS-160、缴费、预约
+    mode: online
+    summary: 先在线填好并提交 DS-160，再到 USTravelDocs 建账户、缴签证费、预约面谈（符合条件的续签走免面谈）。
+    evidence: [{source: g3, quote: "在预约大使馆或总领事馆面谈之前，您首先须在线提交DS-160申请表。"}]
+  - id: p-materials
+    title: 准备材料
+    summary: 必带：护照、DS-160 确认页、面谈预约确认页；其余按身份和出行目的准备支持性文件，尽量带原件。
+    evidence: [{source: g1, quote: "如有可能，最好使用原件而不是影印件。"}]
+  - id: p-interview
+    title: 面谈或免面谈递交
+    mode: offline
+    summary: 需要面谈的按预约去使领馆；符合免面谈条件的，把材料递交到指定合作机构网点。
+    evidence: [{source: g2, quote: "请根据免面谈确认信上的指引，将材料递交至指定合作机构办公室。"}]
+  - id: p-after
+    title: 领取护照、登记 EVUS
+    summary: 收到可领取通知后预约领取护照；10 年 B 签证持有人要登记并定期更新 EVUS。
+    evidence: [{source: g5, quote: "只有在收到确认“您的文件已准备好可领取”的电子邮件通知后，方可进行预约。"}]
+
+facts:
+  purpose:
+    question: 这次去美国主要做什么？
+    options: [旅游观光, 商务活动, 探亲访友, 就医]
+  occupation:
+    question: 你目前的身份是？
+    options: [在职人员, 企业家或公司高管, 学生, 其他]
+  been_to_us:
+    question: 以前去过美国吗？
+    options: [是, 否]
+  waiver_eligible:
+    question: 是否符合免面谈续签条件？（续签完整有效期的 B 签证、原签证有效或过期不超过 12 个月、上次获签时已满 18 周岁、从未被拒签、原签证没有丢失被盗被撤销，都满足才选"是"）
+    options: [是, 否]
+
+requirements:
+  # ---- 必备材料 ----
+  - id: r-ds160
+    kind: output
+    material_type: null
+    raw_name: DS-160 确认页
+    note: 提交 DS-160 后生成，确认/条形码编号以 AA 开头；打印清楚带去面谈，编号必须和预约时用的一致
+    evidence:
+      - {source: g3, quote: "必须在线提交DS-160表并在去使领馆面谈的时候带好打印清楚的确认信。"}
+      - {source: g3, quote: "所有签证申请人必须携带包含确认/条形码编号（以 AA 开头）的 DS-160 签证申请表"}
+  - id: r-passport
+    kind: obtain
+    material_type: passport_full_copy
+    raw_name: 护照
+    note: 有效期需超出在美预定停留期至少六个月
+    evidence: [{source: g1, quote: "前往美国旅行的有效护照，有效期需超出在美预定停留期至少六个月"}]
+  - id: r-photo
+    kind: obtain
+    material_type: id_photo
+    raw_name: 签证照片
+    note: 最近六个月内拍摄，2×2 英寸（5.1×5.1 cm）白底彩照，不能戴眼镜；填 DS-160 时要上传电子版
+    evidence:
+      - {source: g1, quote: "一(1)张在最近六个月内拍摄的2英寸x2英寸（5.1厘米x5.1厘米）照片。"}
+      - {source: g3, quote: "填写DS-160表时需要上传一张最近六个月内的照片。"}
+  - id: r-appointment
+    kind: output
+    material_type: appointment_confirmation
+    raw_name: 面谈预约确认页
+    applies_if: [{fact: waiver_eligible, in: [否]}]
+    evidence: [{source: g3, quote: "DS-160确认页 面谈预约确认页"}]
+
+  # ---- 支持性文件（通用，签证官综合考量；有就带） ----
+  - id: r-income
+    kind: obtain
+    material_type: null
+    raw_name: 当前收入证明
+    optional: true
+    evidence: [{source: g1, quote: "当前收入证明、纳税单、房产证或企业产权证、资产证明。"}]
+  - id: r-tax
+    kind: obtain
+    material_type: null
+    raw_name: 纳税单
+    optional: true
+    evidence: [{source: g1, quote: "当前收入证明、纳税单、房产证或企业产权证、资产证明。"}]
+  - id: r-property
+    kind: obtain
+    material_type: property_certificate
+    raw_name: 房产证
+    optional: true
+    note: 原文是"房产证或企业产权证"
+    evidence: [{source: g1, quote: "当前收入证明、纳税单、房产证或企业产权证、资产证明。"}]
+  - id: r-assets
+    kind: obtain
+    material_type: null
+    raw_name: 资产证明
+    optional: true
+    evidence: [{source: g1, quote: "当前收入证明、纳税单、房产证或企业产权证、资产证明。"}]
+  - id: r-itinerary
+    kind: generate
+    material_type: itinerary
+    raw_name: 行程表
+    optional: true
+    note: 原文是"行程表和/或其他有关旅行计划的说明"
+    evidence: [{source: g1, quote: "行程表和/或其他有关旅行计划的说明。"}]
+  - id: r-employer-letter
+    kind: obtain
+    material_type: employment_letter
+    raw_name: 单位介绍信
+    optional: true
+    applies_if: [{fact: occupation, in: [在职人员, 企业家或公司高管]}]
+    note: 写明职位、工资、入职时间、是否获准休假，以及赴美商务活动的目的（如有）
+    evidence: [{source: g1, quote: "申请人所在单位的介绍信，详细说明申请人的职位、工资、入职时间、是否获准休假"}]
+  - id: r-court-record
+    kind: obtain
+    material_type: null
+    raw_name: 犯罪/法庭记录
+    optional: true
+    note: 只针对曾被逮捕或定罪的人；即使已服完刑期或被赦免也要带
+    evidence: [{source: g1, quote: "犯罪/法庭记录（无论在何地被捕或定罪，即使已服完刑期或被赦免也不例外）。"}]
+
+  # ---- 按身份 ----
+  - id: r-transcript
+    kind: obtain
+    material_type: transcript
+    raw_name: 成绩单
+    applies_if: [{fact: occupation, in: [学生]}]
+    evidence: [{source: g1, quote: "学生 请携带成绩单和学位证明/文凭，以及银行月结单、固定存款单等资金证明。"}]
+  - id: r-diploma
+    kind: obtain
+    material_type: null
+    raw_name: 学位证明/文凭
+    applies_if: [{fact: occupation, in: [学生]}]
+    evidence: [{source: g1, quote: "学生 请携带成绩单和学位证明/文凭，以及银行月结单、固定存款单等资金证明。"}]
+  - id: r-student-funds
+    kind: obtain
+    material_type: null
+    raw_name: 银行月结单
+    applies_if: [{fact: occupation, in: [学生]}]
+    note: 原文是"银行月结单、固定存款单等资金证明"
+    evidence: [{source: g1, quote: "学生 请携带成绩单和学位证明/文凭，以及银行月结单、固定存款单等资金证明。"}]
+  - id: r-employment-proof
+    kind: obtain
+    material_type: null
+    raw_name: 就职证明
+    applies_if: [{fact: occupation, in: [在职人员]}]
+    note: 由单位开具；和上面的"单位介绍信"可能是同一份，官方页面分两处写，建议一份写全
+    evidence: [{source: g1, quote: "在职人员 请携带单位开具的就职证明以及最近三个月的工资单。"}]
+  - id: r-payslips
+    kind: obtain
+    material_type: null
+    raw_name: 工资单
+    applies_if: [{fact: occupation, in: [在职人员]}]
+    note: 最近三个月的
+    evidence: [{source: g1, quote: "在职人员 请携带单位开具的就职证明以及最近三个月的工资单。"}]
+  - id: r-exec-proof
+    kind: obtain
+    material_type: null
+    raw_name: 所在公司的职位证明以及薪酬证明
+    applies_if: [{fact: occupation, in: [企业家或公司高管]}]
+    evidence: [{source: g1, quote: "企业家和公司高管 请携带所在公司的职位证明以及薪酬证明。"}]
+
+  # ---- 按出行目的 ----
+  - id: r-hukou
+    kind: obtain
+    material_type: household_register
+    raw_name: 户口本
+    applies_if: [{fact: purpose, in: [探亲访友]}]
+    note: 或其他能够证明真实亲属关系的文件
+    evidence: [{source: g1, quote: "户口本或其他能够证明真实亲属关系的文件"}]
+  - id: r-family-photos
+    kind: obtain
+    material_type: null
+    raw_name: 近年来与美国亲属的合影
+    optional: true
+    applies_if: [{fact: purpose, in: [探亲访友]}]
+    evidence: [{source: g1, quote: "近年来与美国亲属的合影"}]
+  - id: r-relative-status
+    kind: obtain
+    material_type: null
+    raw_name: 亲属的美国护照或绿卡复印件
+    applies_if: [{fact: purpose, in: [探亲访友]}]
+    note: 亲属在美属于短期停留的，提供其护照及美国签证复印件
+    evidence: [{source: g1, quote: "亲属的美国护照或绿卡复印件（如亲属在美属于短期停留，则应提供其护照及美国签证复印件）"}]
+  - id: r-medical-diagnosis
+    kind: obtain
+    material_type: null
+    raw_name: 中国本地医师的医疗诊断书
+    applies_if: [{fact: purpose, in: [就医]}]
+    note: 说明病情和赴美治疗的理由
+    evidence: [{source: g1, quote: "中国本地医师的医疗诊断书，说明申请人的病情和赴美治疗的理由。"}]
+  - id: r-us-doctor-letter
+    kind: obtain
+    material_type: null
+    raw_name: 美国医师或医疗机构出具的信函
+    applies_if: [{fact: purpose, in: [就医]}]
+    note: 表明愿意提供治疗，并详述预期疗程和全部治疗费用
+    evidence: [{source: g1, quote: "美国医师或医疗机构出具的信函，表明其愿意为申请人提供治疗服务并详述预期疗程和治疗费用"}]
+  - id: r-medical-funding
+    kind: obtain
+    material_type: null
+    raw_name: 支付担保人的资金证明
+    optional: true
+    applies_if: [{fact: purpose, in: [就医]}]
+    note: 由个人或组织支付旅费、治疗费和生活费时需要
+    evidence: [{source: g1, quote: "如果由个人或组织为申请人支付旅费、治疗费和生活费，则应出具相应的资金证明。"}]
+
+  # ---- 以前去过美国 / 续签 ----
+  - id: r-old-visas
+    kind: obtain
+    material_type: old_passport_copy
+    raw_name: 旧护照
+    applies_if: [{fact: been_to_us, in: [是]}]
+    note: 原文是"以前使用的所有美国签证（包括过期签证）"；免面谈续签要交附有美签的旧护照原件（非复印件）
+    evidence:
+      - {source: g1, quote: "特别是以前使用的所有美国签证（包括过期签证）。"}
+      - {source: g2, quote: "如续签，应提交附有美签的旧护照原件（非复印件）"}
+  - id: r-waiver-letter
+    kind: output
+    material_type: null
+    raw_name: 免面谈确认信
+    applies_if: [{fact: waiver_eligible, in: [是]}]
+    evidence: [{source: g2, quote: "打印免面谈确认信并准备DS-160 确认页，新旧护照、照片以及一封说明您的旅行目的和行程的信函。"}]
+  - id: r-purpose-letter
+    kind: generate
+    material_type: null
+    raw_name: 说明旅行目的和行程的信函
+    applies_if: [{fact: waiver_eligible, in: [是]}]
+    evidence: [{source: g2, quote: "以及一封说明您的旅行目的和行程的信函。"}]
+
+steps:
+  # ---- 填 DS-160、缴费、预约 ----
+  - id: s-photo
+    title: 拍签证照片（2×2 英寸白底彩照，保留电子版）
+    phase: p-online
+    where: 照相馆
+    requirements: [r-photo]
+    evidence: [{source: g3, quote: "填写DS-160表时需要上传一张最近六个月内的照片。"}]
+  - id: s-ds160
+    title: 在线填写并提交 DS-160，打印确认页
+    phase: p-online
+    where: CEAC 官网（美国国务院）
+    estimate: 超过 20 分钟不操作会被终止，先记下右上角的申请编号；除中文姓名（含中文电码）外都用英文作答；开头选的面谈使领馆必须和之后预约的一致；提交后不能再修改
+    requirements: [r-ds160]
+    depends_on: [s-photo]
+    links:
+      - title: DS-160 在线申请（CEAC）
+        kind: official
+        url: https://ceac.state.gov/GenNIV/Default.aspx
+        evidence: [{source: g7, quote: "https://ceac.state.gov/GenNIV/Default.aspx"}]
+        verified: 2026-09-23
+      - title: DS-160 填写指南与领区划分（USTravelDocs）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/step-2
+        evidence: [{source: g3, quote: "您在DS-160表格开头选择的面试大使馆/领事馆必须与您安排面试预约的大使馆/领事馆相同。"}]
+        verified: 2026-09-24
+    evidence:
+      - {source: g3, quote: "在填写申请表的过程中，如果未操作时长超过20分钟，申请流程将被终止。"}
+      - {source: g3, quote: "请注意：您必须填写中文全名及相对应的中文电报码。"}
+      - {source: g3, quote: "提交表格之后，将无法进行任何更改。"}
+  - id: s-pay
+    title: 在 USTravelDocs 建账户、缴签证费（B 类 185 美元）
+    phase: p-online
+    where: 美国签证信息服务中国网站（USTravelDocs）；网站禁止使用自动化工具，必须本人手动操作
+    estimate: 签证费不可退还、不可转让；账户要用以前没在该系统用过的邮箱
+    depends_on: [s-ds160]
+    links:
+      - title: 了解签证类型与签证费（USTravelDocs）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/step-1
+        evidence: [{source: g4, quote: "签证类型：B  签证费: $185 USD"}]
+        verified: 2026-09-24
+    evidence:
+      - {source: g4, quote: "签证类型：B  签证费: $185 USD"}
+      - {source: g3, quote: "重要提醒：领事费不可退还且不可转让。"}
+      - {source: g5, quote: "禁止在 USTravelDocs 系统中使用自动化工具、脚本、浏览器扩充功能或机器人（Bot）。"}
+  - id: s-book
+    title: 预约面谈时间，打印面谈预约确认页
+    phase: p-online
+    where: USTravelDocs 账户里"开始申请"；需要护照号和 DS-160 确认页上的 10 位条形码编号
+    estimate: 重新预约的次数有限
+    applies_if: [{fact: waiver_eligible, in: [否]}]
+    requirements: [r-appointment]
+    depends_on: [s-pay]
+    links:
+      - title: 预约面谈时间（USTravelDocs 中国）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/step-4
+        evidence: [{source: g6, quote: "您可以使用此网站 在线安排预约。"}]
+        verified: 2026-09-23
+    evidence:
+      - {source: g3, quote: "申请人 DS-160 确认页上的十 (10) 位条形码号码。"}
+      - {source: g3, quote: "申请人重新安排预约的次数有限"}
+  - id: s-waiver-apply
+    title: 在 USTravelDocs 回答免面谈资格问题，打印免面谈确认信
+    phase: p-online
+    where: USTravelDocs 账户；只能为本人申请，家属各自用自己的账户
+    applies_if: [{fact: waiver_eligible, in: [是]}]
+    requirements: [r-waiver-letter]
+    depends_on: [s-pay]
+    links:
+      - title: 免面谈和续签（USTravelDocs 中国）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/renew-visa
+        evidence: [{source: g2, quote: "续签具有完整有效期的 B-1、B-2或B-1/B-2签证，原签证仍有效或过期未超过12 个月"}]
+        verified: 2026-09-24
+    evidence:
+      - {source: g2, quote: "如果您已完整阅读并如实回答了免面谈页面的所有问题，且您符合通过免面谈申请签证的条件"}
+      - {source: g2, quote: "您只能为您本人提交免面谈申请，请勿在您的申请中添加任何家属。"}
+
+  # ---- 准备材料 ----
+  - id: s-ids
+    title: 准备护照（有效期超出停留期 6 个月）和含以往美签的旧护照
+    phase: p-materials
+    requirements: [r-passport, r-old-visas]
+    evidence: [{source: g1, quote: "前往美国旅行的有效护照，有效期需超出在美预定停留期至少六个月"}]
+  - id: s-employer-docs
+    title: 请单位开介绍信 / 就职证明，准备最近三个月工资单
+    phase: p-materials
+    where: 工作单位
+    applies_if: [{fact: occupation, in: [在职人员, 企业家或公司高管]}]
+    requirements: [r-employer-letter, r-employment-proof, r-payslips, r-exec-proof]
+    evidence: [{source: g1, quote: "在职人员 请携带单位开具的就职证明以及最近三个月的工资单。"}]
+  - id: s-student-docs
+    title: 准备成绩单、学位证明和资金证明
+    phase: p-materials
+    applies_if: [{fact: occupation, in: [学生]}]
+    requirements: [r-transcript, r-diploma, r-student-funds]
+    evidence: [{source: g1, quote: "学生 请携带成绩单和学位证明/文凭，以及银行月结单、固定存款单等资金证明。"}]
+  - id: s-finance
+    title: 整理收入证明、纳税单、房产证、资产证明
+    phase: p-materials
+    requirements: [r-income, r-tax, r-property, r-assets]
+    evidence: [{source: g1, quote: "当前收入证明、纳税单、房产证或企业产权证、资产证明。"}]
+  - id: s-itinerary
+    title: 写行程表 / 旅行计划说明
+    phase: p-materials
+    requirements: [r-itinerary]
+    evidence: [{source: g1, quote: "行程表和/或其他有关旅行计划的说明。"}]
+  - id: s-family-docs
+    title: 准备亲属关系证明、合影和亲属在美身份证明
+    phase: p-materials
+    applies_if: [{fact: purpose, in: [探亲访友]}]
+    requirements: [r-hukou, r-family-photos, r-relative-status]
+    evidence: [{source: g1, quote: "申请人应提供证据来证明自己与邀请人之间具有真实、未间断的亲属关系"}]
+  - id: s-medical-docs
+    title: 准备国内诊断书、美国医疗机构信函和费用担保证明
+    phase: p-materials
+    applies_if: [{fact: purpose, in: [就医]}]
+    requirements: [r-medical-diagnosis, r-us-doctor-letter, r-medical-funding]
+    evidence: [{source: g1, quote: "如果申请人希望赴美寻求医疗服务，除上述材料和签证官要求的材料外，还应准备下列文件"}]
+  - id: s-court-record
+    title: 曾被逮捕或定罪的，准备犯罪 / 法庭记录
+    phase: p-materials
+    requirements: [r-court-record]
+    evidence: [{source: g1, quote: "犯罪/法庭记录（无论在何地被捕或定罪，即使已服完刑期或被赦免也不例外）。"}]
+  - id: s-waiver-letter
+    title: 写一封说明旅行目的和行程的信
+    phase: p-materials
+    applies_if: [{fact: waiver_eligible, in: [是]}]
+    requirements: [r-purpose-letter]
+    evidence: [{source: g2, quote: "以及一封说明您的旅行目的和行程的信函。"}]
+
+  # ---- 面谈或免面谈递交 ----
+  - id: s-interview
+    title: 按预约时间带齐材料去使领馆面谈（材料密封带入）
+    phase: p-interview
+    where: DS-160 和预约时选的美国驻华使领馆（北京、上海、广州、沈阳、武汉，按户籍/居住地所属领区）
+    applies_if: [{fact: waiver_eligible, in: [否]}]
+    depends_on: [s-book, s-ids, s-employer-docs, s-student-docs, s-finance, s-itinerary, s-family-docs, s-medical-docs, s-court-record]
+    evidence:
+      - {source: g1, quote: "为保护个人隐私，申请人应将材料密封带入使/领事馆。"}
+      - {source: g3, quote: "您预约面谈的使馆/领事馆，必须与DS-160表格开头选择面谈地点的使馆/领事馆保持一致。"}
+  - id: s-waiver-submit
+    title: 按免面谈确认信的指引，把材料递交到合作机构网点
+    phase: p-interview
+    where: 免面谈确认信上指定的合作机构（中信）网点
+    estimate: 不是加急服务，处理可能需要数周；期间不能取回护照，有紧急出行需求不要走这条路
+    applies_if: [{fact: waiver_eligible, in: [是]}]
+    depends_on: [s-waiver-apply, s-ids, s-waiver-letter]
+    evidence:
+      - {source: g2, quote: "请根据免面谈确认信上的指引，将材料递交至指定合作机构办公室。"}
+      - {source: g2, quote: "处理时间可能需要数周。在申请期间，使用免面谈服务的申请人不得要求使用或借回其护照。"}
+
+  # ---- 领取护照、登记 EVUS ----
+  - id: s-pickup
+    title: 收到可领取通知后，网上预约并领取护照
+    phase: p-after
+    where: 所选的护照领取网点（北京、广州、上海、沈阳、武汉标准网点免费，需提前预约，9:00–13:00）
+    estimate: 护照自通知邮件发出起只保留 30 天；迟到超过 30 分钟预约失效
+    depends_on: [s-interview, s-waiver-submit]
+    links:
+      - title: 美国签证信息服务中国网站（领取护照预约说明）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/nonimmigrant-visa
+        evidence: [{source: g5, quote: "均须提前通过此网站 进行预约。"}]
+        verified: 2026-09-24
+    evidence:
+      - {source: g5, quote: "只有在收到确认“您的文件已准备好可领取”的电子邮件通知后，方可进行预约。"}
+      - {source: g5, quote: "请注意，护照自领取通知邮件发出之日起仅保留30天。"}
+  - id: s-evus
+    title: 拿到 10 年 B 签证后登记 EVUS，每两年或换新护照时更新
+    phase: p-after
+    depends_on: [s-pickup]
+    links:
+      - title: EVUS 官网
+        kind: official
+        url: https://www.evus.gov/
+        evidence: [{source: g1, quote: "EVUS网站现已在www.EVUS.gov 向公众开放注册。"}]
+        verified: 2026-09-23
+    evidence:
+      - {source: g1, quote: "需要每两年或在获取新护照时（无论哪种情况先发生），通过网站更新他们签证申请上的个人资料及其他信息。"}
+
+checks:
+  - id: c-consulate
+    text: DS-160 开头选的面谈使领馆和预约的使领馆是同一个，并且属于自己所在的领区
+    involves: [r-ds160, r-appointment]
+    evidence: [{source: g3, quote: "您预约面谈的使馆/领事馆，必须与DS-160表格开头选择面谈地点的使馆/领事馆保持一致。"}]
+  - id: c-barcode
+    text: 带去的 DS-160 确认页条形码编号和预约档案里的一致（改过 DS-160 要更新预约里的编号）
+    involves: [r-ds160, r-appointment]
+    evidence: [{source: g3, quote: "若您携带的DS-160确认页条形码与预约档案中的号码不符，将无法参加当天的签证面谈。"}]
+  - id: c-passport-validity
+    text: 护照有效期超出在美预定停留期至少六个月
+    involves: [r-passport]
+    evidence: [{source: g1, quote: "有效期需超出在美预定停留期至少六个月"}]
+  - id: c-no-false
+    text: 所有材料真实，DS-160 里的信息准确无误
+    involves: [r-ds160]
+    evidence: [{source: g1, quote: "注意：请勿使用虚假材料。欺骗或歪曲事实可能导致永久拒签。"}]
+
+conflicts: []
+
+uncertain:
+  - timeline                 # 官方页面没写整体要提前多久准备；面谈等待时间随使领馆变化，可在 USTravelDocs"预约面谈等待时间"查
+  - r-employment-proof       # 和 r-employer-letter 可能是同一份材料，官方页面分两处写
+  - s-waiver-submit.where    # "中信"网点来自首页通知里的收费说明，免面谈页本身只写"指定合作机构"

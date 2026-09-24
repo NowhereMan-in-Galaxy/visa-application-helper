@@ -1,0 +1,68 @@
+# 澳大利亚 600 访客签证：ImmiAccount 网申（流程级指南）。
+# 整理自小红书帖子「澳洲签证DIY下签🎉」（g1，亲身经历）和小红书 AI 搜索总结（g2，二手概括）。
+# 只摘录不超过 60 字的原话；字段级说明（21 页表格每一栏怎么填）待 Agent 实际走一遍官网后补充。
+
+id: immiaccount-600
+title: 澳洲 ImmiAccount 网申：600 访客签证（商务）
+level: procedure
+site:
+  name: ImmiAccount（澳洲内政部）
+  url: https://online.immi.gov.au/lusc/login
+summary: 所有步骤都在澳洲内政部官网完成：注册账号 → 新建 600 签证申请 → 全英文填表 → 上传材料 → 缴费。
+updated: 2026-09-23
+
+sources:
+  - id: g1
+    title: 小红书 · 澳洲签证DIY下签🎉（亲身经历）
+    url: https://www.xiaohongshu.com/explore/69a50340000000001a02331c
+    as_of: 2026-03-06
+  - id: g2
+    title: 小红书 AI 搜索总结（概括 27 篇帖子，二手资料）
+    as_of: 2026-09-23
+
+sections:
+  - title: 第一步：注册 ImmiAccount
+    items:
+      - 打开 ImmiAccount 官网，用邮箱注册账号并完成邮箱验证。
+      - 之后每次登录都要输入验证码，可以用 Authenticator 类的 App 生成。
+    evidence:
+      - {source: g1, quote: "创建一个 ImmiAccount 账号，需要邮箱验证，每次登录需要输入验证码"}
+  - title: 第二步：新建申请
+    items:
+      - 登录后点 New Application。
+      - 找到 Visitor Visa (600)，申请目的选 business（商务）。
+      - 签几年是签证官决定的，申请时不能自己选。
+    evidence:
+      - {source: g1, quote: "找到“Visitor Visa (600)”，并选择business目的"}
+      - {source: g1, quote: "不能选签多少年，是VO决定的"}
+  - title: 第三步：填表（约 21 页，全英文）
+    items:
+      - 按真实情况用英文填写全部页面。
+      - 有同行人时，在第一份申请问"有无同行人"时选有，创建一个 group；用同一个账号为同行人提交第二份申请，会自动关联到这个 group。
+    evidence:
+      - {source: g1, quote: "如实全英文填写21页材料后，提交证明材料"}
+      - {source: g1, quote: "创建一个group，第二份申请开始会自动关联group"}
+  - title: 第四步：上传证明材料
+    items:
+      - 用彩色扫描件，PDF 或 JPG 都可以。
+      - 文件名照抄系统给每一类材料起的名字。
+      - 每份材料的描述里，写上能说明自己没有逗留意图的话（例如家庭情况）。
+    tips:
+      - 原帖作者没有写 cover letter 也顺利下签。
+      - 单个文件建议小于 5M（这一条来自 AI 总结）。
+    evidence:
+      - {source: g1, quote: "文件名按系统自带的名字照抄，描述写自己无逗留意图的话"}
+      - {source: g1, quote: "没有写cover letter！"}
+      - {source: g2, quote: "建议PDF格式，单个文件小于5M"}
+  - title: 第五步：缴费并等待
+    items:
+      - 在线支付签证申请费（原帖作者付了 200 澳币，以官网当时价格为准）。
+      - 提交后等待审核，结果通过邮件通知，获批是电子签证。
+      - 第一次申请澳洲签证的人，可能会收到邮件通知去指定地点采集指纹和照片。
+    evidence:
+      - {source: g1, quote: "费用200澳币"}
+      - {source: g2, quote: "如果你是第一次申请澳洲签证，可能会收到邮件通知"}
+
+uncertain:
+  - 21 页表格每一栏的具体填法（待字段级指南）
+  - 签证费用以官网当时价格为准

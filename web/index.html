@@ -7,6 +7,11 @@
 <link rel="stylesheet" href="/assets/style.css" />
 </head>
 <body>
+  <a class="workbench-banner" href="/workbench.html">
+    <strong>试试新版「办事工作台」→</strong>
+    <span>攻略、工作笔记、通用办事集中在一个页面。这个旧页面继续保留，材料维护功能不受影响。</span>
+  </a>
+
   <header>
     <h1>材料资料库</h1>
   </header>
@@ -30,7 +35,7 @@
       </form>
     </section>
 
-    <main id="material-groups-personal"></main>
+    <main id="material-groups-personal" class="material-groups"></main>
   </section>
 
   <section class="tab-panel" data-tab-panel="task" hidden>
@@ -38,7 +43,7 @@
       <label for="application-select">签证申请：</label>
       <select id="application-select"></select>
     </div>
-    <main id="material-groups-task"></main>
+    <main id="material-groups-task" class="material-groups"></main>
     <p id="empty-state" hidden>这次申请下还没有材料记录——用下面的表单加一条，或者直接在 <code>materials_index/records/</code> 里加一个 YAML 文件。</p>
   </section>
 

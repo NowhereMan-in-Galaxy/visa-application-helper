@@ -1,0 +1,42 @@
+# 意大利申根短期签：VFS Global 填表 + 预约（流程级指南）。
+# 整理自 https://github.com/EndlessBlueWJL/schengen-visa-guide （MIT License，Copyright (c) 2025 EndlessBlueWJL），
+# 只摘录不超过 60 字的原话。原资料给的是上海领区的流程，其他领区可能不同。
+
+id: italy-vfs
+title: 意大利：VFS Global 填表 + 预约
+level: procedure
+site:
+  name: VFS Global 意大利签证中心
+  url: https://visa.vfsglobal.com/chn/zh/ita
+summary: 意大利分领区，按户籍或工作/学习常住地在对应领区递签。以下流程来自上海领区。
+updated: 2026-09-23
+
+sources:
+  - id: g1
+    title: schengen-visa-guide · 申根签申请国对比
+    url: https://github.com/EndlessBlueWJL/schengen-visa-guide/blob/master/references/country-notes.md
+    as_of: 2025-07-01
+
+sections:
+  - title: 先确认领区
+    items:
+      - 按户口所在地，或能提供当地居住证 / 在职证明 / 在读证明的城市，确定自己属于哪个领区。
+      - 必须在对应领区的签证中心递签；跨领区要带上述当地证明。
+    tips:
+      - 不确定属于哪个领区时，在 VFS 官网选城市时会自动提示。
+    evidence:
+      - {source: g1, quote: "跨领区递签需提供上述当地证明，否则签证中心可能拒收材料"}
+  - title: 填表并预约（上海领区）
+    items:
+      - 填完申请表，获取申请码并截图保存。
+      - 等系统发邮件，里面有系统派发的账号和密码。
+      - 等待系统审核通过。
+      - 审核通过后会再收到一封邮件通知缴费。
+      - 用系统派发的账号密码登录缴费。
+    evidence:
+      - {source: g1, quote: "填完申请表 → 获取申请码，截图保存"}
+      - {source: g1, quote: "用系统派发的账号密码登录缴费"}
+
+uncertain:
+  - 上海以外领区的流程
+  - 各页面的具体字段和填法（待字段级指南补充）

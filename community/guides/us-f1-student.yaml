@@ -1,0 +1,618 @@
+# 美国 F-1 学生签证（中国大陆护照，在美国驻华使领馆面签）流程攻略。
+# 整理自（试验 #4，见 specs/002-guide-to-track/trials/README.md）：
+#   g1 小红书笔记「LLM｜F-1美签材料checklist」——正文只有 3 个网址，24 项材料清单全在 5 张配图里（读图 OCR）；
+#      博主是法学硕士（LLM），部分条目按专业取舍。
+#   g2 小红书 AI 搜索总结——二手概括，可信度低一档；只有 g2 支持的条目列进 uncertain。
+#   g3–g9 美国官方网站（2026-09-23 用浏览器实际打开核实），用来核对费用、网址和 EVUS 适用范围。
+# evidence 只摘录不超过 60 字的原话；不含作者或任何人的个人信息（5 张配图都是清单文字，没有证件）。
+
+id: us-f1-student
+title: 美国 F-1 学生签证（中国大陆面签）
+category: 签证
+tags: [美国, 留学, 学生, 面签]
+summary: 已拿到美国学校 I-20 的学生，在美国驻华使领馆申请 F-1 学生签证：缴 SEVIS 费 → 填 DS-160 → 预约面签 → 备齐纸质材料去面谈 → 领护照、准备入境。
+maintainers: []
+updated: 2026-09-23
+timeline: 建议提前 3–6 个月开始准备；官网鼓励在预定出发日期前至少三个月申请，面谈后签证处理通常 3 个工作日；5–8 月是面签高峰，预约名额紧张。
+
+sources:
+  - id: g1
+    title: 小红书 · LLM｜F-1美签材料checklist（清单在配图里）
+    url: https://www.xiaohongshu.com/explore/6a2aec7c0000000016026282
+    as_of: 2026-06-12
+  - id: g2
+    title: 小红书 AI 搜索总结（二手资料）
+    as_of: 2026-09-23
+  - id: g3
+    title: SEVP I-901 SEVIS 缴费官网（FMJFEE.com，美国国土安全部）
+    url: https://www.fmjfee.com/i901fee/index.htm
+    as_of: 2026-09-23
+  - id: g4
+    title: ICE · I-901 SEVIS Fee（费用标准）
+    url: https://www.ice.gov/sevis/i901
+    as_of: 2026-09-23
+  - id: g5
+    title: CEAC · 在线非移民签证申请（DS-160）
+    url: https://ceac.state.gov/GenNIV/Default.aspx
+    as_of: 2026-09-23
+  - id: g6
+    title: 美国签证信息服务中国网站（USTravelDocs）· 非移民签证首页
+    url: https://www.ustraveldocs.com/cn/zh/nonimmigrant-visa
+    as_of: 2026-09-23
+  - id: g7
+    title: USTravelDocs · 缴纳签证申请费
+    url: https://www.ustraveldocs.com/cn/zh/step-3
+    as_of: 2026-09-23
+  - id: g8
+    title: USTravelDocs · 预约面谈时间
+    url: https://www.ustraveldocs.com/cn/zh/step-4
+    as_of: 2026-09-23
+  - id: g9
+    title: 美国驻华大使馆和领事馆 · Nonimmigrant Visas
+    url: https://china.usembassy-china.org.cn/visas/nonimmigrant-visas/
+    as_of: 2026-09-23
+
+phases:
+  - id: p-online
+    title: 缴费、填表、预约
+    mode: online
+    summary: 拿到 I-20 后，先缴 SEVIS I-901 费，再填 DS-160（要上传照片），拿到确认码后预约面签并付签证费。
+    evidence: [{source: g2, quote: "拿到学校的 I-20"}]
+  - id: p-materials
+    title: 准备纸质材料
+    summary: 按预约材料、学习能力、资金、约束力四类准备，全部打印成纸质版，分类装进透明文件袋。
+    evidence: [{source: g1, quote: "以下所有材料为纸质版 请分类整理后装进透明文件袋"}]
+  - id: p-interview
+    title: 使领馆面签
+    mode: offline
+    summary: 按预约时间带齐材料到使领馆：安检、录指纹、和签证官面谈。
+    evidence: [{source: g2, quote: "现场流程一般是安检、录入指纹，然后就是与签证官面谈。"}]
+  - id: p-after
+    title: 领护照、准备入境
+    summary: 预约领取护照；出发前办电话卡；首次入境随身带好关键材料。
+    evidence: [{source: g6, quote: "均须提前通过此网站 进行预约"}]
+
+facts:
+  graduated:
+    question: 面签时你已经从目前的学校毕业了吗？
+    options: [已毕业, 未毕业]
+  deposit_holder:
+    question: 存款证明开在谁名下？
+    options: [本人, 父母]
+  parents_employed:
+    question: 父母是否在职？
+    options: [是, 否]
+  married:
+    question: 是否已婚？
+    options: [是, 否]
+  collective_hukou:
+    question: 你的户口是学校集体户口吗？
+    options: [是, 否]
+  same_hukou:
+    question: 你和父母（已婚的话和爱人）在同一个户口本上吗？
+    options: [是, 否]
+    ask_if: [{fact: collective_hukou, in: [否]}]
+  tuition_paid:
+    question: 已经缴过学费了吗？
+    options: [是, 否]
+  first_entry:
+    question: 这是你第一次入境美国吗？
+    options: [是, 否]
+
+requirements:
+  # ---- Package 1 预约材料 ----
+  - id: r-passport
+    kind: obtain
+    material_type: passport_full_copy
+    raw_name: 护照
+    note: 有效期需超出在美预定停留期至少六个月；带原件
+    evidence:
+      - {source: g1, quote: "有效期需超出在美预定停留期至少六个月"}
+      - {source: g2, quote: "有效期6个月以上的护照原件。"}
+  - id: r-old-passport
+    kind: obtain
+    material_type: old_passport_copy
+    raw_name: 旧护照
+    optional: true
+    evidence: [{source: g1, quote: "如有旧护照请带上"}]
+  - id: r-i20
+    kind: obtain
+    material_type: null
+    raw_name: I-20 表
+    note: 学校寄发，共 3 页；先核对姓名、出生日期、国籍、所读项目，无误后在 Student Attestation 处签姓名拼音和日期；面签带原件
+    evidence:
+      - {source: g1, quote: "3 页纸，核实信息如姓名，出生日期，国籍，所读项目等是否有误"}
+      - {source: g2, quote: "I-20表格原件（需本人亲笔签字）。"}
+  - id: r-ds160
+    kind: output
+    material_type: null
+    raw_name: DS160 确认页
+    note: 提交 DS-160 后生成，确认码以 AA 开头；黑白或彩打均可
+    evidence:
+      - {source: g1, quote: "黑白或彩打均可"}
+      - {source: g2, quote: "提交后会生成一个AA开头的确认码，记得保存好"}
+  - id: r-sevis-receipt
+    kind: output
+    material_type: null
+    raw_name: SEVIS 收据
+    note: 缴完 I-901 费后在 fmjfee.com 打印缴费确认
+    evidence:
+      - {source: g1, quote: "缴纳 SEVIS I-901 费用 350 美金，信用卡支付，并打印收据。"}
+      - {source: g3, quote: "You will need proof of payment for your visa interview."}
+  - id: r-appointment
+    kind: output
+    material_type: appointment_confirmation
+    raw_name: 面谈预约单
+    note: 预约并付签证费后生成；黑白或彩打均可
+    evidence:
+      - {source: g1, quote: "预约单黑白/彩打均可。"}
+      - {source: g2, quote: "面签预约确认单（打印版）。"}
+  - id: r-photo
+    kind: obtain
+    material_type: id_photo
+    raw_name: 白底彩照
+    note: 51×51 mm，洗一张带去；保留电子版上传 DS-160，要求 240kb 以下；不可戴眼镜
+    evidence:
+      - {source: g1, quote: "51 x 51 mm，洗一张，并保留电子版（需要上传到 DS160），要求在 240kb 以下，不可戴眼镜。"}
+      - {source: g2, quote: "一张符合美签规格的51x51mm白底证件照。"}
+  - id: r-id-card
+    kind: obtain
+    material_type: national_id
+    raw_name: 身份证原件
+    note: g1 说北京、沈阳使馆要求带；g2 说进入领馆需要刷身份证（见冲突）
+    evidence:
+      - {source: g1, quote: "北京/沈阳使馆要求申请人携带身份证原件"}
+      - {source: g2, quote: "身份证原件（进入领馆需要刷身份证）。"}
+
+  # ---- Package 2 学习能力 + 学习动力 ----
+  - id: r-graduation-cert
+    kind: obtain
+    material_type: graduation_certificate
+    raw_name: 中英文毕业证
+    applies_if: [{fact: graduated, in: [已毕业]}]
+    note: 中英文，打印在官方抬头纸上
+    evidence: [{source: g1, quote: "针对毕业生 开具中英文毕业证和学位证"}]
+  - id: r-degree-cert
+    kind: obtain
+    material_type: degree_certificate
+    raw_name: 学位证
+    applies_if: [{fact: graduated, in: [已毕业]}]
+    note: 中英文，打印在官方抬头纸上
+    evidence: [{source: g1, quote: "针对毕业生 开具中英文毕业证和学位证"}]
+  - id: r-enrollment
+    kind: obtain
+    material_type: enrollment_certificate
+    raw_name: 中英文在读证明
+    applies_if: [{fact: graduated, in: [未毕业]}]
+    note: 打印在官方抬头纸上
+    evidence: [{source: g1, quote: "签证前未毕业 开具中英文在读证明&学籍证明"}]
+  - id: r-student-status
+    kind: obtain
+    material_type: chsi_status_report
+    raw_name: 学籍证明
+    applies_if: [{fact: graduated, in: [未毕业]}]
+    note: 中英文，打印在官方抬头纸上
+    evidence: [{source: g1, quote: "签证前未毕业 开具中英文在读证明&学籍证明"}]
+  - id: r-transcript
+    kind: obtain
+    material_type: transcript
+    raw_name: 成绩单
+    note: 最新的中英文对照版；有多段教育背景的每段都要带
+    evidence:
+      - {source: g1, quote: "最新 成绩单 中英文对照"}
+      - {source: g1, quote: "如果有多段教育背景 成绩单均需带上"}
+  - id: r-cv
+    kind: generate
+    material_type: null
+    raw_name: 个人简历 CV
+    note: 删除敏感信息；g2 提到 STEM 等敏感专业尤其要准备
+    evidence:
+      - {source: g1, quote: "删除敏感信息。"}
+      - {source: g2, quote: "准备好个人简历(CV)和研究计划(Study Plan)作为补充材料"}
+  - id: r-test-scores
+    kind: obtain
+    material_type: null
+    raw_name: 托福/IELTS/GRE/GMAT 成绩单
+    note: 在考试账户里下载成绩单；下载不了就在账户里截图打印
+    evidence:
+      - {source: g1, quote: "账户里下载成绩单"}
+      - {source: g1, quote: "如没有则账户里面截图打印。"}
+  - id: r-study-plan
+    kind: generate
+    material_type: null
+    raw_name: 学习计划 Study plan
+    optional: true
+    note: 按录取专业的通过难度自行取舍；g2 说 STEM 等敏感专业建议准备
+    evidence:
+      - {source: g1, quote: "可按录取专业的通过程度个人取舍"}
+      - {source: g2, quote: "准备好个人简历(CV)和研究计划(Study Plan)作为补充材料"}
+  - id: r-offer
+    kind: obtain
+    material_type: null
+    raw_name: 学校录取通知书
+    note: 学校提供的单子版 offer 打印即可
+    evidence:
+      - {source: g1, quote: "学校提供的单子版 offer 打印即可"}
+      - {source: g2, quote: "学校录取通知书(Offer)"}
+  - id: r-scholarship
+    kind: obtain
+    material_type: null
+    raw_name: 奖学金通知
+    optional: true
+    evidence: [{source: g1, quote: "如有奖学金，相关通知也可打印"}]
+  - id: r-program-intro
+    kind: obtain
+    material_type: null
+    raw_name: 研究生项目和课程介绍，导师介绍
+    optional: true
+    note: 原图标了"必须"，但又说可按专业取舍（博主的法学硕士不太需要）；硕士没有指定导师的，打印系主任 / advisor 的主页
+    evidence:
+      - {source: g1, quote: "13. 研究生项目和课程介绍，导师介绍（必须）"}
+      - {source: g1, quote: "可按录取专业的通过程度个人取舍（如博主 llm 专业不太需要）"}
+  - id: r-social-media-list
+    kind: generate
+    material_type: null
+    raw_name: 社交媒体清单
+    optional: true
+    note: DS-160 里社交媒体没写全时才需要
+    evidence: [{source: g1, quote: "如果社交媒体在 DS160 里没写全，可提供社交媒体清单"}]
+
+  # ---- Package 3 资金材料 ----
+  - id: r-deposit
+    kind: obtain
+    material_type: null
+    raw_name: 存款证明
+    note: 国有银行或跨国银行开具；学生或父母名下均可；必须是存款，不能是理财产品；一份纸质。确定申请 I-20 就可以去开，冻结到 7 月底。金额两份资料说法不同（见冲突），按项目要求
+    evidence:
+      - {source: g1, quote: "开具时间：确定学校准备申请 I20 就可以去开；解冻时间：7 月底"}
+      - {source: g1, quote: "存款类型：存款，不能是理财产品"}
+      - {source: g2, quote: "存款证明（建议覆盖第一年学费和生活费，约5-7万美元）"}
+  - id: r-funding-letter
+    kind: obtain
+    material_type: null
+    raw_name: 资金支持函
+    applies_if: [{fact: deposit_holder, in: [父母]}]
+    note: 需要父母签字
+    evidence: [{source: g1, quote: "如存款证明，在父母名下，则需要父母提供资金支持函，且需要父母签字"}]
+  - id: r-parents-income
+    kind: obtain
+    material_type: null
+    raw_name: 父母工作收入证明
+    applies_if: [{fact: parents_employed, in: [是]}]
+    note: 中英文、近三年收入，单位抬头信纸并盖章；已婚的也可以提供爱人的收入证明
+    evidence:
+      - {source: g1, quote: "中英文近三年父母的收入证明，单位抬头的信纸，盖章。（针对父母在职情况）"}
+      - {source: g2, quote: "父母在职证明和工资流水等"}
+  - id: r-parents-salary
+    kind: obtain
+    material_type: null
+    raw_name: 父母工资流水
+    optional: true
+    applies_if: [{fact: parents_employed, in: [是]}]
+    note: 只有 g2（AI 总结）提到
+    evidence: [{source: g2, quote: "父母在职证明和工资流水等"}]
+  - id: r-own-work-proof
+    kind: obtain
+    material_type: null
+    raw_name: 个人工作收入证明/实习证明
+    optional: true
+    applies_if: [{fact: graduated, in: [已毕业]}]
+    note: 在读学生不用准备；已毕业、有空档期的可以提供
+    evidence: [{source: g1, quote: "在读的学生不用准备。针对已经毕业，有空档期可以提供工作/实习证明。"}]
+  - id: r-other-assets
+    kind: obtain
+    material_type: null
+    raw_name: 其他资金材料证明（如存款资金，股票等）
+    optional: true
+    evidence: [{source: g1, quote: "19. 其他资金材料证明（如存款资金，股票等）"}]
+  - id: r-tuition-receipt
+    kind: obtain
+    material_type: null
+    raw_name: 缴纳学费证明
+    applies_if: [{fact: tuition_paid, in: [是]}]
+    evidence: [{source: g1, quote: "针对已经交过学费的申请人。"}]
+
+  # ---- Package 4 约束力 ----
+  - id: r-property
+    kind: obtain
+    material_type: property_certificate
+    raw_name: 房产证&车证
+    optional: true
+    note: 房产证 1–2 本就够，自己或父母名下均可；车证是绿色封皮的登记证，不是驾照。g2 把房产证列为辅助材料
+    evidence:
+      - {source: g1, quote: "房产证 1 到 2 本就可以，不需要太多，自己名下或者父母名下均可。"}
+      - {source: g1, quote: "注意：不是驾照。"}
+      - {source: g2, quote: "其他：房产证、户口本等能证明你与国内有紧密联系的资料。"}
+  - id: r-hukou
+    kind: obtain
+    material_type: household_register
+    raw_name: 户口本
+    applies_if: [{fact: collective_hukou, in: [否]}]
+    note: 用来证明和父母或爱人的关系；学校集体户口不需要开具
+    evidence: [{source: g1, quote: "需要家庭户口本证明和父母或者爱人的关系，如是学校集体户口，不需要开具"}]
+  - id: r-relationship-proof
+    kind: obtain
+    material_type: parents_relationship_docs
+    raw_name: 与父母关系、及其爱人关系的证明（出生证、结婚证等）
+    applies_if: [{fact: same_hukou, in: [否]}]
+    evidence: [{source: g1, quote: "如跟父母或者爱人不在一个户口本上，则可以用出生证，结婚证等"}]
+  - id: r-family-photo
+    kind: obtain
+    material_type: null
+    raw_name: 家庭照片
+    note: 全家福
+    evidence: [{source: g1, quote: "全家福，体现家庭温暖和谐"}]
+  - id: r-marriage
+    kind: obtain
+    material_type: marriage_certificate
+    raw_name: 结婚证
+    applies_if: [{fact: married, in: [是]}]
+    evidence: [{source: g1, quote: "针对申请人为已婚人士"}]
+
+steps:
+  # ---- 缴费、填表、预约 ----
+  - id: s-i20
+    title: 收到学校的 I-20，核对信息并签字
+    phase: p-online
+    requirements: [r-i20]
+    evidence:
+      - {source: g1, quote: "如无误在 I20 下方 Student Attestation 处签上姓名拼音和日期。"}
+      - {source: g2, quote: "拿到学校的 I-20"}
+  - id: s-sevis
+    title: 缴纳 SEVIS I-901 费（350 美元）并打印收据
+    phase: p-online
+    where: FMJFEE.com（美国国土安全部 SEVP 官网），信用卡支付
+    requirements: [r-sevis-receipt]
+    depends_on: [s-i20]
+    links:
+      - title: I-901 SEVIS 缴费官网
+        kind: official
+        url: https://www.fmjfee.com/i901fee/index.htm
+        evidence: [{source: g1, quote: "https://www.fmjfee.com/i901fee/index.html#"}]
+        verified: 2026-09-23
+      - title: ICE · I-901 费用标准
+        kind: official
+        url: https://www.ice.gov/sevis/i901
+        evidence: [{source: g4, quote: "I-901 SEVIS Fee F or M visa applicants (full payment) $350"}]
+        verified: 2026-09-23
+      - {title: F-1 签证缴费、填表、预约指南, kind: form_guide, form: us-f1-visa}
+    evidence:
+      - {source: g2, quote: "根据I-20上的SEVIS ID缴纳350美元的I-901费用，并保存好缴费收据"}
+      - {source: g7, quote: "对于持有I-20表的非移民学生，SEVIS费用为350美元。"}
+  - id: s-photo
+    title: 拍美签照片（51×51 mm，洗一张，留电子版）
+    phase: p-online
+    where: 照相馆
+    requirements: [r-photo]
+    evidence: [{source: g2, quote: "需要上传一张符合规格的白底证件照"}]
+  - id: s-ds160
+    title: 在线填写 DS-160，打印确认页
+    phase: p-online
+    where: CEAC 官网（美国国务院）
+    estimate: 官网说约 90 分钟；信息要和 I-20 完全一致
+    requirements: [r-ds160]
+    depends_on: [s-sevis, s-photo]
+    links:
+      - title: DS-160 在线申请（CEAC）
+        kind: official
+        url: https://ceac.state.gov/GenNIV/Default.aspx
+        evidence: [{source: g1, quote: "https://ceac.state.gov/GenNIV/Default.aspx"}]
+        verified: 2026-09-23
+      - {title: F-1 签证缴费、填表、预约指南, kind: form_guide, form: us-f1-visa}
+    evidence:
+      - {source: g2, quote: "填写时务必保证所有信息（如教育背景、旅行计划）与I-20完全一致"}
+      - {source: g5, quote: "It takes approximately 90 minutes to do this."}
+  - id: s-book
+    title: 预约面签并支付签证费（185 美元），打印预约单
+    phase: p-online
+    where: 美国签证信息服务中国网站（USTravelDocs）；可用支付宝支付
+    estimate: 5–8 月高峰期名额紧张，尽早预约；可重新预约的次数有限
+    requirements: [r-appointment]
+    depends_on: [s-ds160]
+    links:
+      - title: 预约面谈时间（USTravelDocs 中国）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/step-4
+        evidence:
+          - {source: g1, quote: "预约系统中需要支付 185 美金，支付宝即可支付。"}
+          - {source: g8, quote: "您可以使用此网站 在线安排预约。"}
+        verified: 2026-09-23
+      - title: 签证申请费和支付方式（USTravelDocs 中国）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/step-3
+        evidence: [{source: g7, quote: "$185B 商务/旅行C-1 过境D 船员/机组人员F 学生（学术性）"}]
+        verified: 2026-09-23
+      - {title: F-1 签证缴费、填表、预约指南, kind: form_guide, form: us-f1-visa}
+    evidence:
+      - {source: g2, quote: "拿到DS-160的AA码后，就可以去美国签证申请服务官网预约面签时间了。"}
+      - {source: g8, quote: "申请人允许重新预约的次数有限。"}
+
+  # ---- 准备纸质材料 ----
+  - id: s-ids
+    title: 准备护照、旧护照和身份证原件
+    phase: p-materials
+    requirements: [r-passport, r-old-passport, r-id-card]
+    evidence: [{source: g1, quote: "有效期需超出在美预定停留期至少六个月"}]
+  - id: s-school-docs
+    title: 找学校开中英文毕业证、学位证（或在读证明、学籍证明）和成绩单
+    phase: p-materials
+    where: 本科（或目前就读）学校
+    requirements: [r-graduation-cert, r-degree-cert, r-enrollment, r-student-status, r-transcript]
+    evidence: [{source: g1, quote: "打印在官方抬头纸上"}]
+  - id: s-test-scores
+    title: 从考试账户下载托福 / 雅思 / GRE / GMAT 成绩单
+    phase: p-materials
+    requirements: [r-test-scores]
+    evidence: [{source: g1, quote: "账户里下载成绩单"}]
+  - id: s-write
+    title: 写个人简历（删去敏感信息）和学习计划
+    phase: p-materials
+    requirements: [r-cv, r-study-plan]
+    evidence: [{source: g1, quote: "删除敏感信息。"}]
+  - id: s-offer-print
+    title: 打印录取通知书、奖学金通知、项目课程和导师介绍
+    phase: p-materials
+    requirements: [r-offer, r-scholarship, r-program-intro]
+    evidence: [{source: g1, quote: "学校提供的单子版 offer 打印即可"}]
+  - id: s-social-list
+    title: DS-160 没写全社交媒体的，整理一份社交媒体清单
+    phase: p-materials
+    requirements: [r-social-media-list]
+    depends_on: [s-ds160]
+    evidence: [{source: g1, quote: "如果社交媒体在 DS160 里没写全，可提供社交媒体清单"}]
+  - id: s-deposit
+    title: 去银行开存款证明（冻结到 7 月底）
+    phase: p-materials
+    where: 国有银行或跨国银行
+    estimate: 确定申请学校 I-20 时就可以去开
+    requirements: [r-deposit]
+    evidence: [{source: g1, quote: "银行：国有银行或跨国银行"}]
+  - id: s-funding-letter
+    title: 请父母写资金支持函并签字
+    phase: p-materials
+    applies_if: [{fact: deposit_holder, in: [父母]}]
+    requirements: [r-funding-letter]
+    evidence: [{source: g1, quote: "则需要父母提供资金支持函，且需要父母签字"}]
+  - id: s-parents-income
+    title: 请父母单位开中英文收入证明（近三年，抬头纸盖章）
+    phase: p-materials
+    where: 父母工作单位
+    applies_if: [{fact: parents_employed, in: [是]}]
+    requirements: [r-parents-income, r-parents-salary]
+    evidence: [{source: g1, quote: "中英文近三年父母的收入证明，单位抬头的信纸，盖章。（针对父母在职情况）"}]
+  - id: s-own-work
+    title: 开个人工作 / 实习证明
+    phase: p-materials
+    applies_if: [{fact: graduated, in: [已毕业]}]
+    requirements: [r-own-work-proof]
+    evidence: [{source: g1, quote: "针对已经毕业，有空档期可以提供工作/实习证明。"}]
+  - id: s-other-funds
+    title: 整理其他资金证明和学费缴纳证明
+    phase: p-materials
+    requirements: [r-other-assets, r-tuition-receipt]
+    evidence: [{source: g1, quote: "20. 缴纳学费证明"}]
+  - id: s-ties
+    title: 准备约束力材料：房产证 / 车证、户口本、关系证明、全家福、结婚证
+    phase: p-materials
+    requirements: [r-property, r-hukou, r-relationship-proof, r-family-photo, r-marriage]
+    evidence: [{source: g1, quote: "Package 4 约束力"}]
+  - id: s-social-public
+    title: 把 DS-160 里填的社交媒体账号设为公开
+    phase: p-materials
+    depends_on: [s-ds160]
+    evidence:
+      - {source: g2, quote: "务必在DS-160表格中填写的账号提前设置为公开状态。"}
+      - {source: g6, quote: "须将其所有社交媒体账户的隐私设置调整为“公开”或“开放”"}
+  - id: s-pack
+    title: 把全部材料打印成纸质版，分类装进透明文件袋
+    phase: p-materials
+    depends_on: [s-i20, s-sevis, s-ds160, s-book, s-ids, s-school-docs, s-test-scores, s-write, s-offer-print, s-social-list, s-deposit, s-funding-letter, s-parents-income, s-own-work, s-other-funds, s-ties]
+    evidence: [{source: g1, quote: "以下所有材料为纸质版 请分类整理后装进透明文件袋 在签证当天随身携带。"}]
+
+  # ---- 使领馆面签 ----
+  - id: s-interview
+    title: 按预约时间去使领馆面签：安检、录指纹、面谈
+    phase: p-interview
+    where: 预约的美国驻华使领馆（北京、上海、广州、沈阳、武汉）
+    estimate: 带 50 元现金，照片不合格要当场重拍；回答简洁真实、与 DS-160 一致
+    depends_on: [s-book, s-pack, s-social-public]
+    evidence:
+      - {source: g2, quote: "现场流程一般是安检、录入指纹，然后就是与签证官面谈。"}
+      - {source: g1, quote: "带 50 块现金（如照片不合格要当场重新照）"}
+
+  # ---- 领护照、准备入境 ----
+  - id: s-pickup
+    title: 收到可领取通知后，网上预约并领取护照
+    phase: p-after
+    where: 所选的护照领取网点（北京、广州、上海、沈阳、武汉标准网点免费领取需提前预约）
+    estimate: 官网说签证处理时间通常为 3 个工作日；护照自通知邮件发出起只保留 30 天
+    depends_on: [s-interview]
+    links:
+      - title: 美国签证信息服务中国网站（领取护照预约说明）
+        kind: official
+        url: https://www.ustraveldocs.com/cn/zh/nonimmigrant-visa
+        evidence: [{source: g6, quote: "均须提前通过此网站 进行预约"}]
+        verified: 2026-09-23
+    evidence:
+      - {source: g6, quote: "只有在收到确认“您的文件已准备好可领取”的电子邮件通知后，方可进行预约。"}
+      - {source: g8, quote: "尽管签证处理时间通常为3个工作日"}
+  - id: s-evus
+    title: 核实是否需要登记 EVUS（两份资料说法不同）
+    phase: p-after
+    depends_on: [s-pickup]
+    links:
+      - title: EVUS 官网
+        kind: official
+        url: https://www.evus.gov/
+        evidence: [{source: g9, quote: "B1/B2, B1, or B2 visas valid for 10 years must enroll in"}]
+        verified: 2026-09-23
+    evidence:
+      - {source: g2, quote: "更新你的个人信息，确保与DS-160表格信息一致。"}
+      - {source: g9, quote: "B1/B2, B1, or B2 visas valid for 10 years must enroll in"}
+  - id: s-phone-card
+    title: 在国内提前办好美国电话卡
+    phase: p-after
+    evidence: [{source: g2, quote: "建议在国内就提前办好美国本地电话卡"}]
+  - id: s-entry-docs
+    title: 首次入境：随身带 I-20 原件和财力证明、录取通知书等材料
+    phase: p-after
+    applies_if: [{fact: first_entry, in: [是]}]
+    requirements: [r-i20, r-deposit, r-offer]
+    depends_on: [s-pickup]
+    evidence: [{source: g2, quote: "建议随身携带I-20原件、财务证明、录取通知书等材料的复印件"}]
+
+checks:
+  - id: c-i20-info
+    text: I-20 上的姓名、出生日期、国籍、所读项目核对无误后再签字
+    involves: [r-i20]
+    evidence: [{source: g1, quote: "3 页纸，核实信息如姓名，出生日期，国籍，所读项目等是否有误"}]
+  - id: c-sevis-i20
+    text: SEVIS 缴费记录上的信息和 I-20 一致
+    involves: [r-sevis-receipt, r-i20]
+    evidence: [{source: g1, quote: "核对 sevis 上的信息和 i20 是否一致"}]
+  - id: c-ds160-i20
+    text: DS-160 里的所有信息（教育背景、旅行计划等）和 I-20 完全一致
+    involves: [r-ds160, r-i20]
+    evidence: [{source: g2, quote: "填写时务必保证所有信息（如教育背景、旅行计划）与I-20完全一致"}]
+  - id: c-answers-ds160
+    text: 面签时的回答和 DS-160 填的内容一致
+    involves: [r-ds160]
+    evidence: [{source: g2, quote: "所有回答必须与DS-160表格内容一致。"}]
+  - id: c-social-media
+    text: DS-160 里填写的社交媒体账号已设为公开；没写全的已另附社交媒体清单
+    involves: [r-ds160, r-social-media-list]
+    evidence:
+      - {source: g2, quote: "务必在DS-160表格中填写的账号提前设置为公开状态。"}
+      - {source: g1, quote: "如果社交媒体在 DS160 里没写全，可提供社交媒体清单"}
+  - id: c-deposit-type
+    text: 存款证明是定期 / 活期存款，不是理财产品；冻结期覆盖到 7 月底之后
+    involves: [r-deposit]
+    evidence: [{source: g1, quote: "存款类型：存款，不能是理财产品"}]
+
+conflicts:
+  - id: k-deposit-amount
+    about: r-deposit.note
+    claims:
+      - {source: g1, quote: "金额：90-100 万（按项目需要）"}
+      - {source: g2, quote: "建议覆盖第一年学费和生活费，约5-7万美元"}
+  - id: k-id-card
+    about: r-id-card
+    claims:
+      - {source: g1, quote: "北京/沈阳使馆要求申请人携带身份证原件"}
+      - {source: g2, quote: "身份证原件（进入领馆需要刷身份证）。"}
+  - id: k-evus
+    about: s-evus
+    claims:
+      - {source: g2, quote: "拿到签证后，在出发前务必登录 EVUS系统"}
+      - {source: g9, quote: "B1/B2, B1, or B2 visas valid for 10 years must enroll in"}
+
+uncertain:
+  - r-deposit.note            # 金额两份资料差很多，g1 是博主项目（法学硕士）的要求；以 I-20 上的资金要求为准
+  - r-id-card                 # 只在北京 / 沈阳要求，还是所有使领馆都要，说法不同
+  - r-program-intro.optional  # 原图既写"必须"又写"可按专业取舍"
+  - r-parents-salary          # 只有 g2（AI 总结）提到
+  - r-family-photo            # 只有 g1 一篇提到，没有说明是否必需
+  - s-evus                    # 官网说 EVUS 针对 10 年 B1/B2 签证，g2 说 F-1 也要更新
+  - s-phone-card              # 只有 g2 提到，属于生活建议
+  - s-entry-docs              # 只有 g2 提到；g2 原话说带"复印件"，但 I-20 要带原件
+  - s-book.links              # g1 给的旧预约网址（cgifederal.secure.force.com）已无法访问，已换成官网现在的预约说明页

@@ -112,9 +112,12 @@ function renderPersonalMaterials(materials) {
     heading.textContent = CATEGORY_LABELS[category] ?? category;
     section.appendChild(heading);
 
+    const grid = document.createElement("div");
+    grid.className = "material-card-grid";
     for (const material of byCategory.get(category)) {
-      section.appendChild(renderMaterialRow(material, loadPersonalMaterials));
+      grid.appendChild(renderMaterialCard(material, loadPersonalMaterials));
     }
+    section.appendChild(grid);
 
     section.appendChild(
       buildAddMaterialForm(category, "/api/materials", loadPersonalMaterials)
@@ -137,9 +140,12 @@ function renderTaskMaterials(materials) {
     section.appendChild(heading);
 
     const refreshTask = () => loadMaterialsFor(currentApplicationId);
+    const grid = document.createElement("div");
+    grid.className = "material-card-grid";
     for (const material of byCategory.get(category)) {
-      section.appendChild(renderMaterialRow(material, refreshTask));
+      grid.appendChild(renderMaterialCard(material, refreshTask));
     }
+    section.appendChild(grid);
 
     section.appendChild(
       buildAddMaterialForm(
@@ -197,59 +203,73 @@ function buildAppendPageForm(material, onAppended) {
   return form;
 }
 
-function renderMaterialRow(material, onChanged) {
-  const row = document.createElement("div");
-  row.className = "material-row";
+function renderMaterialCard(material, onChanged) {
+  const card = document.createElement("article");
+  card.className = "material-card";
+  card.classList.add(`status-${material.status}`); // 卡片左边条按状态上色（见 style.css）
+
+  // 第一行：材料名 + 状态徽章，左右分布
+  const top = document.createElement("div");
+  top.className = "material-card-top";
 
   const name = document.createElement("span");
   name.className = "material-name";
   name.textContent = material.type;
-  row.appendChild(name);
+  top.appendChild(name);
+
+  const badge = document.createElement("span");
+  badge.className = `status-badge status-${material.status}`;
+  badge.textContent = material.status;
+  top.appendChild(badge);
+
+  card.appendChild(top);
 
   if (material.sublabel) {
     const sublabel = document.createElement("span");
     sublabel.className = "material-sublabel";
     sublabel.textContent = material.sublabel;
-    row.appendChild(sublabel);
+    card.appendChild(sublabel);
   }
-
-  const badge = document.createElement("span");
-  badge.className = `status-badge status-${material.status}`;
-  badge.textContent = material.status;
-  row.appendChild(badge);
 
   const reminderText = formatUpdateReminder(material);
   if (reminderText) {
     const reminder = document.createElement("span");
     reminder.className = "update-reminder" + (material.update_overdue ? " overdue" : "");
     reminder.textContent = reminderText;
-    row.appendChild(reminder);
+    card.appendChild(reminder);
   }
 
   const fileRef = document.createElement("span");
-  fileRef.className = "file-ref";
+  fileRef.className = "material-card-file";
   fileRef.textContent = material.file_ref ? material.file_ref : "（还没有对应文件）";
-  row.appendChild(fileRef);
+  if (material.file_ref) {
+    fileRef.title = material.file_ref; // 卡片里文件名会被截断，悬停能看到完整路径
+  }
+  card.appendChild(fileRef);
 
   // 只有已经有 PDF 文件的记录才能"追加新页"——单页图片、还没上传文件的记录都不显示这个入口，
   // 后端 append-page 接口对这两种情况本来就会拒绝（见 src/api/app.py）。
   if (material.file_ref && material.file_ref.toLowerCase().endsWith(".pdf")) {
+    const actions = document.createElement("div");
+    actions.className = "material-card-actions";
+
     const appendButton = document.createElement("button");
     appendButton.type = "button";
     appendButton.className = "edit-link";
     appendButton.textContent = "+ 追加新页";
     appendButton.addEventListener("click", () => {
-      const existingForm = row.querySelector("form");
+      const existingForm = card.querySelector("form");
       if (existingForm) {
         existingForm.remove();
         return;
       }
-      row.appendChild(buildAppendPageForm(material, onChanged));
+      card.appendChild(buildAppendPageForm(material, onChanged));
     });
-    row.appendChild(appendButton);
+    actions.appendChild(appendButton);
+    card.appendChild(actions);
   }
 
-  return row;
+  return card;
 }
 
 async function loadMaterialsFor(applicationId) {
@@ -264,13 +284,6 @@ async function loadPersonalMaterials() {
 }
 
 // ---------- 个人信息 & 出行记录 ----------
-
-function describeTravelHistoryEntry(entry) {
-  const country = entry.country ?? "（国家待补充）";
-  const range = entry.exit_date ? `${entry.entry_date} ~ ${entry.exit_date}` : `${entry.entry_date} ~ 至今`;
-  const purpose = entry.purpose ? `（${entry.purpose}）` : "";
-  return `${country}：${range}${purpose}`;
-}
 
 function buildEditTravelHistoryForm(entry, originalIndex) {
   const fragment = editTravelHistoryTemplate.content.cloneNode(true);
@@ -329,9 +342,17 @@ function renderTravelHistory(profile) {
       li.classList.add("needs-country");
     }
 
-    const textSpan = document.createElement("span");
-    textSpan.textContent = describeTravelHistoryEntry(entry);
-    li.appendChild(textSpan);
+    // 卡片内容分两层：国家名当标题，日期和目的降为次要文字，不再挤成一行
+    const title = document.createElement("span");
+    title.className = "travel-title";
+    title.textContent = entry.country ?? "（国家待补充）";
+    li.appendChild(title);
+
+    const meta = document.createElement("span");
+    meta.className = "travel-meta";
+    const range = entry.exit_date ? `${entry.entry_date} ~ ${entry.exit_date}` : `${entry.entry_date} ~ 至今`;
+    meta.textContent = entry.purpose ? `${range} · ${entry.purpose}` : range;
+    li.appendChild(meta);
 
     const editButton = document.createElement("button");
     editButton.type = "button";
