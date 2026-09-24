@@ -89,7 +89,7 @@ def test_upload_composite_needs_part(isolated):
     assert c.post(url, files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 422
     v = c.post(url, data={"part": "passport_bio_page"}, files={"file": ("a.pdf", b"x", "application/pdf")}).json()
     r = next(q for q in v["requirements"] if q["id"] == "r-passport")
-    assert r["state"] == "missing" and {p["key"] for p in r["missing_parts"]} == {"passport_visa_page", "passport_stamped_pages"}
+    assert r["state"] == "missing" and [p["key"] for p in r["missing_parts"]] == ["passport_stamped_pages"]
 
 
 def test_export_endpoint(isolated):
@@ -159,14 +159,13 @@ def test_manual_pick_for_composite_and_learns_type(isolated):
     c, _, index = isolated
     _write_record(index, "bio", "护照个人信息页")
     _write_record(index, "scan", "护照扫描件（含签证页）")  # 词表认不出的叫法
-    _write_record(index, "stamps", "护照盖章页")
     tid = c.post("/api/tracks", json={"guide": "schengen-tourist"}).json()["id"]
     url = f"/api/tracks/{tid}/matches/r-passport"
     assert c.put(url, json={"confirmed": True, "records": ["bio"]}).status_code == 422  # 组合材料要每部分一条
-    v = c.put(url, json={"confirmed": True, "records": ["bio", "scan", "stamps"]}).json()
+    v = c.put(url, json={"confirmed": True, "records": ["bio", "scan"]}).json()
     assert next(r for r in v["requirements"] if r["id"] == "r-passport")["state"] == "ready"
     learned = yaml.safe_load((index / "records" / "scan.yaml").read_text(encoding="utf-8"))
-    assert learned["material_type"] == "passport_visa_page"  # 记住了，下次自动识别
+    assert learned["material_type"] == "passport_stamped_pages"  # 记住了，下次自动识别
     kept = yaml.safe_load((index / "records" / "bio.yaml").read_text(encoding="utf-8"))
     assert kept.get("material_type") is None  # 本来就认得的记录不改
 

@@ -27,19 +27,18 @@ types:
     name: 护照个人信息页
     category: passport_scan
     aliases: [护照个人信息页, 护照首页, 护照资料页, passport bio page]
-  - key: passport_visa_page
-    name: 护照签证页
-    category: passport_scan
-    aliases: [护照签证页, 签证页, visa page]
+  # 签证页和出入境盖章页算同一类：申请签证只看有签证、有出入境章的页，大家通常把它们扫在同一份文件里。
+  # （2026-09-24 合并：原来的 passport_visa_page「护照签证页」并进来，叫法都保留成别名。）
   - key: passport_stamped_pages
-    name: 护照盖章页（现护照）
+    name: 护照签证页和盖章页
     category: passport_scan
-    aliases: [护照盖章页, 护照盖章页（现护照）, 出入境盖章页]
+    aliases: [护照签证页, 签证页, visa page, 护照盖章页, 护照盖章页（现护照）, 出入境盖章页, 签证页和盖章页]
+  # 攻略里写"护照全部页复印件"，实际要的是个人信息页 + 有签证 / 出入境章的页，空白页不用复印。
   - key: passport_full_copy
-    name: 护照全部页复印件
+    name: 护照复印件（信息页和签证页）
     category: passport_scan
-    aliases: [护照复印件, 护照原件及复印件, 护照所有页复印件, 护照所有面]
-    parts: [passport_bio_page, passport_visa_page, passport_stamped_pages]
+    aliases: [护照复印件, 护照原件及复印件, 护照所有页复印件, 护照所有面, 护照全部页复印件]
+    parts: [passport_bio_page, passport_stamped_pages]
   - key: old_passport_copy
     name: 旧护照复印件
     category: passport_scan
