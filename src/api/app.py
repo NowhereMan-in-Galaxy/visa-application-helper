@@ -13,7 +13,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
@@ -1181,6 +1181,12 @@ def export_track_materials(track_id: str, payload: ExportRequest | None = None) 
     )
 
 
-# 前端静态页面：web/index.html 等。放在所有 /api/... 路由之后注册，
-# 这样 "/" 会命中静态文件，不会被误判成某个 API 路径。
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """根地址直接跳到攻略库（旧的材料维护页 index.html 已于 2026-09-24 删除）。"""
+    return RedirectResponse("/guides.html")
+
+
+# 前端静态页面：web/guides.html、web/my.html。放在所有 /api/... 路由之后注册，
+# 这样页面路径不会被误判成某个 API 路径。
 app.mount("/", StaticFiles(directory=REPO_ROOT / "web", html=True), name="web")
