@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: 已实现第一版（数据结构 + 接口 + 「我的资料 → 基本信息」页 + 只读 MCP 工具）
+**Status**: 已实现第一版（数据结构 + 接口 + 「我的资料 → 基本信息」页 + 只读 MCP 工具）；2026-09-24 加 MCP 写工具 `update_personal_profile`（见「MCP 工具」）
 
 **Input**: 项目主希望把"可以反复复用、但不是文件形式"的个人资料（姓名拼音、护照号、出生日期/地点、联系方式、住址、教育、工作、家庭成员、婚育、旅行史、以往签证/拒签、社交媒体……）做成结构化数据：在本地网页里填写，保存在本机材料根目录下（不进 git）。**将来另一个 Agent 会读取它辅助填写 DS-160 等官网表格**——填表不是本 spec 的范围，但数据结构要为它设计好。
 
@@ -418,8 +418,22 @@ travel_history:
 ## MCP 工具（给本地 Agent）
 
 - `get_personal_profile()`：**只读**。返回 `{"profile": <整份资料 JSON>, "fields": <同 /fields 的字段说明>}`。实现在 `src/agent_tools/tools.py`，注册在 `src/agent_tools/mcp_server.py`。
-- 工具描述里写明：内容是真实个人信息；不要在对话里整段复述 `sensitive` 字段；空值 ≠ "否"，要先问用户；没有写工具。
-- **不提供任何写工具**：个人资料只能由用户本人在网页上改，避免 Agent 把猜测写进去。
+- 工具描述里写明：内容是真实个人信息；不要在对话里整段复述 `sensitive` 字段；空值 ≠ "否"，要先问用户。
+- ~~**不提供任何写工具**：个人资料只能由用户本人在网页上改，避免 Agent 把猜测写进去。~~
+
+> **已替换（2026-09-24）**：填表改为"Agent 读基本信息直接填、缺了问用户"（`docs/SPEC-mvp.md` 第 1 条第 2 项）。用户在填表对话里回答的长期信息如果不能写回，下次换一张表还要再问一遍，所以加一个**受控的写工具**。原先担心的"Agent 把猜测写进去"由下面的规则约束。
+
+- `update_personal_profile(group, changes)`：只改一个分组里 `changes` 提到的字段，其他字段、其他分组、`travel_history` 不变。
+  - `group`：9 个分组 key 之一；其他值 → `ValueError`（中文消息）。
+  - `changes`：`{"字段 key": 值}`，格式和网页整组保存时一样（日期 `YYYY-MM-DD`、下拉存英文值）。**对象字段逐键合并**（例如 `{"father": {"date_of_birth": "1970-01-01"}}` 只补父亲的出生日期）；**列表字段整体替换**（要发完整列表，因为条目没有稳定 id）。
+  - 字段名拼错、值不合法 → `ValueError`，文件不改动（和接口的 422 同一套校验）。
+  - 返回 `{"group": ..., "changed": [{"field", "before", "after"}]}`，只列顶层字段；值没变时 `changed` 为空、不写文件。
+  - 核心逻辑在 `core.profile_storage.update_profile_fields`，工具在 `src/agent_tools/tools.py`，注册在 `mcp_server.py`。
+- 工具描述里的硬性规则（没办法用代码强制，靠描述约束 Agent）：
+  1. 只写用户在对话里**亲口回答**的内容，不写推测的、从网页或材料里猜出来的值；
+  2. 写之前把要写的字段和值**逐条复述**给用户，用户明确同意后才调用；
+  3. 本次行程专属信息（见"不收什么"）和 Security/Background 法律声明题**不写进来**。
+- 仍然**没有**整份覆盖、删除资料的工具。
 
 ## 界面：「我的资料 → 基本信息」
 
@@ -444,7 +458,8 @@ travel_history:
 8. `PUT /api/personal-profile/travel_history` 和 `PUT /api/personal-profile/nope` 返回 404。
 9. `GET /api/personal-profile/fields` 返回 9 个分组，顺序为 `identity, passport, contact, family, education, employment, travel, social_media, background`；每个字段都有含中文的 `label`。
 10. 代码中每个字段 key（含条目和子对象里的）都以反引号形式出现在本文档中（测试 `test_every_field_key_is_documented_in_spec`）。
-11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里没有名字形如 `set_/save_/update_/put_…profile` 的工具。
+11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里名字形如 `set_/save_/update_/put_/delete_…profile…` 的工具**只有** `update_personal_profile`（2026-09-24 修改，原为"一个都没有"）。
+11a. `update_personal_profile`：只改给定字段、对象逐键合并、列表整体替换、值不变不写文件、非法分组/字段/日期抛 `ValueError` 且文件不变（`tests/unit/test_personal_profile.py` 里 `test_update_fields_*`）。
 12. 浏览器打开 `/my.html#profile`：能看到 9 个分组面板；在「教育经历」里点「＋ 添加一条」会多出一个空条目卡片，点「删除这条」会移除；点「保存」后出现「已保存」字样；刷新页面后已保存的值仍在。
 13. `grep -nE "\.innerHTML|alert\(|confirm\(" web/assets/my.js` 没有输出。
 14. 仓库里（含本文档、测试、提交信息）不出现任何真实姓名、证件号、电话、地址、学校、单位；示例一律为虚构值。
@@ -455,4 +470,4 @@ travel_history:
 - **家庭成员的其他资料**：申根 / 英签常要父母职业、联系方式、子女是否同行等；目前父母只收 DS-160 问到的字段，等接入第二种表格时再扩展。
 - **跨字段校验**（日期先后、护照是否快过期提醒）。
 - **从现有文件导入**（例如从旧的 DS-160 打印页 PDF 自动抽取填入）：需要 OCR/解析，属于 Agent 层，另开 spec。
-- **填表 Agent** 本身：读 `get_personal_profile()` → 按 `ds160` 提示映射 → 本次行程信息从 Track 或对话获得 → Security 页交给用户。另开 spec。
+- **填表 Agent** 本身：读 `get_personal_profile()` → 按 `ds160` 提示映射 → 本次行程信息从 Track 或对话获得 → Security 页交给用户；缺的长期信息问用户后用 `update_personal_profile` 写回。2026-09-24 起按 `docs/ROADMAP.md` 第 4 项以 DS-160 试验。

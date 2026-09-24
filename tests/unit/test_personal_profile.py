@@ -267,13 +267,70 @@ def test_mcp_get_personal_profile_returns_profile_and_fields(tmp_path, monkeypat
     assert number["sensitive"] is True and "Passport" in number["ds160"]
 
 
-def test_mcp_server_registers_only_read_tool_for_profile():
+def test_mcp_server_registers_read_and_single_write_tool_for_profile():
     from agent_tools import mcp_server
 
     src = Path(mcp_server.__file__).read_text(encoding="utf-8")
     assert "def get_personal_profile" in src
-    assert not re.search(r"def (set|save|update|put)_personal_profile", src)
-    assert not re.search(r"def (set|save|update)_profile", src)
+    # 写工具只有一个：只改指定字段的 update_personal_profile；没有整份覆盖或删除的工具
+    assert re.findall(r"def ((?:set|save|update|put|delete)_\w*profile\w*)", src) == ["update_personal_profile"]
+
+
+# ---------- MCP 写工具（填表时写回用户的回答） ----------
+
+
+def test_update_fields_changes_only_given_keys(tmp_path):
+    _write(tmp_path, LEGACY_YAML)
+    save_profile_group(tmp_path, "contact", {"email": "zhangsan@example.com"})
+    result = tools.update_personal_profile(
+        "contact", {"primary_phone": "13800000000"}, materials_root=tmp_path
+    )
+    assert result == {
+        "group": "contact",
+        "changed": [{"field": "primary_phone", "before": None, "after": "13800000000"}],
+    }
+    p = load_personal_profile(tmp_path)
+    assert p.contact.email == "zhangsan@example.com"
+    assert p.contact.primary_phone == "13800000000"
+    assert p.identity.native_full_name == "张三" and len(p.travel_history) == 1
+
+
+def test_update_fields_merges_objects_and_replaces_lists(tmp_path):
+    save_profile_group(tmp_path, "family", {"father": {"surname": "ZHANG", "given_names": "DA"}})
+    tools.update_personal_profile("family", {"father": {"date_of_birth": "1970-01-01"}}, materials_root=tmp_path)
+    father = load_personal_profile(tmp_path).family.father
+    assert (father.surname, father.given_names, father.date_of_birth) == ("ZHANG", "DA", date(1970, 1, 1))
+
+    tools.update_personal_profile("social_media", {"accounts": [{"platform": "WeChat", "identifier": "zhangsan"}]}, materials_root=tmp_path)
+    tools.update_personal_profile("social_media", {"accounts": [{"platform": "Weibo", "identifier": "zs"}]}, materials_root=tmp_path)
+    accounts = load_personal_profile(tmp_path).social_media.accounts
+    assert [a.platform for a in accounts] == ["Weibo"]
+
+
+def test_update_fields_same_value_does_not_write(tmp_path):
+    save_profile_group(tmp_path, "contact", {"email": "zhangsan@example.com"})
+    path = tmp_path / PROFILE_FILENAME
+    before = path.stat().st_mtime_ns
+    result = tools.update_personal_profile("contact", {"email": "zhangsan@example.com"}, materials_root=tmp_path)
+    assert result["changed"] == []
+    assert path.stat().st_mtime_ns == before
+
+
+@pytest.mark.parametrize(
+    "group, changes",
+    [
+        ("nope", {"email": "a@example.com"}),
+        ("contact", {"emial": "a@example.com"}),
+        ("identity", {"date_of_birth": "2000-13-01"}),
+        ("family", {"father": {"nickname": "x"}}),
+    ],
+)
+def test_update_fields_rejects_bad_input_without_touching_file(tmp_path, group, changes):
+    _write(tmp_path, LEGACY_YAML)
+    original = (tmp_path / PROFILE_FILENAME).read_text(encoding="utf-8")
+    with pytest.raises(ValueError):
+        tools.update_personal_profile(group, changes, materials_root=tmp_path)
+    assert (tmp_path / PROFILE_FILENAME).read_text(encoding="utf-8") == original
 
 
 def test_constructor_accepts_legacy_kwargs():

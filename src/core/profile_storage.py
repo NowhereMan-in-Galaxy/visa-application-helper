@@ -75,3 +75,43 @@ def save_personal_profile(materials_root: Path, profile: PersonalProfile) -> Non
             allow_unicode=True,
             sort_keys=False,
         )
+
+
+def _merge(current, new):
+    """对象（dict）逐键合并；列表和普通值整体替换。
+
+    这样 Agent 只补一个字段（例如 family.father.surname）时，不会把父亲的其他字段冲掉；
+    列表（学校、工作经历……）没有稳定的 id，只能整体替换，调用方要把整个列表发回来。
+    """
+    if isinstance(current, dict) and isinstance(new, dict):
+        merged = dict(current)
+        for k, v in new.items():
+            merged[k] = _merge(current.get(k), v)
+        return merged
+    return new
+
+
+def update_profile_fields(materials_root: Path, group: str, changes: dict) -> tuple[PersonalProfile, list[dict]]:
+    """只改一个分组里的指定字段（给填表 Agent 写回用户的回答，specs/003「MCP 工具」）。
+
+    和 save_profile_group 的区别：save_profile_group 要整组发送（网页用），这里只发要改的字段，
+    没提到的字段保持原样。返回 (保存后的资料, 变化列表 [{field, before, after}])；
+    值没有变化时不写文件，变化列表为空。
+    分组名不对抛 KeyError；字段名不对、值不合法抛 pydantic ValidationError（文件不会被改动）。
+    """
+    if group not in PROFILE_GROUPS:
+        raise KeyError(group)
+    _, model = PROFILE_GROUPS[group]
+    profile = load_personal_profile(materials_root)
+    before = getattr(profile, group).model_dump(mode="json")
+    part = model.model_validate(_merge(before, changes))
+    after = part.model_dump(mode="json")
+    changed = [
+        {"field": k, "before": before[k], "after": after[k]}
+        for k in changes
+        if before[k] != after[k]
+    ]
+    if changed:
+        setattr(profile, group, part)
+        save_personal_profile(materials_root, profile)
+    return profile, changed
