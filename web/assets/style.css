@@ -365,8 +365,8 @@ select {
   color: #fff;
 }
 
-/* 新版办事工作台入口横幅（保留旧页面，仅新增一个醒目链接） */
-.workbench-banner {
+/* 回到新版页面的入口横幅 */
+.new-ui-banner {
   display: block;
   margin: 0 0 1rem;
   padding: 0.85rem 1.1rem;
@@ -377,19 +377,19 @@ select {
   text-decoration: none;
 }
 
-.workbench-banner strong {
+.new-ui-banner strong {
   display: block;
   font-size: 1.02rem;
   color: var(--accent, #2563eb);
 }
 
-.workbench-banner span {
+.new-ui-banner span {
   display: block;
   margin-top: 0.25rem;
   font-size: 0.85rem;
   color: #444;
 }
 
-.workbench-banner:hover {
+.new-ui-banner:hover {
   background: #e0ebff;
 }
