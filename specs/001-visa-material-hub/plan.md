@@ -16,7 +16,7 @@
 
 **Storage**: 分两个目录，概念上不能混：
 - **材料根目录**（真实文件本体：护照扫描件、银行流水等）——路径可配置，默认指向项目内 `materials/`（已被 `.gitignore` 排除），也可以指向项目外任意路径（例如 iCloud）。
-- **`materials_index/`**（本仓库内，会被 git 追踪）——只存材料记录的结构化元数据，每条 `MaterialRecord` 一个 YAML 文件，`file_ref` 字段是相对于材料根目录的相对路径，不含真实文件内容。这是 `docs/SPEC-mvp.md` 第 3 条"数据与代码分离"原则的具体落地方式。
+- **`materials_index/`**（本仓库内，会被 git 追踪；**2026-09-24 已替换**：搬到材料根目录下的 `index/`，不进仓库，见 `docs/SPEC-mvp.md` 第 3 条）——只存材料记录的结构化元数据，每条 `MaterialRecord` 一个 YAML 文件，`file_ref` 字段是相对于材料根目录的相对路径，不含真实文件内容。这是 `docs/SPEC-mvp.md` 第 3 条"数据与代码分离"原则的具体落地方式。
 
 **Testing**: pytest 覆盖核心库（状态计算、更新频率提醒、file_ref 路径解析、空文件夹生成的命名规则与冲突检测）；Agent 层用固定输入输出的 fixture 做契约测试，不在自动化测试里真实调用模型 API（省 token、也让测试结果确定）。
 
