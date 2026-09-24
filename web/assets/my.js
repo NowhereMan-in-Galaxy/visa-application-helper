@@ -902,7 +902,7 @@
     return el(
       "div",
       { class: "pf-list wide", title: ds160Title(f) },
-      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 项" : "没有" })),
+      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 项" : "未填" })),
       arr.map(function (item, i) {
         var input = el("input", { type: "text", value: item || "", "aria-label": f.label + " 第 " + (i + 1) + " 项" });
         input.addEventListener("input", function () { arr[i] = input.value; });
@@ -923,7 +923,7 @@
     return el(
       "div",
       { class: "pf-list wide", title: ds160Title(f) },
-      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 条" : "没有" })),
+      el("div", { class: "pf-list-head" }, fieldLabel(f), el("small", { text: arr.length ? arr.length + " 条" : "未填" })),
       arr.map(function (item, i) {
         return el(
           "div",
@@ -951,6 +951,37 @@
     return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
 
+  // 「确认没有」（profile.confirmed_none，见 specs/003）：空着 ≠ 没有。
+  // 已确认的字段下面显示「✓ 已确认没有」并可撤销；列表类字段（曾用名、拒签记录……）空着时可以直接点「我没有这项」。
+  // 文字字段只显示已确认的状态，标记交给填表 Agent 问过之后写，避免姓名这类字段旁边也出现"没有"按钮。
+  // 是非题直接选「否」，不用这个标记。填上值再保存时，后端会自动把它移出清单。
+  function withNoneMark(group, f, control, draft, rerender) {
+    if (f.type === "bool" || f.type === "object") return control;
+    var path = group.key + "." + f.key;
+    var confirmed = (data.profile.confirmed_none || []).indexOf(path) >= 0;
+    var isList = f.type === "list" || f.type === "list_text";
+    if (!confirmed && !(isList && isBlank(draft[f.key]) && isBlank(data.profile[group.key] && data.profile[group.key][f.key]))) {
+      return control;
+    }
+    function toggle(none) {
+      showError("");
+      request("PUT", "/api/personal-profile/confirmed-none", { path: path, none: none })
+        .then(function (profile) { data.profile = profile; rerender(); })
+        .catch(function (e) { showError(e.message); });
+    }
+    control.append(
+      confirmed
+        ? el(
+            "div",
+            { class: "pf-none" },
+            el("span", { text: "✓ 已确认没有（填表时直接答「没有」）" }),
+            el("button", { type: "button", class: "linkish", text: "撤销", onclick: function (ev) { ev.preventDefault(); toggle(false); } })
+          )
+        : el("button", { type: "button", class: "linkish pf-none-btn", text: "我没有这项", title: "确认没有，填表时就不用再问你", onclick: function (ev) { ev.preventDefault(); toggle(true); } })
+    );
+    return control;
+  }
+
   function profileGroupPanel(group) {
     var draft = profileDraft(group);
     var panel;
@@ -970,7 +1001,7 @@
       group.key === "travel"
         ? el("p", { class: "muted pf-note", text: "逐次的出入境记录在「出行记录」标签页里维护；这里记以往签证、拒签、去美国的记录等。" })
         : null,
-      el("div", { class: "pf-grid" }, group.fields.map(function (f) { return fieldControl(f, draft, rerender); })),
+      el("div", { class: "pf-grid" }, group.fields.map(function (f) { return withNoneMark(group, f, fieldControl(f, draft, rerender), draft, rerender); })),
       el("div", { class: "form-actions pf-actions" }, saveBtn, statusEl)
     );
     form.addEventListener("submit", function (ev) {

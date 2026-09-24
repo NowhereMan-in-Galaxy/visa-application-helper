@@ -20,7 +20,7 @@ description: 用户想把一篇或多篇杂乱的攻略（文字、截图描述�
    - 数据结构定义以 `specs/002-guide-to-track/spec.md` "数据结构"一节为准，`prompt.md` 只规定怎么抽。
 
 2. **按 `prompt.md` 的全部规则**把用户给的资料抽取成 YAML，字段范围严格限定在
-   `spec.md` "数据结构 §1" 列出的字段（`id`、`title`、`category`、`summary`、`maintainers`、`updated`、
+   `spec.md` "数据结构 §1" 列出的字段（`id`、`title`、`category`、`summary`、`tags`、`maintainers`、`updated`、
    `timeline`、`sources`、`phases`、`facts`、`requirements`、`steps`、`checks`、`conflicts`、`uncertain`）。
    `id` 只能是小写字母、数字和连字符，且必须和文件名（不含扩展名）一致。
 

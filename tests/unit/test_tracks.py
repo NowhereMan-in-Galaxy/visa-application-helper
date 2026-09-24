@@ -149,6 +149,45 @@ def test_no_next_step_when_all_done():
     assert v.next_step is None
 
 
+# ---- 材料齐了自动完成 ----
+
+def test_step_auto_done_when_its_required_materials_are_ready():
+    v = view({"matches": {"r-bank": ["b"]}}, records=[rec("b", "银行流水")])
+    s = step(v, "s-bank")
+    assert s.done and s.auto_done  # r-extra 是加分项，不影响
+    assert v.next_step == "s-docs"
+
+
+def test_unconfirmed_material_does_not_auto_complete():
+    v = view(records=[rec("b", "银行流水")])
+    assert req(v, "r-bank").state == "unconfirmed"
+    assert not step(v, "s-bank").done
+
+
+def test_undecided_material_blocks_auto_complete():
+    records = [rec("p1", "护照个人信息页"), rec("p2", "护照签证页")]
+    v = view({"matches": {"r-passport": ["p1", "p2"]}}, records=records)
+    assert req(v, "r-kinship").state == "undecided"
+    assert not step(v, "s-docs").done
+    v = view({"facts": {"sponsored": "否"}, "matches": {"r-passport": ["p1", "p2"]}}, records=records)
+    assert step(v, "s-docs").auto_done
+
+
+def test_later_step_reusing_a_material_is_not_auto_done():
+    data = make_guide().model_dump(by_alias=True, exclude_none=True)
+    data["steps"][3]["requirements"] = ["r-bank"]  # 递交时"带着流水去"：流水齐了不代表递交做完了
+    guide = make_guide(steps=data["steps"])
+    track = Track(id="t", guide=guide.id, title="t", created=TODAY, matches={"r-bank": ["b"]})
+    v = compute_track_view(guide, track, [rec("b", "银行流水")], VOCAB, TODAY)
+    assert step(v, "s-bank").auto_done
+    assert not step(v, "s-submit").done
+
+
+def test_manually_done_step_is_not_marked_auto():
+    v = view({"done_steps": ["s-bank"], "matches": {"r-bank": ["b"]}}, records=[rec("b", "银行流水")])
+    assert step(v, "s-bank").done and not step(v, "s-bank").auto_done
+
+
 # ---- 进度 ----
 
 def test_progress_excludes_optional_and_unapplicable():

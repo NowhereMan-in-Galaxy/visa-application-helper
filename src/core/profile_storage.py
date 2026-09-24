@@ -158,6 +158,19 @@ def confirm_profile_none(materials_root: Path, paths: list[str]) -> tuple[Person
     return candidate, added
 
 
+def unconfirm_profile_none(materials_root: Path, paths: list[str]) -> tuple[PersonalProfile, list[str]]:
+    """把字段从 confirmed_none 里撤掉（用户说"其实不是没有"），返回 (保存后的资料, 真正撤掉的路径)。
+
+    不在清单里的路径直接忽略；什么都没撤掉时不写文件。
+    """
+    profile = load_personal_profile(materials_root)
+    removed = [p for p in profile.confirmed_none if p in paths]
+    if removed:
+        profile.confirmed_none = [p for p in profile.confirmed_none if p not in paths]
+        save_personal_profile(materials_root, profile)
+    return profile, removed
+
+
 # 由其他字段推出"不适用"的规则：字段路径 → (判断函数, 原因)。判断依据的字段没填时不推断，照常算 missing。
 _NOT_APPLICABLE_RULES = {
     "contact.mailing_address": (lambda p: p.contact.mailing_same_as_home is True, "邮寄地址与家庭住址相同"),

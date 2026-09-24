@@ -413,6 +413,7 @@ travel_history:
 | GET | `/api/personal-profile` | 整份资料（新结构）。文件格式有误时 500 + `detail`。 |
 | GET | `/api/personal-profile/fields` | 字段说明：`[{key, label, fields: [{key, label, type, sensitive, ds160, options?, fields?, item_fields?}]}]`，`type` ∈ `text` / `textarea` / `date` / `bool` / `select` / `list_text` / `list` / `object`。网页按它生成表单。 |
 | PUT | `/api/personal-profile/{group}` | 整组保存。`group` 必须是 9 个分组 key 之一（否则 404）；请求体是该分组的完整 JSON；只替换这一组，其他分组和 `travel_history` 保持不变；返回保存后的整份资料。校验失败 422，`detail` 是一句中文字符串（含字段路径，例如 `schools.0.start_date`）。 |
+| PUT | `/api/personal-profile/confirmed-none` | 网页标记 / 撤销「确认没有」（2026-09-24 新增）。请求体 `{path: "分组.字段", none: true\|false}`；`true` 规则同 `confirm_personal_profile_none`（路径不存在、是非题、字段已有值 → 422，文件不变）；`false` 从清单里撤掉，不在清单里就什么都不做。返回整份资料。 |
 | POST | `/api/personal-profile/travel-history` | 不变（FR-013）。 |
 | PUT | `/api/personal-profile/travel-history/{index}` | 不变（FR-013）。 |
 
@@ -450,6 +451,7 @@ travel_history:
 - 每个分组一个可折叠面板（`<details>`，第一个默认展开），面板里按字段说明生成表单：
   - `text` → 单行输入框；`textarea` → 多行；`date` → 日期选择；`bool` → 下拉「未填 / 是 / 否」；`select` → 下拉（第一项「未填」）；`list_text` → 每行一个输入框 + 「＋ 添加」「删除」；`list` → 每个条目一个小卡片 + 「＋ 添加一条」「删除这条」；`object` → 带标题的一组输入框。
   - 敏感字段的标签后面有「敏感」小标记。
+  - **「确认没有」**（2026-09-24 新增）：在 `confirmed_none` 里的字段，下面显示「✓ 已确认没有（填表时直接答「没有」）」和「撤销」。列表类字段（`list` / `list_text`）空着、又没确认时，显示「我没有这项」按钮，点了就记进清单。文字字段不放这个按钮（免得姓名旁边也出现"没有"），由填表 Agent 问过之后记。列表空着时标题旁写「未填」（原来写"没有"，和"确认没有"容易混）。
   - 每个面板底部一个「保存」按钮；保存成功在按钮旁显示「已保存 HH:MM」，失败在页面顶部红色横幅显示接口返回的 `detail`。
   - 编辑中的内容存在页面内存里（每个分组一份草稿），切换标签页、增删条目都不会丢；刷新页面会丢掉**未保存**的修改。
 - 遵守现有前端约定：原生 JS；DOM 一律用 `my.js` 里的 `el()` 构造，不用 `innerHTML`；不用 `alert` / `confirm`；依赖全局 `[hidden]{display:none!important}`。
@@ -470,14 +472,13 @@ travel_history:
 11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里名字形如 `set_/save_/update_/put_/delete_…profile…` 的工具**只有** `update_personal_profile`（2026-09-24 修改，原为"一个都没有"）。
 11c. `get_profile_gaps`：四种状态判断正确、按 DS-160 页面分组、不含字段值；"不适用"随依据字段变化（`test_profile_gaps_*`）。
 11b. `confirm_personal_profile_none`：记录路径、去重、持久化；非法路径/是非题/已有值的字段抛 `ValueError` 且文件不变；字段之后被 `update_personal_profile` 或网页整组保存填上值时自动移出 `confirmed_none`（`test_confirm*`、`test_confirmed_none_pruned_*`）。
+11d. `PUT /api/personal-profile/confirmed-none`：标记、撤销往返正确；撤销不在清单里的路径不改文件；非法路径 / 是非题 / 已有值 → 422 且清单不变（`test_confirmed_none_toggle_via_api`、`test_confirmed_none_api_rejects_*`）。
 11a. `update_personal_profile`：只改给定字段、对象逐键合并、列表整体替换、值不变不写文件、非法分组/字段/日期抛 `ValueError` 且文件不变（`tests/unit/test_personal_profile.py` 里 `test_update_fields_*`）。
 12. 浏览器打开 `/my.html#profile`：能看到 9 个分组面板；在「教育经历」里点「＋ 添加一条」会多出一个空条目卡片，点「删除这条」会移除；点「保存」后出现「已保存」字样；刷新页面后已保存的值仍在。
 13. `grep -nE "\.innerHTML|alert\(|confirm\(" web/assets/my.js` 没有输出。
 14. 仓库里（含本文档、测试、提交信息）不出现任何真实姓名、证件号、电话、地址、学校、单位；示例一律为虚构值。
 
 ## 待定 / 以后再说
-
-- **网页上显示 / 编辑 `confirmed_none`**：目前只有 Agent 能写，网页「基本信息」不显示哪些字段被确认为"没有"。以后可以在空字段旁显示「已确认没有」并允许撤销。
 
 - **教育经历与材料库关联**：`education.schools[*]` 可以加一个 `material_ids`，指向材料库里的毕业证 / 学位证 / 成绩单（词表类型 `graduation_certificate` / `degree_certificate` / `transcript` / `overseas_degree_certification`）；工作经历同理可关联在职证明。本版不做，先观察实际填表时是否需要。
 - **家庭成员的其他资料**：申根 / 英签常要父母职业、联系方式、子女是否同行等；目前父母只收 DS-160 问到的字段，等接入第二种表格时再扩展。

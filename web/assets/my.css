@@ -175,3 +175,5 @@ button.pf-add { justify-self: start; padding: 4px 12px; font-size: 12px; border-
   .tabs { overflow-x: auto; }
   .tabs .tab { padding: 8px 12px; white-space: nowrap; }
 }
+.pf-none { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--green); margin-top: 4px; }
+.pf-none-btn { font-size: 12px; margin-top: 4px; align-self: flex-start; }

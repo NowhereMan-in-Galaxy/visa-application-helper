@@ -53,9 +53,11 @@ from core.models import (
 )
 from core.profile_storage import (
     ProfileFileError,
+    confirm_profile_none,
     load_personal_profile,
     save_personal_profile,
     save_profile_group,
+    unconfirm_profile_none,
 )
 from core.pdf_merge import UnsupportedPageFormatError, append_page
 from core.status import compute_status
@@ -439,6 +441,24 @@ def _validation_message(error: ValidationError) -> str:
     return "填写有误——" + "；".join(parts)
 
 
+class ConfirmedNoneChange(BaseModel):
+    path: str  # 分组.字段，例如 identity.other_names
+    none: bool  # true：确认"没有"；false：撤销
+
+
+@app.put("/api/personal-profile/confirmed-none", response_model=PersonalProfile)
+def put_personal_profile_confirmed_none(body: ConfirmedNoneChange) -> PersonalProfile:
+    """网页上把一个空字段标成"确认没有"，或撤销。规则和 Agent 的 confirm_personal_profile_none 相同：
+    路径不存在、是非题、字段已有值 → 422，文件不变。见 specs/003-personal-profile。"""
+    root = get_materials_root()
+    if not body.none:
+        return unconfirm_profile_none(root, [body.path])[0]
+    try:
+        return confirm_profile_none(root, [body.path])[0]
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
 @app.put("/api/personal-profile/{group}", response_model=PersonalProfile)
 def put_personal_profile_group(group: str, body: dict) -> PersonalProfile:
     """整组保存「基本信息」的一个分组（identity / passport / contact / family / education /
@@ -593,6 +613,7 @@ class GuideSummary(BaseModel):
     file: str
     title: str | None
     category: str | None
+    tags: list[str] = []
     summary: str | None
     updated: date | None
     requirement_count: int
@@ -668,6 +689,7 @@ def _summarize(result: GuideLoadResult) -> GuideSummary:
         file=f"community/guides/{result.path.name}",
         title=g.title if g else None,
         category=g.category if g else None,
+        tags=g.tags if g else [],
         summary=g.summary if g else None,
         updated=g.updated if g else None,
         requirement_count=len(g.requirements) if g else 0,

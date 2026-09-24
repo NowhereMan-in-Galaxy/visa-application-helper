@@ -201,8 +201,21 @@
   }
 
   // ---------- 首页：我正在办的 + 攻略库 ----------
+  //
+  // 两块各筛各的：「办理中」按分类筛（只有办的事分属两类以上才出现筛选）；
+  // 「攻略库」是一个库，有自己的搜索框和标签（分类 + 攻略里写的 tags），以后攻略多了也好找。
+  // 筛选状态只存在页面内存里；旧链接 #/tag/<分类> 仍然能用，打开后等于在攻略库里选了这个标签。
+  var homeState = { trackCat: null, guideTag: null, query: "" };
+
+  function guideMatches(g, tag, query) {
+    if (tag && g.category !== tag && (g.tags || []).indexOf(tag) === -1) return false;
+    if (!query) return true;
+    var hay = [g.title, g.summary, g.category, g.id].concat(g.tags || []).join(" ").toLowerCase();
+    return query.toLowerCase().split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(w) !== -1; });
+  }
 
   function renderHome(tag) {
+    if (tag) homeState.guideTag = tag;
     Promise.all([request("GET", "/api/tracks"), request("GET", "/api/guides")])
       .then(function (results) {
         var allTracks = results[0];
@@ -210,24 +223,26 @@
         var guideTitle = {};
         allGuides.forEach(function (g) { guideTitle[g.id] = g.title; });
 
-        // 标签 = 攻略的分类（签证 / 工作 / 社保 / 银行补贴 / 其他）；办事跟着它所照着的攻略走
-        var counts = {};
-        allGuides.forEach(function (g) { if (g.category) counts[g.category] = (counts[g.category] || 0) + 1; });
-        allTracks.forEach(function (t) { if (t.category) counts[t.category] = (counts[t.category] || 0) + 1; });
-        var match = function (cat) { return !tag || cat === tag; };
-        var tracks = allTracks.filter(function (t) { return match(t.category); });
-        var guides = allGuides.filter(function (g) { return match(g.category); });
+        var trackCats = {};
+        allTracks.forEach(function (t) { if (t.category) trackCats[t.category] = (trackCats[t.category] || 0) + 1; });
+        if (homeState.trackCat && !trackCats[homeState.trackCat]) homeState.trackCat = null;
+        var tracks = allTracks.filter(function (t) { return !homeState.trackCat || t.category === homeState.trackCat; });
         var active = tracks.filter(function (t) { return !t.completed; });
         var done = tracks.filter(function (t) { return t.completed; });
 
-        var chips = el(
-          "nav",
-          { class: "chips", "aria-label": "按标签筛选" },
-          el("a", { class: "chip", href: "#/", "aria-current": tag ? "false" : "true" }, "全部", el("span", { class: "n", text: allGuides.length + allTracks.length })),
-          Object.keys(counts).map(function (cat) {
-            return el("a", { class: "chip", href: "#/tag/" + encodeURIComponent(cat), "aria-current": cat === tag ? "true" : "false" }, cat, el("span", { class: "n", text: counts[cat] }));
-          })
-        );
+        var trackChips = Object.keys(trackCats).length > 1
+          ? el(
+              "div",
+              { class: "chips small", role: "group", "aria-label": "按分类筛选我的办事" },
+              [null].concat(Object.keys(trackCats)).map(function (cat) {
+                return el("button", {
+                  type: "button", class: "chip", "aria-pressed": homeState.trackCat === cat ? "true" : "false",
+                  text: cat === null ? "全部" : cat + " " + trackCats[cat],
+                  onclick: function () { homeState.trackCat = cat; renderHome(null); },
+                });
+              })
+            )
+          : null;
 
         var activeCards = active.map(function (t) {
           var foot = [el("span", { text: "已进行 " + (t.elapsed_days || 0) + " 天" })];
@@ -286,7 +301,7 @@
           );
         }
 
-        var guideCards = guides.map(function (g) {
+        function guideCard(g) {
           if (!g.valid) {
             return el(
               "div",
@@ -300,12 +315,50 @@
           return el(
             "a",
             { class: "card", href: "#/guide/" + encodeURIComponent(g.id) },
-            el("span", { class: "tag", text: g.category }),
+            el("span", { class: "meta" }, el("span", { class: "tag", text: g.category }), (g.tags || []).map(function (t) { return el("span", { class: "tag soft", text: t }); })),
             el("h3", { text: g.title }),
             g.summary ? el("p", { class: "meta", text: g.summary }) : null,
             el("div", { class: "next", text: g.step_count + " 个步骤 · " + g.requirement_count + " 项材料" + (g.updated ? " · 更新于 " + g.updated : "") })
           );
+        }
+
+        // 攻略库的标签：先分类，再按出现次数排的 tags
+        var tagCounts = {};
+        allGuides.forEach(function (g) {
+          [g.category].concat(g.tags || []).forEach(function (t) { if (t) tagCounts[t] = (tagCounts[t] || 0) + 1; });
         });
+        var cats = [];
+        allGuides.forEach(function (g) { if (g.category && cats.indexOf(g.category) === -1) cats.push(g.category); });
+        var otherTags = Object.keys(tagCounts).filter(function (t) { return cats.indexOf(t) === -1; })
+          .sort(function (x, y) { return tagCounts[y] - tagCounts[x] || x.localeCompare(y, "zh"); });
+        if (homeState.guideTag && !tagCounts[homeState.guideTag]) homeState.guideTag = null;
+
+        var libCount = el("span", { class: "count" });
+        var libList = el("div");
+        var tagBox = el("div", { class: "chips small lib-tags", role: "group", "aria-label": "按标签筛选攻略" });
+        function drawLibrary() {
+          var list = allGuides.filter(function (g) { return guideMatches(g, homeState.guideTag, homeState.query.trim()); });
+          libCount.textContent = list.length;
+          tagBox.replaceChildren();
+          [null].concat(cats, otherTags).forEach(function (t) {
+            tagBox.append(el("button", {
+              type: "button", class: "chip" + (t && cats.indexOf(t) !== -1 ? " cat" : ""),
+              "aria-pressed": homeState.guideTag === t ? "true" : "false",
+              text: t === null ? "全部" : t,
+              onclick: function () { homeState.guideTag = t; drawLibrary(); },
+            }));
+          });
+          libList.replaceChildren(
+            list.length
+              ? el("div", { class: "cards" }, list.map(guideCard))
+              : el("p", { class: "empty", text: allGuides.length ? "没有符合条件的攻略。换个关键词，或者欢迎贡献一份。" : "攻略库是空的。" })
+          );
+        }
+        var search = el("input", {
+          type: "search", class: "lib-search", value: homeState.query, placeholder: "搜索攻略：国家、城市、签证类型……", "aria-label": "搜索攻略",
+        });
+        search.addEventListener("input", function () { homeState.query = search.value; drawLibrary(); });
+        drawLibrary();
 
         setView(
           el(
@@ -313,21 +366,21 @@
             { class: "heading" },
             el("div", null, el("h1", { text: "照着攻略，一件件办好。" }), el("p", { class: "muted", text: "攻略由大家共同维护；你的进度只保存在这台电脑上。" }))
           ),
-          chips,
           el(
             "section",
             { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length }))),
+            el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length })), trackChips),
             activeCards.length
               ? el("div", { class: "cards" }, activeCards)
-              : el("p", { class: "empty", text: tag ? "这个标签下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
+              : el("p", { class: "empty", text: homeState.trackCat ? "这个分类下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
           ),
           doneSection,
           el(
             "section",
-            { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "攻略库", el("span", { class: "count", text: guides.length })), el("small", { text: "community/guides/" })),
-            guideCards.length ? el("div", { class: "cards" }, guideCards) : el("p", { class: "empty", text: tag ? "这个标签下还没有攻略，欢迎贡献一份。" : "攻略库是空的。" })
+            { class: "panel library" },
+            el("div", { class: "panel-head" }, el("h2", null, "攻略库", libCount), el("small", { text: "community/guides/" })),
+            el("div", { class: "lib-filter" }, search, tagBox),
+            libList
           ),
           el(
             "p",
@@ -566,7 +619,7 @@
     var main = el("div");
 
     // --- 下一步 ---
-    if (!readonly) main.append(nextCard(v, stepById, reqById));
+    if (!readonly) main.append(overviewCard(v, stepById));
 
     // --- 问题 ---
     var asked = v.facts.filter(function (f) { return f.asked; });
@@ -847,49 +900,114 @@
     );
   }
 
-  function nextCard(v, stepById, reqById) {
+  // 办事页最上方的总览：把要做的事分成「线上填表」和「材料准备」两块。
+  // 不再放"这一步做完了"大按钮：挂着材料的步骤，材料齐了由后端自动算完成（StepView.auto_done）；
+  // 其余步骤（例如去现场递签）在下面时间线里点圆圈标记，或者让 Agent 填完表后标记。
+  function overviewCard(v, stepById) {
     var s = v.next_step ? stepById[v.next_step] : null;
-    if (!s) {
-      var pending = v.steps.filter(function (x) { return x.applies === "undecided"; }).length;
-      var allDone = v.steps.every(function (x) { return x.applies === "no" || x.done; });
-      return el(
-        "section",
-        { class: "next-card" + (allDone ? " done-all" : "") },
+    var allDone = v.steps.every(function (x) { return x.applies === "no" || x.done; });
+    var pending = v.steps.filter(function (x) { return x.applies === "undecided"; }).length;
+
+    var headline;
+    if (s) {
+      headline = [
+        el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
+        el("h2", null, el("a", { href: "#step-" + s.id, text: s.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })),
+        windowLine(s, factsFromView(v), stepById),
+        s.late ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" }) : null,
+      ];
+    } else {
+      headline = [
         el("div", { class: "label", text: allDone ? "全部完成" : "下一步" }),
         el("h2", { text: allDone ? "所有步骤都做完了。" : pending ? "先回答下面的问题" : "暂时没有能马上做的步骤" }),
         !allDone && v.reminders && v.reminders.length
           ? el("p", { class: "muted", text: "最近的一件事：" + reminderText(v.reminders[0]) + "。到时候来这里，或者把提醒加到日历里。" })
           : null,
-        allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null
-      );
+        allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null,
+      ];
     }
-    var mats = s.requirements
-      .map(function (rid) { return reqById[rid]; })
-      .filter(function (r) { return r && r.state !== "not_applicable"; });
+
     return el(
       "section",
-      { class: "next-card" + (s.late ? " late" : "") },
-      el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
-      el("h2", { text: s.title }),
-      el("div", { class: "step-meta" }, stepMeta(s)),
-      windowLine(s, factsFromView(v), stepById),
-      linksBlock(s, factsFromView(v)),
-      s.late
-        ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
-        : null,
-      mats.length
-        ? el("p", { class: "muted" }, "这一步涉及：", mats.map(function (r, i) { return el("span", null, i ? "、" : "", r.name + "（" + STATE_LABEL[displayState(r)] + "）"); }))
-        : null,
-      el(
+      { class: "next-card overview" + (allDone ? " done-all" : "") + (s && s.late ? " late" : "") },
+      headline,
+      el("div", { class: "ov-cols" }, onlineBlock(v), materialsBlock(v)),
+      el("p", { class: "ov-foot muted", text: "材料齐了的步骤会自动打勾；其余步骤做完，在下面点左边的圆圈。" })
+    );
+  }
+
+  // 线上步骤：攻略给阶段标了线上/线下时，只算"线上"阶段里的步骤；
+  // 整份攻略都没标时，退一步看这一步有没有官网或填表指南链接
+  function isOnlineStep(v, s) {
+    if (v.phases.some(function (p) { return p.mode; })) {
+      var ph = v.phases.filter(function (p) { return p.id === s.phase; })[0];
+      return !!ph && ph.mode === "online";
+    }
+    return s.links.some(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); });
+  }
+
+  function onlineBlock(v) {
+    var steps = v.steps.filter(function (s) { return s.applies === "yes" && isOnlineStep(v, s); });
+    var done = steps.filter(function (s) { return s.done; }).length;
+    var body = steps.length
+      ? el("ul", { class: "ov-list" }, steps.map(function (s) {
+          var links = s.links.filter(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); }).slice(0, 2);
+          return el(
+            "li",
+            { class: s.done ? "done" : s.id === v.next_step ? "next" : "" },
+            el("span", { class: "ov-mark", "aria-hidden": "true", text: s.done ? "✓" : s.id === v.next_step ? "→" : "·" }),
+            el(
+              "span",
+              null,
+              el("a", { href: "#step-" + s.id, text: s.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } }),
+              s.done || !links.length ? null : el("span", { class: "ov-links" }, links.map(function (l) {
+                var internal = l.kind === "form_guide" && l.form;
+                return internal
+                  ? el("a", { class: "ov-link", href: "#/form/" + encodeURIComponent(l.form), text: l.title })
+                  : el("a", { class: "ov-link", href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title + " ↗" });
+              }))
+            )
+          );
+        }))
+      : el("p", { class: "muted", text: "这件事没有要在网上办的步骤。" });
+    return el(
+      "div",
+      { class: "ov-block" },
+      el("div", { class: "ov-head" }, el("h3", { text: "线上填表" }), steps.length ? el("small", { text: done + " / " + steps.length + " 步" }) : null),
+      body
+    );
+  }
+
+  function materialsBlock(v) {
+    var todo = v.requirements.filter(function (r) { return !r.optional && (r.state === "missing" || r.state === "stale" || r.state === "unconfirmed"); });
+    todo.sort(function (a, b) { return STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state); });
+    var shown = todo.slice(0, 6);
+    var body;
+    if (!v.progress_total) {
+      body = el("p", { class: "muted", text: v.requirements.some(function (r) { return r.state === "undecided"; }) ? "回答上面的问题后，这里会列出要准备的材料。" : "这件事不用准备材料。" });
+    } else if (!todo.length) {
+      body = el("p", { class: "muted", text: "✓ 材料都齐了，可以在右侧导出到文件夹。" });
+    } else {
+      body = el(
         "div",
-        { class: "actions" },
-        el("button", { class: "primary", type: "button", text: "✓ 这一步做完了", onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: true }); } }),
-        el("a", { href: "#step-" + s.id, text: "看详情", onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })
-      ),
-      // 时间提醒型攻略可能一份材料都没有，这时不显示"材料 0 / 0"
-      v.requirements.length
-        ? el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
-        : null
+        null,
+        el("ul", { class: "ov-list" }, shown.map(function (r) {
+          return el(
+            "li",
+            null,
+            stateChip(r.state),
+            el("a", { href: "#mat-" + r.id, text: r.name, onclick: function (ev) { ev.preventDefault(); var t = document.getElementById("mat-" + r.id); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); } })
+          );
+        })),
+        todo.length > shown.length ? el("p", { class: "muted", text: "还有 " + (todo.length - shown.length) + " 项，见右侧「材料一览」。" }) : null
+      );
+    }
+    return el(
+      "div",
+      { class: "ov-block" },
+      el("div", { class: "ov-head" }, el("h3", { text: "材料准备" }), v.progress_total ? el("small", { text: v.progress_ready + " / " + v.progress_total + " 已备齐" }) : null),
+      v.progress_total ? progressBar(v.progress_ready, v.progress_total) : null,
+      body
     );
   }
 
@@ -1222,8 +1340,9 @@
       class: "tick",
       text: s.done ? "✓" : "",
       "aria-pressed": s.done ? "true" : "false",
-      "aria-label": (s.done ? "取消完成：" : "标记完成：") + s.title,
-      disabled: ctx.readonly || s.applies !== "yes",
+      "aria-label": s.auto_done ? "材料齐了，自动完成：" + s.title : (s.done ? "取消完成：" : "标记完成：") + s.title,
+      title: s.auto_done ? "这一步的材料都齐了，自动算完成" : null,
+      disabled: ctx.readonly || s.applies !== "yes" || s.auto_done,
       onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: !s.done }); },
     });
 
@@ -1273,7 +1392,7 @@
         el(
           "div",
           { class: "step-head" },
-          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null),
+          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null, s.auto_done ? el("span", { class: "badge", text: "材料齐了 · 自动完成" }) : null),
           menu
         ),
         el("div", { class: "step-meta" }, stepMeta(s)),
@@ -1312,10 +1431,8 @@
     }
     if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.map(function (p) { return p.name; }).join("、") }));
     // 预览页是只读的，没有上传按钮：提示要先"开始办"，免得让人以为这里就能传
-    if (r.type_unresolved) {
-      hints.push(el("div", { class: "mat-note", text: ctx.readonly
-        ? "这类材料没法自动对上材料库。开始办之后，可以在这里上传，或从我的资料里选一份。"
-        : "这类材料没法自动对上材料库，上传或从我的资料里选一份即可。" }));
+    if (r.type_unresolved && ctx.readonly) {
+      hints.push(el("div", { class: "mat-note", text: "这类材料没法自动对上材料库。开始办之后，可以在这里上传，或从我的资料里选一份。" }));
     } else if (ctx.readonly && r.state === "missing") {
       hints.push(el("div", { class: "mat-note", text: "开始办之后，可以在这里上传。" }));
     }
@@ -1345,21 +1462,61 @@
         "div",
         { class: "mat-top" },
         stateChip(displayState(r)),
-        el("span", { class: "mat-name", text: r.name }),
-        r.raw_name && r.raw_name !== r.name ? el("span", { class: "mat-raw", text: "攻略写作「" + r.raw_name + "」" }) : null,
+        el("span", { class: "mat-name", text: r.name, title: r.raw_name && r.raw_name !== r.name ? "攻略原来写作「" + r.raw_name + "」" : null }),
         KIND_LABEL[r.kind] ? el("span", { class: "badge" + (r.kind === "generate" ? " ai" : ""), text: KIND_LABEL[r.kind] }) : null,
         r.optional ? el("span", { class: "badge", text: "加分项" }) : null,
         r.custom ? el("span", { class: "badge custom", text: "我加的" }) : null,
         menu
       ),
-      r.note ? el("div", { class: "mat-note", text: r.note }) : null,
+      r.note ? clampedNote(r.note) : null,
       note ? note.node : null,
       rename ? rename.node : null,
       hints,
       records,
-      !ctx.readonly && (r.state === "missing" || r.state === "stale") ? uploadForm(r, v) : null,
-      !ctx.readonly && r.state !== "undecided" ? pickForm(r, v) : null,
+      ctx.readonly ? null : matActions(r, v),
       evidenceBlock(r.evidence, v.sources)
+    );
+  }
+
+  // 攻略给材料写的说明默认只显示一行，点一下展开 / 收起（说明往往很长，全部铺开字太多）
+  function clampedNote(text) {
+    var node = el("div", {
+      class: "mat-note clamp", text: text, role: "button", tabindex: "0", title: "点一下展开 / 收起",
+      "aria-expanded": "false",
+    });
+    function toggle() {
+      var open = node.classList.toggle("open");
+      node.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    node.addEventListener("click", toggle);
+    node.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); } });
+    return node;
+  }
+
+  // 材料的操作收成一行小按钮：「上传文件」「从我的资料里选」，点了才展开对应的表单
+  function matActions(r, v) {
+    var upload = r.state === "missing" || r.state === "stale" ? uploadForm(r, v) : null;
+    var pick = r.state !== "undecided" ? pickForm(r, v) : null;
+    if (!upload && !pick) return null;
+    var toggle = null;
+    if (upload) {
+      upload.hidden = true;
+      toggle = el("button", {
+        type: "button", class: "linkish", text: r.state === "stale" ? "上传新的一份" : "上传文件", "aria-expanded": "false",
+        onclick: function () {
+          upload.hidden = !upload.hidden;
+          toggle.setAttribute("aria-expanded", upload.hidden ? "false" : "true");
+        },
+      });
+    }
+    // pickForm 自己带「从我的资料里选」切换按钮和展开的表单；把按钮挪到同一行，表单放在下面
+    var pickToggle = pick ? pick.firstChild : null;
+    return el(
+      "div",
+      { class: "mat-actions-wrap" },
+      el("div", { class: "mat-actions" }, toggle, pickToggle),
+      upload,
+      pick
     );
   }
 
@@ -1433,7 +1590,7 @@
     var keepLabel = el("label", { class: "keep", title: "勾上：放进「我的资料」，以后别的办事也能用；不勾：只属于这件办事" }, keepBox, " 放进我的资料（以后还会用）");
     var btn = el("button", { type: "submit", text: r.state === "stale" ? "上传新的一份" : "上传" });
     // 原生 append 会把 null 当成文字 "null" 插进去，所以先过滤掉不需要的控件
-    [el("span", { text: r.state === "stale" ? "重新开好了？" : "手上有了？" }), select, fileInput, el("label", null, "取得日期 ", dateInput), keepLabel, btn]
+    [select, fileInput, el("label", null, "取得日期 ", dateInput), keepLabel, btn]
       .filter(Boolean)
       .forEach(function (node) { form.append(node); });
     form.addEventListener("submit", function (ev) {

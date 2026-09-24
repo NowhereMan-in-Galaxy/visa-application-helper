@@ -167,6 +167,8 @@ class Guide(_Strict):
     title: str
     category: str
     summary: str | None = None
+    # 攻略库里用来筛选和搜索的标签（国家/地区、城市、人群、办理方式……），见 spec "数据结构 §1"
+    tags: list[str] = []
     maintainers: list[str] = []
     updated: date | None = None
     timeline: str | None = None  # 一句话说明全程一般要多久、要提前多久开始
@@ -230,6 +232,13 @@ def validate_guide(
         errors.append(f"id {guide.id!r} 必须与文件名 {file_stem!r} 一致")
     if guide.category not in CATEGORIES:
         errors.append(f"category {guide.category!r} 必须是 {' / '.join(CATEGORIES)} 之一")
+    for t in guide.tags:
+        if not t.strip() or len(t) > 12 or t != t.strip():
+            errors.append(f"标签 {t!r} 要是 1–12 个字、前后不带空格")
+    if len(set(guide.tags)) != len(guide.tags):
+        errors.append("tags 里有重复的标签")
+    if guide.category in guide.tags:
+        errors.append(f"标签不用重复写分类 {guide.category!r}")
 
     def unique(kind: str, ids: list[str]) -> set[str]:
         seen: set[str] = set()
