@@ -21,11 +21,13 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from pydantic import ValidationError
+
 import config
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.models import describe_personal_profile
-from core.profile_storage import load_personal_profile
+from core.profile_storage import confirm_profile_none, load_personal_profile, profile_gaps, update_profile_fields
 from core.storage import load_material_records
 import core.adjustments as adj
 from core.adjustments import AdjustmentError
@@ -426,7 +428,7 @@ def add_pitfall(
     return _adjust(track_id, fn, materials_root, community_dir, materials_index_dir, today)
 
 
-# ---------- 基本信息（PersonalProfile，specs/003-personal-profile）：只读 ----------
+# ---------- 基本信息（PersonalProfile，specs/003-personal-profile）：读 + 受控写 ----------
 
 
 def get_personal_profile(*, materials_root: Path | None = None) -> dict:
@@ -435,8 +437,42 @@ def get_personal_profile(*, materials_root: Path | None = None) -> dict:
     返回 {"profile": ..., "fields": ...}：
     - profile：PersonalProfile 的 JSON（日期是 YYYY-MM-DD；没填的是 null / 空列表）
     - fields：describe_personal_profile() 的输出，每个字段带中文标签、类型、sensitive、ds160 提示
-    只读——故意不提供写工具：个人资料只能由用户本人在「我的资料 → 基本信息」里改。
+    写回用户的回答用 update_personal_profile（只写用户亲口回答并确认过的内容）。
     文件格式有误时抛 core.profile_storage.ProfileFileError（ValueError 的子类，消息是中文）。
     """
     profile = load_personal_profile(_materials_root(materials_root))
     return {"profile": profile.model_dump(mode="json"), "fields": describe_personal_profile()}
+
+
+def update_personal_profile(group: str, changes: dict, *, materials_root: Path | None = None) -> dict:
+    """把用户在填表过程中回答的长期信息写回「基本信息」的一个分组。
+
+    changes 只放要改的字段（{"字段 key": 值}）；对象字段（例如 father）逐键合并，
+    列表字段（例如 schools）整体替换。返回 {"group", "changed": [{field, before, after}]}，
+    不返回整份资料。分组不存在、字段名拼错、值不合法抛 ValueError（中文消息），文件不变。
+    """
+    try:
+        _, changed = update_profile_fields(_materials_root(materials_root), group, changes)
+    except KeyError:
+        raise ValueError(f"没有这个分组：{group}（可选：identity / passport / contact / family / education / employment / travel / social_media / background）")
+    except ValidationError as e:
+        raise ValueError(f"基本信息「{group}」写入失败，文件未改动：{e}") from e
+    return {"group": group, "changed": changed}
+
+
+def confirm_personal_profile_none(fields: list[str], *, materials_root: Path | None = None) -> dict:
+    """把用户亲口确认"没有"的字段记进「基本信息」的 confirmed_none（例如 ["identity.other_names"]）。
+
+    只收列表字段和可空的文本/对象字段；是非题请用 update_personal_profile 直接写 false。
+    字段已经有值、路径不存在时抛 ValueError（中文消息），文件不变。返回 {"added": [...], "confirmed_none": [...]}。
+    """
+    profile, added = confirm_profile_none(_materials_root(materials_root), fields)
+    return {"added": added, "confirmed_none": profile.confirmed_none}
+
+
+def get_profile_gaps(*, materials_root: Path | None = None) -> dict:
+    """填表前查缺口：按 DS-160 页面列出基本信息里每个字段是 filled / confirmed_none / missing。
+
+    不返回字段的值（只返回状态），可以放心整段展示给用户。missing 的要在开始填表前一次问完。
+    """
+    return profile_gaps(load_personal_profile(_materials_root(materials_root)))

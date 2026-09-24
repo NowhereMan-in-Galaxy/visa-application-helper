@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-23
 
-**Status**: 已实现第一版（数据结构 + 接口 + 「我的资料 → 基本信息」页 + 只读 MCP 工具）
+**Status**: 已实现第一版（数据结构 + 接口 + 「我的资料 → 基本信息」页 + 只读 MCP 工具）；2026-09-24 加 MCP 写工具 `update_personal_profile`（见「MCP 工具」）
 
 **Input**: 项目主希望把"可以反复复用、但不是文件形式"的个人资料（姓名拼音、护照号、出生日期/地点、联系方式、住址、教育、工作、家庭成员、婚育、旅行史、以往签证/拒签、社交媒体……）做成结构化数据：在本地网页里填写，保存在本机材料根目录下（不进 git）。**将来另一个 Agent 会读取它辅助填写 DS-160 等官网表格**——填表不是本 spec 的范围，但数据结构要为它设计好。
 
@@ -87,6 +87,11 @@ travel_history:
 ## 空值的含义（填表 Agent 必须遵守）
 
 - `null` / `[]` 表示"**用户没填**"，**不等于**回答"否 / 没有"。例如 `travel.refusals == []` 不能直接理解成"从没被拒签"——填表 Agent 遇到必答的是非题时，应该先向用户确认。
+- **确认"没有"（2026-09-24 新增）**：顶层 `confirmed_none: list[str]` 记录用户亲口确认"没有"的字段路径，格式 `分组.字段`，例如 `identity.other_names`。路径在这个清单里，才表示"确认没有"，填表 Agent 可以直接答 No、不用再问。
+  - 为什么需要：DS-160 试验（`specs/002-guide-to-track/trials/README.md` 试验 #6）里用户回答了十几个"没有"，但空值只能表示"没填"，下一张表还得再问一遍。
+  - 只收列表字段和可空的文本/对象字段；是非题（`bool`）直接写 `false`，放进清单会报错。路径不存在也报错。
+  - 字段已经有值时不能标记；**以后字段被填上值，保存时（网页或 Agent 都一样）自动移出清单**，避免"清单说没有、实际又有"的矛盾。
+  - 列表条目里面的是非题（例如某张签证的 `cancelled_or_revoked`）没法用路径表示，仍按"没填 = 要问"处理。
 - `bool` 字段三态：`true` / `false` / `null`（未填）。
 - 是非题 + 详情的问题（例如"是否属于某个宗族"），用"详情字段有值 = 是"表达，不另设布尔字段。
 
@@ -418,8 +423,26 @@ travel_history:
 ## MCP 工具（给本地 Agent）
 
 - `get_personal_profile()`：**只读**。返回 `{"profile": <整份资料 JSON>, "fields": <同 /fields 的字段说明>}`。实现在 `src/agent_tools/tools.py`，注册在 `src/agent_tools/mcp_server.py`。
-- 工具描述里写明：内容是真实个人信息；不要在对话里整段复述 `sensitive` 字段；空值 ≠ "否"，要先问用户；没有写工具。
-- **不提供任何写工具**：个人资料只能由用户本人在网页上改，避免 Agent 把猜测写进去。
+- 工具描述里写明：内容是真实个人信息；不要在对话里整段复述 `sensitive` 字段；空值 ≠ "否"，要先问用户。
+- ~~**不提供任何写工具**：个人资料只能由用户本人在网页上改，避免 Agent 把猜测写进去。~~
+
+> **已替换（2026-09-24）**：填表改为"Agent 读基本信息直接填、缺了问用户"（`docs/SPEC-mvp.md` 第 1 条第 2 项）。用户在填表对话里回答的长期信息如果不能写回，下次换一张表还要再问一遍，所以加一个**受控的写工具**。原先担心的"Agent 把猜测写进去"由下面的规则约束。
+
+- `update_personal_profile(group, changes)`：只改一个分组里 `changes` 提到的字段，其他字段、其他分组、`travel_history` 不变。
+  - `group`：9 个分组 key 之一；其他值 → `ValueError`（中文消息）。
+  - `changes`：`{"字段 key": 值}`，格式和网页整组保存时一样（日期 `YYYY-MM-DD`、下拉存英文值）。**对象字段逐键合并**（例如 `{"father": {"date_of_birth": "1970-01-01"}}` 只补父亲的出生日期）；**列表字段整体替换**（要发完整列表，因为条目没有稳定 id）。
+  - 字段名拼错、值不合法 → `ValueError`，文件不改动（和接口的 422 同一套校验）。
+  - 返回 `{"group": ..., "changed": [{"field", "before", "after"}]}`，只列顶层字段；值没变时 `changed` 为空、不写文件。
+  - 核心逻辑在 `core.profile_storage.update_profile_fields`，工具在 `src/agent_tools/tools.py`，注册在 `mcp_server.py`。
+- 工具描述里的硬性规则（没办法用代码强制，靠描述约束 Agent）：
+  1. 只写用户在对话里**亲口回答**的内容，不写推测的、从网页或材料里猜出来的值；
+  2. 写之前把要写的字段和值**逐条复述**给用户，用户明确同意后才调用；
+  3. 本次行程专属信息（见"不收什么"）和 Security/Background 法律声明题**不写进来**。
+- `confirm_personal_profile_none(fields)`：把用户确认"没有"的字段路径加进 `confirmed_none`（去重），返回 `{"added": [...], "confirmed_none": [...]}`；路径不存在、是非题、字段已有值 → `ValueError`，文件不变。硬性规则同上（只记用户亲口说的、先复述征得同意）。核心逻辑在 `core.profile_storage.confirm_profile_none`。
+- `get_profile_gaps()`（2026-09-24 新增，只读）：**填表前查缺口**。按 DS-160 页面（`ds160` 提示里 ` · ` 之前的部分）列出每个有 `ds160` 提示的顶层字段的状态：`filled`（有值；是非题 true/false 都算已答）、`confirmed_none`、`not_applicable`（由其他字段推出不用填，附 `reason`）、`missing`。**不返回字段值**，可以整段展示给用户。核心逻辑 `core.profile_storage.profile_gaps`。
+  - "不适用"规则（`_NOT_APPLICABLE_RULES`，依据字段没填时不推断）：`contact.mailing_address` ← `mailing_same_as_home` 为 true；`family.spouse` ← 婚姻状况为未婚 / 离异 / 丧偶；`family.former_spouses` ← 未婚；`employment.occupation_explanation` ← 职业不是待业或"其他"。
+  - 为什么做：借鉴外部项目 auto-ds160-filler"先检查再填"的思路；DS-160 试验里问题是填到一半才冒出来的，现在开始前一次问完。信息之间是否**矛盾**（例如基本信息和材料扫描件说法不同）需要判断，不在这个工具里，由 `form-filler` skill 的步骤要求 Agent 核对。
+- 仍然**没有**整份覆盖、删除资料的工具。
 
 ## 界面：「我的资料 → 基本信息」
 
@@ -444,15 +467,20 @@ travel_history:
 8. `PUT /api/personal-profile/travel_history` 和 `PUT /api/personal-profile/nope` 返回 404。
 9. `GET /api/personal-profile/fields` 返回 9 个分组，顺序为 `identity, passport, contact, family, education, employment, travel, social_media, background`；每个字段都有含中文的 `label`。
 10. 代码中每个字段 key（含条目和子对象里的）都以反引号形式出现在本文档中（测试 `test_every_field_key_is_documented_in_spec`）。
-11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里没有名字形如 `set_/save_/update_/put_…profile` 的工具。
+11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里名字形如 `set_/save_/update_/put_/delete_…profile…` 的工具**只有** `update_personal_profile`（2026-09-24 修改，原为"一个都没有"）。
+11c. `get_profile_gaps`：四种状态判断正确、按 DS-160 页面分组、不含字段值；"不适用"随依据字段变化（`test_profile_gaps_*`）。
+11b. `confirm_personal_profile_none`：记录路径、去重、持久化；非法路径/是非题/已有值的字段抛 `ValueError` 且文件不变；字段之后被 `update_personal_profile` 或网页整组保存填上值时自动移出 `confirmed_none`（`test_confirm*`、`test_confirmed_none_pruned_*`）。
+11a. `update_personal_profile`：只改给定字段、对象逐键合并、列表整体替换、值不变不写文件、非法分组/字段/日期抛 `ValueError` 且文件不变（`tests/unit/test_personal_profile.py` 里 `test_update_fields_*`）。
 12. 浏览器打开 `/my.html#profile`：能看到 9 个分组面板；在「教育经历」里点「＋ 添加一条」会多出一个空条目卡片，点「删除这条」会移除；点「保存」后出现「已保存」字样；刷新页面后已保存的值仍在。
 13. `grep -nE "\.innerHTML|alert\(|confirm\(" web/assets/my.js` 没有输出。
 14. 仓库里（含本文档、测试、提交信息）不出现任何真实姓名、证件号、电话、地址、学校、单位；示例一律为虚构值。
 
 ## 待定 / 以后再说
 
+- **网页上显示 / 编辑 `confirmed_none`**：目前只有 Agent 能写，网页「基本信息」不显示哪些字段被确认为"没有"。以后可以在空字段旁显示「已确认没有」并允许撤销。
+
 - **教育经历与材料库关联**：`education.schools[*]` 可以加一个 `material_ids`，指向材料库里的毕业证 / 学位证 / 成绩单（词表类型 `graduation_certificate` / `degree_certificate` / `transcript` / `overseas_degree_certification`）；工作经历同理可关联在职证明。本版不做，先观察实际填表时是否需要。
 - **家庭成员的其他资料**：申根 / 英签常要父母职业、联系方式、子女是否同行等；目前父母只收 DS-160 问到的字段，等接入第二种表格时再扩展。
 - **跨字段校验**（日期先后、护照是否快过期提醒）。
 - **从现有文件导入**（例如从旧的 DS-160 打印页 PDF 自动抽取填入）：需要 OCR/解析，属于 Agent 层，另开 spec。
-- **填表 Agent** 本身：读 `get_personal_profile()` → 按 `ds160` 提示映射 → 本次行程信息从 Track 或对话获得 → Security 页交给用户。另开 spec。
+- **填表 Agent** 本身：读 `get_personal_profile()` → 按 `ds160` 提示映射 → 本次行程信息从 Track 或对话获得 → Security 页交给用户；缺的长期信息问用户后用 `update_personal_profile` 写回。2026-09-24 起按 `docs/ROADMAP.md` 第 4 项以 DS-160 试验。

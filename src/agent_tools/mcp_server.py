@@ -17,7 +17,7 @@ mcp = MCPServer(
     instructions=(
         "本地个人办事助手：只读共享区的流程攻略、读写你自己的「我的办事」进度。"
         "不提供删除工具，也不提供读取材料文件内容本身的工具——只看结构化的状态。"
-        "「基本信息」（PersonalProfile）只读，没有写工具。"
+        "「基本信息」（PersonalProfile）可读；写回只能写用户亲口回答并确认过的内容。"
     ),
 )
 
@@ -103,11 +103,52 @@ def add_pitfall(track_id: str, text: str) -> dict:
         "只读：读取用户的「基本信息」（姓名拼音、护照、联系方式、家庭、教育、工作、旅行与签证历史、社交媒体等）"
         "和字段说明（中文标签、sensitive、对应 DS-160 哪一问）。用于辅助填写 DS-160 等表格。"
         "内容是真实个人信息：只在填表需要时使用，不要在对话里整段复述 sensitive 字段；"
-        "空值 / 空列表表示用户没填，不等于回答“否”，要先问用户。没有写工具，改资料请让用户去网页「我的资料 → 基本信息」"
+        "空值 / 空列表表示用户没填，不等于回答“否”，要先问用户；profile.confirmed_none 里列出的字段路径"
+        "表示用户已确认“没有”，可以直接答 No。用户回答后用 update_personal_profile 写回值，"
+        "回答“没有”的用 confirm_personal_profile_none 记下"
     )
 )
 def get_personal_profile() -> dict:
     return tools.get_personal_profile()
+
+
+@mcp.tool(
+    description=(
+        "把用户在填表时回答的长期个人信息写回「基本信息」的一个分组（group 取 identity / passport / contact / "
+        "family / education / employment / travel / social_media / background）。changes 只放要改的字段，"
+        "字段 key 和取值格式以 get_personal_profile 的 fields 说明为准；对象字段逐键合并，列表字段整体替换（要发完整列表）。"
+        "硬性规则：①只写用户在对话里亲口回答的内容，不写你推测、从网页或材料里猜出来的值；"
+        "②写之前把要写的字段和值逐条复述给用户，用户明确同意后才调用；"
+        "③本次行程专属的信息（出行目的、日期、在美地址、同行人等）和 Security/Background 法律声明题不要写进来。"
+        "返回 changed 列表（before/after），写完向用户简短报告改了哪些字段"
+    )
+)
+def update_personal_profile(group: str, changes: dict) -> dict:
+    return tools.update_personal_profile(group, changes)
+
+
+@mcp.tool(
+    description=(
+        "把用户在填表时亲口确认“没有”的字段记进「基本信息」（例如没有曾用名 → [\"identity.other_names\"]），"
+        "下次填表不用再问。路径格式是 分组.字段（字段 key 见 get_personal_profile 的 fields）。"
+        "只用于列表字段和可空的文本/对象字段；是非题请用 update_personal_profile 直接写 false。"
+        "硬性规则同 update_personal_profile：只记用户亲口说的“没有”，记之前逐条复述并征得同意；"
+        "本次行程专属信息和 Security/Background 法律声明题不要记。字段以后被填上值时会自动移出清单"
+    )
+)
+def confirm_personal_profile_none(fields: list[str]) -> dict:
+    return tools.confirm_personal_profile_none(fields)
+
+
+@mcp.tool(
+    description=(
+        "只读：填表前查缺口。按 DS-160 页面列出「基本信息」里每个字段的状态——filled（有值）、"
+        "confirmed_none（用户确认没有）、missing（没填也没确认，要问）。不含字段值。"
+        "开始填表前先调用它，把 missing 的问题一次问完、写回后再填，而不是填到一半才问"
+    )
+)
+def get_profile_gaps() -> dict:
+    return tools.get_profile_gaps()
 
 
 def main() -> None:
