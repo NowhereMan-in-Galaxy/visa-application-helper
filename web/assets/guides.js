@@ -566,7 +566,7 @@
     var main = el("div");
 
     // --- 下一步 ---
-    if (!readonly) main.append(nextCard(v, stepById, reqById));
+    if (!readonly) main.append(overviewCard(v, stepById));
 
     // --- 问题 ---
     var asked = v.facts.filter(function (f) { return f.asked; });
@@ -847,49 +847,114 @@
     );
   }
 
-  function nextCard(v, stepById, reqById) {
+  // 办事页最上方的总览：把要做的事分成「线上填表」和「材料准备」两块。
+  // 不再放"这一步做完了"大按钮：挂着材料的步骤，材料齐了由后端自动算完成（StepView.auto_done）；
+  // 其余步骤（例如去现场递签）在下面时间线里点圆圈标记，或者让 Agent 填完表后标记。
+  function overviewCard(v, stepById) {
     var s = v.next_step ? stepById[v.next_step] : null;
-    if (!s) {
-      var pending = v.steps.filter(function (x) { return x.applies === "undecided"; }).length;
-      var allDone = v.steps.every(function (x) { return x.applies === "no" || x.done; });
-      return el(
-        "section",
-        { class: "next-card" + (allDone ? " done-all" : "") },
+    var allDone = v.steps.every(function (x) { return x.applies === "no" || x.done; });
+    var pending = v.steps.filter(function (x) { return x.applies === "undecided"; }).length;
+
+    var headline;
+    if (s) {
+      headline = [
+        el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
+        el("h2", null, el("a", { href: "#step-" + s.id, text: s.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })),
+        windowLine(s, factsFromView(v), stepById),
+        s.late ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" }) : null,
+      ];
+    } else {
+      headline = [
         el("div", { class: "label", text: allDone ? "全部完成" : "下一步" }),
         el("h2", { text: allDone ? "所有步骤都做完了。" : pending ? "先回答下面的问题" : "暂时没有能马上做的步骤" }),
         !allDone && v.reminders && v.reminders.length
           ? el("p", { class: "muted", text: "最近的一件事：" + reminderText(v.reminders[0]) + "。到时候来这里，或者把提醒加到日历里。" })
           : null,
-        allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null
-      );
+        allDone ? el("p", { class: "muted", text: (v.completed ? "用时 " + v.elapsed_days + " 天（" + v.created + " → " + v.completed + "）。" : "") + "别忘了最后核对一遍材料之间是否对得上。" }) : null,
+      ];
     }
-    var mats = s.requirements
-      .map(function (rid) { return reqById[rid]; })
-      .filter(function (r) { return r && r.state !== "not_applicable"; });
+
     return el(
       "section",
-      { class: "next-card" + (s.late ? " late" : "") },
-      el("div", { class: "label", text: "下一步" + phaseLabel(v, s.phase) }),
-      el("h2", { text: s.title }),
-      el("div", { class: "step-meta" }, stepMeta(s)),
-      windowLine(s, factsFromView(v), stepById),
-      linksBlock(s, factsFromView(v)),
-      s.late
-        ? el("p", { class: "late-alert", text: "⚠ 已经超过建议的最晚开始时间，尽快推进这一步" })
-        : null,
-      mats.length
-        ? el("p", { class: "muted" }, "这一步涉及：", mats.map(function (r, i) { return el("span", null, i ? "、" : "", r.name + "（" + STATE_LABEL[displayState(r)] + "）"); }))
-        : null,
-      el(
+      { class: "next-card overview" + (allDone ? " done-all" : "") + (s && s.late ? " late" : "") },
+      headline,
+      el("div", { class: "ov-cols" }, onlineBlock(v), materialsBlock(v)),
+      el("p", { class: "ov-foot muted", text: "带材料的步骤，材料都「已有」后会自动打勾；其余步骤做完后，在下面的步骤里点左边的圆圈。" })
+    );
+  }
+
+  // 线上步骤：攻略给阶段标了线上/线下时，只算"线上"阶段里的步骤；
+  // 整份攻略都没标时，退一步看这一步有没有官网或填表指南链接
+  function isOnlineStep(v, s) {
+    if (v.phases.some(function (p) { return p.mode; })) {
+      var ph = v.phases.filter(function (p) { return p.id === s.phase; })[0];
+      return !!ph && ph.mode === "online";
+    }
+    return s.links.some(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); });
+  }
+
+  function onlineBlock(v) {
+    var steps = v.steps.filter(function (s) { return s.applies === "yes" && isOnlineStep(v, s); });
+    var done = steps.filter(function (s) { return s.done; }).length;
+    var body = steps.length
+      ? el("ul", { class: "ov-list" }, steps.map(function (s) {
+          var links = s.links.filter(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); }).slice(0, 2);
+          return el(
+            "li",
+            { class: s.done ? "done" : s.id === v.next_step ? "next" : "" },
+            el("span", { class: "ov-mark", "aria-hidden": "true", text: s.done ? "✓" : s.id === v.next_step ? "→" : "·" }),
+            el(
+              "span",
+              null,
+              el("a", { href: "#step-" + s.id, text: s.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } }),
+              s.done || !links.length ? null : el("span", { class: "ov-links" }, links.map(function (l) {
+                var internal = l.kind === "form_guide" && l.form;
+                return internal
+                  ? el("a", { class: "ov-link", href: "#/form/" + encodeURIComponent(l.form), text: l.title })
+                  : el("a", { class: "ov-link", href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title + " ↗" });
+              }))
+            )
+          );
+        }))
+      : el("p", { class: "muted", text: "这件事没有要在网上办的步骤。" });
+    return el(
+      "div",
+      { class: "ov-block" },
+      el("div", { class: "ov-head" }, el("h3", { text: "线上填表" }), steps.length ? el("small", { text: done + " / " + steps.length + " 步" }) : null),
+      body
+    );
+  }
+
+  function materialsBlock(v) {
+    var todo = v.requirements.filter(function (r) { return !r.optional && (r.state === "missing" || r.state === "stale" || r.state === "unconfirmed"); });
+    todo.sort(function (a, b) { return STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state); });
+    var shown = todo.slice(0, 6);
+    var body;
+    if (!v.progress_total) {
+      body = el("p", { class: "muted", text: v.requirements.some(function (r) { return r.state === "undecided"; }) ? "回答上面的问题后，这里会列出要准备的材料。" : "这件事不用准备材料。" });
+    } else if (!todo.length) {
+      body = el("p", { class: "muted", text: "✓ 材料都齐了，可以在右侧导出到文件夹。" });
+    } else {
+      body = el(
         "div",
-        { class: "actions" },
-        el("button", { class: "primary", type: "button", text: "✓ 这一步做完了", onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: true }); } }),
-        el("a", { href: "#step-" + s.id, text: "看详情", onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } })
-      ),
-      // 时间提醒型攻略可能一份材料都没有，这时不显示"材料 0 / 0"
-      v.requirements.length
-        ? el("div", { class: "progress-wrap" }, progressBar(v.progress_ready, v.progress_total), el("small", { text: "材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐" }))
-        : null
+        null,
+        el("ul", { class: "ov-list" }, shown.map(function (r) {
+          return el(
+            "li",
+            null,
+            stateChip(r.state),
+            el("a", { href: "#mat-" + r.id, text: r.name, onclick: function (ev) { ev.preventDefault(); var t = document.getElementById("mat-" + r.id); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); } })
+          );
+        })),
+        todo.length > shown.length ? el("p", { class: "muted", text: "还有 " + (todo.length - shown.length) + " 项，见右侧「材料一览」。" }) : null
+      );
+    }
+    return el(
+      "div",
+      { class: "ov-block" },
+      el("div", { class: "ov-head" }, el("h3", { text: "材料准备" }), v.progress_total ? el("small", { text: v.progress_ready + " / " + v.progress_total + " 已备齐" }) : null),
+      v.progress_total ? progressBar(v.progress_ready, v.progress_total) : null,
+      body
     );
   }
 
@@ -1222,8 +1287,9 @@
       class: "tick",
       text: s.done ? "✓" : "",
       "aria-pressed": s.done ? "true" : "false",
-      "aria-label": (s.done ? "取消完成：" : "标记完成：") + s.title,
-      disabled: ctx.readonly || s.applies !== "yes",
+      "aria-label": s.auto_done ? "材料齐了，自动完成：" + s.title : (s.done ? "取消完成：" : "标记完成：") + s.title,
+      title: s.auto_done ? "这一步的材料都齐了，自动算完成" : null,
+      disabled: ctx.readonly || s.applies !== "yes" || s.auto_done,
       onclick: function () { update(v, "/steps/" + encodeURIComponent(s.id), { done: !s.done }); },
     });
 
@@ -1273,7 +1339,7 @@
         el(
           "div",
           { class: "step-head" },
-          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null),
+          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null, s.auto_done ? el("span", { class: "badge", text: "材料齐了 · 自动完成" }) : null),
           menu
         ),
         el("div", { class: "step-meta" }, stepMeta(s)),

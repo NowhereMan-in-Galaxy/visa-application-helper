@@ -319,3 +319,22 @@ form.upload label.keep { display: inline-flex; align-items: center; gap: 4px; co
 form.upload label.keep input { accent-color: var(--green); }
 .preview-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .preview-notice .primary { flex: none; }
+
+/* ---- 办事页总览：线上填表 / 材料准备 ---- */
+.overview h2 a { color: inherit; text-decoration: none; }
+.overview h2 a:hover { text-decoration: underline; }
+.ov-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.ov-block { border: 1px solid var(--line); background: var(--paper); padding: 14px 16px; min-width: 0; }
+.ov-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ov-head h3 { margin: 0; font-size: 15px; }
+.ov-block .progress { margin: 10px 0 8px; }
+.ov-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+.ov-list li { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line-soft); }
+.ov-list li:last-child { border-bottom: 0; }
+.ov-list li.done a { color: var(--muted); text-decoration: line-through; }
+.ov-list li.next { font-weight: 600; }
+.ov-mark { width: 14px; flex: none; color: var(--green); text-align: center; }
+.ov-links { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 2px; }
+.ov-link { font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
+.ov-foot { font-size: 12px; margin: 12px 0 0; }
+@media (max-width: 720px) { .ov-cols { grid-template-columns: 1fr; } }
