@@ -244,6 +244,8 @@ class StepView(BaseModel):
     duration_days: dict | None
     applies: Applies
     done: bool
+    # done 是因为这一步的必需材料都齐了、自动算完成的（不是用户手动勾的），见 _auto_done_steps
+    auto_done: bool = False
     available: bool
     requirements: list[str]
     depends_on: list[str]
@@ -484,7 +486,8 @@ def compute_track_view(
     step_applies = {
         s.id: "no" if s.id in hidden_steps else _evaluate(guide, answers, s.applies_if) for s in guide.steps
     }
-    done = set(track.done_steps)
+    auto_done = _auto_done_steps(guide, req_views, step_applies)
+    done = set(track.done_steps) | auto_done
     latest_start, latest_finish, late = _deadline_times(guide, step_applies, done, track.deadline, today)
     step_views: list[StepView] = []
     for s in guide.steps:
@@ -497,7 +500,7 @@ def compute_track_view(
             custom=s.id in custom_ids, hidden=s.id in hidden_steps, user_note=track.step_notes.get(s.id),
             id=s.id, title=s.title, phase=s.phase, where=s.where, estimate=s.estimate,
             duration_days=s.duration_days.model_dump() if s.duration_days else None,
-            applies=applies, done=is_done,
+            applies=applies, done=is_done, auto_done=s.id in auto_done and s.id not in track.done_steps,
             available=applies == "yes" and not is_done and deps_ok and in_window,
             requirements=s.requirements, depends_on=s.depends_on,
             conditions=[{"fact": c.fact, "in": c.in_} for c in s.applies_if],
@@ -558,6 +561,31 @@ def set_fact_value(guide: Guide, track: Track, fact: str, value: str | None) -> 
     elif value not in f.options:
         raise ValueError(f"{value!r} 不是这个问题的选项")
     track.facts[fact] = value
+
+
+def _auto_done_steps(guide: Guide, req_views: list[RequirementView], step_applies: dict[str, Applies]) -> set[str]:
+    """必需材料全部「已有」的步骤，自动算完成，不用用户手动勾。
+
+    只对"拥有"这些材料的步骤生效：材料第一次出现在哪一步，就归哪一步。后面的步骤再引用同一份材料
+    （例如"入境时随身带 I-20"），说明那一步是"带着材料去做某件事"，材料齐了不代表做完了，仍要手动勾。
+    没挂材料、只挂了加分项、或有材料取决于还没回答的问题的步骤，也都不自动完成。
+    """
+    by_id = {r.id: r for r in req_views}
+    owner: dict[str, str] = {}
+    for s in guide.steps:
+        for rid in s.requirements:
+            owner.setdefault(rid, s.id)
+    result: set[str] = set()
+    for s in guide.steps:
+        if step_applies.get(s.id) != "yes":
+            continue
+        reqs = [by_id[rid] for rid in s.requirements if rid in by_id and by_id[rid].state != "not_applicable"]
+        if not reqs or any(owner[r.id] != s.id for r in reqs) or any(r.state == "undecided" for r in reqs):
+            continue
+        needed = [r for r in reqs if not r.optional]
+        if needed and all(r.state == "ready" for r in needed):
+            result.add(s.id)
+    return result
 
 
 def set_step_done(track: Track, step: str, done: bool, today: date) -> None:
