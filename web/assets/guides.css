@@ -338,3 +338,17 @@ form.upload label.keep input { accent-color: var(--green); }
 .ov-link { font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
 .ov-foot { font-size: 12px; margin: 12px 0 0; }
 @media (max-width: 720px) { .ov-cols { grid-template-columns: 1fr; } }
+
+/* ---- 首页：攻略库自己的搜索和标签 ---- */
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.chip.cat { font-weight: 600; }
+.lib-filter { padding: 14px 20px; border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 10px; }
+.lib-search { width: 100%; max-width: 420px; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); background: var(--paper); font: inherit; }
+.tag.soft { background: transparent; border: 1px solid var(--line); margin-left: 4px; }
+.card .meta .tag + .tag { margin-left: 4px; }
+
+/* ---- 材料：说明收成一行，操作收成一行小按钮 ---- */
+.mat-note.clamp { cursor: pointer; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.mat-note.clamp.open { display: block; }
+.mat-actions { display: flex; gap: 14px; margin-top: 6px; }
+.mat-actions-wrap .pick-wrap { margin-top: 0; }

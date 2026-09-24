@@ -201,8 +201,21 @@
   }
 
   // ---------- 首页：我正在办的 + 攻略库 ----------
+  //
+  // 两块各筛各的：「办理中」按分类筛（只有办的事分属两类以上才出现筛选）；
+  // 「攻略库」是一个库，有自己的搜索框和标签（分类 + 攻略里写的 tags），以后攻略多了也好找。
+  // 筛选状态只存在页面内存里；旧链接 #/tag/<分类> 仍然能用，打开后等于在攻略库里选了这个标签。
+  var homeState = { trackCat: null, guideTag: null, query: "" };
+
+  function guideMatches(g, tag, query) {
+    if (tag && g.category !== tag && (g.tags || []).indexOf(tag) === -1) return false;
+    if (!query) return true;
+    var hay = [g.title, g.summary, g.category, g.id].concat(g.tags || []).join(" ").toLowerCase();
+    return query.toLowerCase().split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(w) !== -1; });
+  }
 
   function renderHome(tag) {
+    if (tag) homeState.guideTag = tag;
     Promise.all([request("GET", "/api/tracks"), request("GET", "/api/guides")])
       .then(function (results) {
         var allTracks = results[0];
@@ -210,24 +223,26 @@
         var guideTitle = {};
         allGuides.forEach(function (g) { guideTitle[g.id] = g.title; });
 
-        // 标签 = 攻略的分类（签证 / 工作 / 社保 / 银行补贴 / 其他）；办事跟着它所照着的攻略走
-        var counts = {};
-        allGuides.forEach(function (g) { if (g.category) counts[g.category] = (counts[g.category] || 0) + 1; });
-        allTracks.forEach(function (t) { if (t.category) counts[t.category] = (counts[t.category] || 0) + 1; });
-        var match = function (cat) { return !tag || cat === tag; };
-        var tracks = allTracks.filter(function (t) { return match(t.category); });
-        var guides = allGuides.filter(function (g) { return match(g.category); });
+        var trackCats = {};
+        allTracks.forEach(function (t) { if (t.category) trackCats[t.category] = (trackCats[t.category] || 0) + 1; });
+        if (homeState.trackCat && !trackCats[homeState.trackCat]) homeState.trackCat = null;
+        var tracks = allTracks.filter(function (t) { return !homeState.trackCat || t.category === homeState.trackCat; });
         var active = tracks.filter(function (t) { return !t.completed; });
         var done = tracks.filter(function (t) { return t.completed; });
 
-        var chips = el(
-          "nav",
-          { class: "chips", "aria-label": "按标签筛选" },
-          el("a", { class: "chip", href: "#/", "aria-current": tag ? "false" : "true" }, "全部", el("span", { class: "n", text: allGuides.length + allTracks.length })),
-          Object.keys(counts).map(function (cat) {
-            return el("a", { class: "chip", href: "#/tag/" + encodeURIComponent(cat), "aria-current": cat === tag ? "true" : "false" }, cat, el("span", { class: "n", text: counts[cat] }));
-          })
-        );
+        var trackChips = Object.keys(trackCats).length > 1
+          ? el(
+              "div",
+              { class: "chips small", role: "group", "aria-label": "按分类筛选我的办事" },
+              [null].concat(Object.keys(trackCats)).map(function (cat) {
+                return el("button", {
+                  type: "button", class: "chip", "aria-pressed": homeState.trackCat === cat ? "true" : "false",
+                  text: cat === null ? "全部" : cat + " " + trackCats[cat],
+                  onclick: function () { homeState.trackCat = cat; renderHome(null); },
+                });
+              })
+            )
+          : null;
 
         var activeCards = active.map(function (t) {
           var foot = [el("span", { text: "已进行 " + (t.elapsed_days || 0) + " 天" })];
@@ -286,7 +301,7 @@
           );
         }
 
-        var guideCards = guides.map(function (g) {
+        function guideCard(g) {
           if (!g.valid) {
             return el(
               "div",
@@ -300,12 +315,50 @@
           return el(
             "a",
             { class: "card", href: "#/guide/" + encodeURIComponent(g.id) },
-            el("span", { class: "tag", text: g.category }),
+            el("span", { class: "meta" }, el("span", { class: "tag", text: g.category }), (g.tags || []).map(function (t) { return el("span", { class: "tag soft", text: t }); })),
             el("h3", { text: g.title }),
             g.summary ? el("p", { class: "meta", text: g.summary }) : null,
             el("div", { class: "next", text: g.step_count + " 个步骤 · " + g.requirement_count + " 项材料" + (g.updated ? " · 更新于 " + g.updated : "") })
           );
+        }
+
+        // 攻略库的标签：先分类，再按出现次数排的 tags
+        var tagCounts = {};
+        allGuides.forEach(function (g) {
+          [g.category].concat(g.tags || []).forEach(function (t) { if (t) tagCounts[t] = (tagCounts[t] || 0) + 1; });
         });
+        var cats = [];
+        allGuides.forEach(function (g) { if (g.category && cats.indexOf(g.category) === -1) cats.push(g.category); });
+        var otherTags = Object.keys(tagCounts).filter(function (t) { return cats.indexOf(t) === -1; })
+          .sort(function (x, y) { return tagCounts[y] - tagCounts[x] || x.localeCompare(y, "zh"); });
+        if (homeState.guideTag && !tagCounts[homeState.guideTag]) homeState.guideTag = null;
+
+        var libCount = el("span", { class: "count" });
+        var libList = el("div");
+        var tagBox = el("div", { class: "chips small lib-tags", role: "group", "aria-label": "按标签筛选攻略" });
+        function drawLibrary() {
+          var list = allGuides.filter(function (g) { return guideMatches(g, homeState.guideTag, homeState.query.trim()); });
+          libCount.textContent = list.length;
+          tagBox.replaceChildren();
+          [null].concat(cats, otherTags).forEach(function (t) {
+            tagBox.append(el("button", {
+              type: "button", class: "chip" + (t && cats.indexOf(t) !== -1 ? " cat" : ""),
+              "aria-pressed": homeState.guideTag === t ? "true" : "false",
+              text: t === null ? "全部" : t,
+              onclick: function () { homeState.guideTag = t; drawLibrary(); },
+            }));
+          });
+          libList.replaceChildren(
+            list.length
+              ? el("div", { class: "cards" }, list.map(guideCard))
+              : el("p", { class: "empty", text: allGuides.length ? "没有符合条件的攻略。换个关键词，或者欢迎贡献一份。" : "攻略库是空的。" })
+          );
+        }
+        var search = el("input", {
+          type: "search", class: "lib-search", value: homeState.query, placeholder: "搜索攻略：国家、城市、签证类型……", "aria-label": "搜索攻略",
+        });
+        search.addEventListener("input", function () { homeState.query = search.value; drawLibrary(); });
+        drawLibrary();
 
         setView(
           el(
@@ -313,21 +366,21 @@
             { class: "heading" },
             el("div", null, el("h1", { text: "照着攻略，一件件办好。" }), el("p", { class: "muted", text: "攻略由大家共同维护；你的进度只保存在这台电脑上。" }))
           ),
-          chips,
           el(
             "section",
             { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length }))),
+            el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length })), trackChips),
             activeCards.length
               ? el("div", { class: "cards" }, activeCards)
-              : el("p", { class: "empty", text: tag ? "这个标签下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
+              : el("p", { class: "empty", text: homeState.trackCat ? "这个分类下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
           ),
           doneSection,
           el(
             "section",
-            { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "攻略库", el("span", { class: "count", text: guides.length })), el("small", { text: "community/guides/" })),
-            guideCards.length ? el("div", { class: "cards" }, guideCards) : el("p", { class: "empty", text: tag ? "这个标签下还没有攻略，欢迎贡献一份。" : "攻略库是空的。" })
+            { class: "panel library" },
+            el("div", { class: "panel-head" }, el("h2", null, "攻略库", libCount), el("small", { text: "community/guides/" })),
+            el("div", { class: "lib-filter" }, search, tagBox),
+            libList
           ),
           el(
             "p",
@@ -879,7 +932,7 @@
       { class: "next-card overview" + (allDone ? " done-all" : "") + (s && s.late ? " late" : "") },
       headline,
       el("div", { class: "ov-cols" }, onlineBlock(v), materialsBlock(v)),
-      el("p", { class: "ov-foot muted", text: "带材料的步骤，材料都「已有」后会自动打勾；其余步骤做完后，在下面的步骤里点左边的圆圈。" })
+      el("p", { class: "ov-foot muted", text: "材料齐了的步骤会自动打勾；其余步骤做完，在下面点左边的圆圈。" })
     );
   }
 
@@ -1378,10 +1431,8 @@
     }
     if (r.missing_parts.length) hints.push(el("div", { class: "mat-note", text: "还差：" + r.missing_parts.map(function (p) { return p.name; }).join("、") }));
     // 预览页是只读的，没有上传按钮：提示要先"开始办"，免得让人以为这里就能传
-    if (r.type_unresolved) {
-      hints.push(el("div", { class: "mat-note", text: ctx.readonly
-        ? "这类材料没法自动对上材料库。开始办之后，可以在这里上传，或从我的资料里选一份。"
-        : "这类材料没法自动对上材料库，上传或从我的资料里选一份即可。" }));
+    if (r.type_unresolved && ctx.readonly) {
+      hints.push(el("div", { class: "mat-note", text: "这类材料没法自动对上材料库。开始办之后，可以在这里上传，或从我的资料里选一份。" }));
     } else if (ctx.readonly && r.state === "missing") {
       hints.push(el("div", { class: "mat-note", text: "开始办之后，可以在这里上传。" }));
     }
@@ -1411,21 +1462,61 @@
         "div",
         { class: "mat-top" },
         stateChip(displayState(r)),
-        el("span", { class: "mat-name", text: r.name }),
-        r.raw_name && r.raw_name !== r.name ? el("span", { class: "mat-raw", text: "攻略写作「" + r.raw_name + "」" }) : null,
+        el("span", { class: "mat-name", text: r.name, title: r.raw_name && r.raw_name !== r.name ? "攻略原来写作「" + r.raw_name + "」" : null }),
         KIND_LABEL[r.kind] ? el("span", { class: "badge" + (r.kind === "generate" ? " ai" : ""), text: KIND_LABEL[r.kind] }) : null,
         r.optional ? el("span", { class: "badge", text: "加分项" }) : null,
         r.custom ? el("span", { class: "badge custom", text: "我加的" }) : null,
         menu
       ),
-      r.note ? el("div", { class: "mat-note", text: r.note }) : null,
+      r.note ? clampedNote(r.note) : null,
       note ? note.node : null,
       rename ? rename.node : null,
       hints,
       records,
-      !ctx.readonly && (r.state === "missing" || r.state === "stale") ? uploadForm(r, v) : null,
-      !ctx.readonly && r.state !== "undecided" ? pickForm(r, v) : null,
+      ctx.readonly ? null : matActions(r, v),
       evidenceBlock(r.evidence, v.sources)
+    );
+  }
+
+  // 攻略给材料写的说明默认只显示一行，点一下展开 / 收起（说明往往很长，全部铺开字太多）
+  function clampedNote(text) {
+    var node = el("div", {
+      class: "mat-note clamp", text: text, role: "button", tabindex: "0", title: "点一下展开 / 收起",
+      "aria-expanded": "false",
+    });
+    function toggle() {
+      var open = node.classList.toggle("open");
+      node.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    node.addEventListener("click", toggle);
+    node.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); } });
+    return node;
+  }
+
+  // 材料的操作收成一行小按钮：「上传文件」「从我的资料里选」，点了才展开对应的表单
+  function matActions(r, v) {
+    var upload = r.state === "missing" || r.state === "stale" ? uploadForm(r, v) : null;
+    var pick = r.state !== "undecided" ? pickForm(r, v) : null;
+    if (!upload && !pick) return null;
+    var toggle = null;
+    if (upload) {
+      upload.hidden = true;
+      toggle = el("button", {
+        type: "button", class: "linkish", text: r.state === "stale" ? "上传新的一份" : "上传文件", "aria-expanded": "false",
+        onclick: function () {
+          upload.hidden = !upload.hidden;
+          toggle.setAttribute("aria-expanded", upload.hidden ? "false" : "true");
+        },
+      });
+    }
+    // pickForm 自己带「从我的资料里选」切换按钮和展开的表单；把按钮挪到同一行，表单放在下面
+    var pickToggle = pick ? pick.firstChild : null;
+    return el(
+      "div",
+      { class: "mat-actions-wrap" },
+      el("div", { class: "mat-actions" }, toggle, pickToggle),
+      upload,
+      pick
     );
   }
 
@@ -1499,7 +1590,7 @@
     var keepLabel = el("label", { class: "keep", title: "勾上：放进「我的资料」，以后别的办事也能用；不勾：只属于这件办事" }, keepBox, " 放进我的资料（以后还会用）");
     var btn = el("button", { type: "submit", text: r.state === "stale" ? "上传新的一份" : "上传" });
     // 原生 append 会把 null 当成文字 "null" 插进去，所以先过滤掉不需要的控件
-    [el("span", { text: r.state === "stale" ? "重新开好了？" : "手上有了？" }), select, fileInput, el("label", null, "取得日期 ", dateInput), keepLabel, btn]
+    [select, fileInput, el("label", null, "取得日期 ", dateInput), keepLabel, btn]
       .filter(Boolean)
       .forEach(function (node) { form.append(node); });
     form.addEventListener("submit", function (ev) {
