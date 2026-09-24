@@ -140,6 +140,17 @@ def confirm_personal_profile_none(fields: list[str]) -> dict:
     return tools.confirm_personal_profile_none(fields)
 
 
+@mcp.tool(
+    description=(
+        "只读：填表前查缺口。按 DS-160 页面列出「基本信息」里每个字段的状态——filled（有值）、"
+        "confirmed_none（用户确认没有）、missing（没填也没确认，要问）。不含字段值。"
+        "开始填表前先调用它，把 missing 的问题一次问完、写回后再填，而不是填到一半才问"
+    )
+)
+def get_profile_gaps() -> dict:
+    return tools.get_profile_gaps()
+
+
 def main() -> None:
     mcp.run("stdio")
 

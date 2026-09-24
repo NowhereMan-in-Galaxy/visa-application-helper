@@ -439,6 +439,9 @@ travel_history:
   2. 写之前把要写的字段和值**逐条复述**给用户，用户明确同意后才调用；
   3. 本次行程专属信息（见"不收什么"）和 Security/Background 法律声明题**不写进来**。
 - `confirm_personal_profile_none(fields)`：把用户确认"没有"的字段路径加进 `confirmed_none`（去重），返回 `{"added": [...], "confirmed_none": [...]}`；路径不存在、是非题、字段已有值 → `ValueError`，文件不变。硬性规则同上（只记用户亲口说的、先复述征得同意）。核心逻辑在 `core.profile_storage.confirm_profile_none`。
+- `get_profile_gaps()`（2026-09-24 新增，只读）：**填表前查缺口**。按 DS-160 页面（`ds160` 提示里 ` · ` 之前的部分）列出每个有 `ds160` 提示的顶层字段的状态：`filled`（有值；是非题 true/false 都算已答）、`confirmed_none`、`not_applicable`（由其他字段推出不用填，附 `reason`）、`missing`。**不返回字段值**，可以整段展示给用户。核心逻辑 `core.profile_storage.profile_gaps`。
+  - "不适用"规则（`_NOT_APPLICABLE_RULES`，依据字段没填时不推断）：`contact.mailing_address` ← `mailing_same_as_home` 为 true；`family.spouse` ← 婚姻状况为未婚 / 离异 / 丧偶；`family.former_spouses` ← 未婚；`employment.occupation_explanation` ← 职业不是待业或"其他"。
+  - 为什么做：借鉴外部项目 auto-ds160-filler"先检查再填"的思路；DS-160 试验里问题是填到一半才冒出来的，现在开始前一次问完。信息之间是否**矛盾**（例如基本信息和材料扫描件说法不同）需要判断，不在这个工具里，由 `form-filler` skill 的步骤要求 Agent 核对。
 - 仍然**没有**整份覆盖、删除资料的工具。
 
 ## 界面：「我的资料 → 基本信息」
@@ -465,6 +468,7 @@ travel_history:
 9. `GET /api/personal-profile/fields` 返回 9 个分组，顺序为 `identity, passport, contact, family, education, employment, travel, social_media, background`；每个字段都有含中文的 `label`。
 10. 代码中每个字段 key（含条目和子对象里的）都以反引号形式出现在本文档中（测试 `test_every_field_key_is_documented_in_spec`）。
 11. `agent_tools.tools.get_personal_profile()` 返回的 dict 有 `profile` 和 `fields` 两个 key；`mcp_server.py` 里名字形如 `set_/save_/update_/put_/delete_…profile…` 的工具**只有** `update_personal_profile`（2026-09-24 修改，原为"一个都没有"）。
+11c. `get_profile_gaps`：四种状态判断正确、按 DS-160 页面分组、不含字段值；"不适用"随依据字段变化（`test_profile_gaps_*`）。
 11b. `confirm_personal_profile_none`：记录路径、去重、持久化；非法路径/是非题/已有值的字段抛 `ValueError` 且文件不变；字段之后被 `update_personal_profile` 或网页整组保存填上值时自动移出 `confirmed_none`（`test_confirm*`、`test_confirmed_none_pruned_*`）。
 11a. `update_personal_profile`：只改给定字段、对象逐键合并、列表整体替换、值不变不写文件、非法分组/字段/日期抛 `ValueError` 且文件不变（`tests/unit/test_personal_profile.py` 里 `test_update_fields_*`）。
 12. 浏览器打开 `/my.html#profile`：能看到 9 个分组面板；在「教育经历」里点「＋ 添加一条」会多出一个空条目卡片，点「删除这条」会移除；点「保存」后出现「已保存」字样；刷新页面后已保存的值仍在。

@@ -156,3 +156,52 @@ def confirm_profile_none(materials_root: Path, paths: list[str]) -> tuple[Person
     if added:
         save_personal_profile(materials_root, candidate)
     return candidate, added
+
+
+# 由其他字段推出"不适用"的规则：字段路径 → (判断函数, 原因)。判断依据的字段没填时不推断，照常算 missing。
+_NOT_APPLICABLE_RULES = {
+    "contact.mailing_address": (lambda p: p.contact.mailing_same_as_home is True, "邮寄地址与家庭住址相同"),
+    "family.spouse": (lambda p: p.family.marital_status in ("single", "divorced", "widowed"), "当前没有配偶"),
+    "family.former_spouses": (lambda p: p.family.marital_status == "single", "未婚"),
+    "employment.occupation_explanation": (
+        lambda p: p.employment.primary_occupation is not None
+        and p.employment.primary_occupation not in ("not_employed", "other"),
+        "只有待业或「其他」职业才需要说明",
+    ),
+}
+
+
+def profile_gaps(profile: PersonalProfile) -> dict:
+    """填表前查缺口（DS-160）：按 DS-160 页面列出每个有 ds160 提示的顶层字段的状态。
+
+    状态：filled（有值；是非题 true/false 都算已答）、confirmed_none（用户确认没有）、
+    not_applicable（按 _NOT_APPLICABLE_RULES 由其他字段推出不用填，附 reason）、
+    missing（没填也没确认，要问用户）。只做机械判断；信息之间是否矛盾由 Agent 另外核对。
+    返回 {"summary": {状态: 数量}, "pages": [{"page", "fields": [{path, label, sensitive, ds160, status}]}]}，
+    页面顺序按字段定义顺序第一次出现的先后。
+    """
+    from core.models import describe_personal_profile
+
+    pages: dict[str, list[dict]] = {}
+    summary = {"filled": 0, "confirmed_none": 0, "not_applicable": 0, "missing": 0}
+    for group in describe_personal_profile():
+        values = getattr(profile, group["key"]).model_dump(mode="json")
+        for f in group["fields"]:
+            if not f["ds160"]:
+                continue
+            path = f"{group['key']}.{f['key']}"
+            if not _is_empty(values[f["key"]]):
+                status = "filled"
+            elif path in profile.confirmed_none:
+                status = "confirmed_none"
+            elif path in _NOT_APPLICABLE_RULES and _NOT_APPLICABLE_RULES[path][0](profile):
+                status = "not_applicable"
+            else:
+                status = "missing"
+            summary[status] += 1
+            page = f["ds160"].split(" · ")[0]
+            entry = {"path": path, "label": f["label"], "sensitive": f["sensitive"], "ds160": f["ds160"], "status": status}
+            if status == "not_applicable":
+                entry["reason"] = _NOT_APPLICABLE_RULES[path][1]
+            pages.setdefault(page, []).append(entry)
+    return {"summary": summary, "pages": [{"page": p, "fields": fs} for p, fs in pages.items()]}

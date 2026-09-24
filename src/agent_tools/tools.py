@@ -27,7 +27,7 @@ import config
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 from core.models import describe_personal_profile
-from core.profile_storage import confirm_profile_none, load_personal_profile, update_profile_fields
+from core.profile_storage import confirm_profile_none, load_personal_profile, profile_gaps, update_profile_fields
 from core.storage import load_material_records
 import core.adjustments as adj
 from core.adjustments import AdjustmentError
@@ -468,3 +468,11 @@ def confirm_personal_profile_none(fields: list[str], *, materials_root: Path | N
     """
     profile, added = confirm_profile_none(_materials_root(materials_root), fields)
     return {"added": added, "confirmed_none": profile.confirmed_none}
+
+
+def get_profile_gaps(*, materials_root: Path | None = None) -> dict:
+    """填表前查缺口：按 DS-160 页面列出基本信息里每个字段是 filled / confirmed_none / missing。
+
+    不返回字段的值（只返回状态），可以放心整段展示给用户。missing 的要在开始填表前一次问完。
+    """
+    return profile_gaps(load_personal_profile(_materials_root(materials_root)))

@@ -375,6 +375,42 @@ def test_confirmed_none_pruned_when_field_gets_a_value(tmp_path):
     assert load_personal_profile(tmp_path).confirmed_none == []
 
 
+# ---------- 填表前查缺口 ----------
+
+
+def _status(report, path):
+    return next(f["status"] for pg in report["pages"] for f in pg["fields"] if f["path"] == path)
+
+
+def test_profile_gaps_statuses_and_no_values(tmp_path):
+    _write(tmp_path, LEGACY_YAML)  # 有中文姓名、出生日期、国籍、护照号
+    tools.confirm_personal_profile_none(["identity.other_names"], materials_root=tmp_path)
+    report = tools.get_profile_gaps(materials_root=tmp_path)
+    assert _status(report, "identity.native_full_name") == "filled"
+    assert _status(report, "identity.other_names") == "confirmed_none"
+    assert _status(report, "identity.surname") == "missing"
+    assert sum(report["summary"].values()) == sum(len(pg["fields"]) for pg in report["pages"])
+    # 按 DS-160 页面分组，且不含任何字段值
+    assert report["pages"][0]["page"] == "Personal 1"
+    assert "张三" not in str(report) and "E12345678" not in str(report)
+
+
+def test_profile_gaps_not_applicable_rules(tmp_path):
+    save_profile_group(tmp_path, "contact", {"mailing_same_as_home": True})
+    save_profile_group(tmp_path, "family", {"marital_status": "single"})
+    save_profile_group(tmp_path, "employment", {"primary_occupation": "business"})
+    report = tools.get_profile_gaps(materials_root=tmp_path)
+    for path in ["contact.mailing_address", "family.spouse", "family.former_spouses",
+                 "employment.occupation_explanation"]:
+        assert _status(report, path) == "not_applicable", path
+    # 依据变了，推断跟着变
+    save_profile_group(tmp_path, "family", {"marital_status": "married"})
+    save_profile_group(tmp_path, "employment", {"primary_occupation": "not_employed"})
+    report = tools.get_profile_gaps(materials_root=tmp_path)
+    assert _status(report, "family.spouse") == "missing"
+    assert _status(report, "employment.occupation_explanation") == "missing"
+
+
 def test_constructor_accepts_legacy_kwargs():
     p = PersonalProfile(full_name="张三", passport_number="E12345678")
     assert p.identity.native_full_name == "张三" and p.passport.passport_number == "E12345678"
