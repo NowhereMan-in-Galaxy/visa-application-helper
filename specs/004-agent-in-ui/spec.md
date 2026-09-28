@@ -1,6 +1,6 @@
 # 004 界面里的 Agent：从帖子新建攻略 + 简单追问
 
-- **状态**：草案，待项目主确认（2026-09-28）
+- **状态**：项目主已确认（2026-09-28）。第 1 步（地基 + 只读追问）已完成，见文末"进展"
 - **对应**：路线图第 5 项；spec 002"Agent 接入方案"里的 B3
 - **前提（已具备）**：本地服务的防跨站请求校验（spec 002"B3 的安全前提"）；MCP 工具（`src/agent_tools/mcp_server.py`）；skill `xhs-reader`、`guide-author`
 
@@ -178,3 +178,10 @@
 - API key 模式、其他 Agent（Codex 等）的适配：见 BACKLOG。
 - 旅游攻略（行程、景点、预算）：同一套"杂乱帖子 → 结构化"的流程，但数据结构不同，见 BACKLOG。
 - 新增词表 key、在界面里做 git 提交：第一版不做。
+
+## 进展
+
+- **第 1 步完成（2026-09-28）**：`src/agent_runner/`（`cli.py` / `jobs.py` / `prompts.py`）、`/api/agent/status`、`/api/agent/jobs`（+ SSE 事件流、取消）、抽屉 `web/assets/agent-drawer.{js,css}`（两个页面都有，快捷按钮按页面变化，只读）。自动测试 12 条（`tests/unit/test_agent_runner.py`，用假 CLI `tests/unit/fake_claude.py`）覆盖验收 1–4、10。
+  - 真机检查：在申根办事页点「我还缺什么？」，约 15 秒流式给出基于真实数据的回答（还指出了"步骤已勾完成、但申请表和预约单还没登记"的不一致），折合约 $0.39；接着追问"你刚才说的第一项…"能接上前文。
+  - 发现：后台 Claude 会先调用 `ToolSearch` 加载 MCP 工具（工具是按需加载的），不在白名单里也能用，属于 CLI 自带、不涉及读写数据。
+
