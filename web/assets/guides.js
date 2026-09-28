@@ -218,6 +218,12 @@
     return query.toLowerCase().split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(w) !== -1; });
   }
 
+  // 卡片上的"照着：<攻略名>"：名字和标题一样时就是重复信息，不显示
+  function followsText(t, guideTitle) {
+    var g = guideTitle[t.guide_id] || t.guide_id;
+    return g === t.title ? null : " 照着：" + g;
+  }
+
   function renderHome(tag) {
     if (tag) homeState.guideTag = tag;
     Promise.all([request("GET", "/api/tracks"), request("GET", "/api/guides")])
@@ -258,7 +264,7 @@
           return el(
             "a",
             { class: "card", href: "#/track/" + encodeURIComponent(t.id) },
-            el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, " 照着：" + (guideTitle[t.guide_id] || t.guide_id)),
+            el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, followsText(t, guideTitle)),
             el("h3", { text: t.title }),
             t.error
               ? el("p", { class: "meta", text: "暂时打不开：" + t.error })
@@ -275,10 +281,11 @@
         if (done.length) {
           var days = done.map(function (t) { return t.elapsed_days; }).filter(function (d) { return d !== null && d !== undefined; });
           var avg = days.length ? Math.round(days.reduce(function (a, b) { return a + b; }, 0) / days.length) : null;
+          // 已办完的默认收起，点标题展开
           doneSection = el(
-            "section",
-            { class: "panel" },
-            el("div", { class: "panel-head" }, el("h2", null, "已办完", el("span", { class: "count", text: done.length }))),
+            "details",
+            { class: "panel done-panel" },
+            el("summary", { class: "panel-head" }, el("h2", null, "已办完", el("span", { class: "count", text: done.length }))),
             days.length
               ? el(
                   "div",
@@ -295,7 +302,7 @@
                 return el(
                   "a",
                   { class: "card done", href: "#/track/" + encodeURIComponent(t.id) },
-                  el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, " 照着：" + (guideTitle[t.guide_id] || t.guide_id)),
+                  el("span", { class: "meta" }, t.category ? el("span", { class: "tag", text: t.category }) : null, followsText(t, guideTitle)),
                   el("h3", { text: t.title }),
                   el("div", { class: "took", text: "用时 " + t.elapsed_days + " 天" }),
                   el("div", { class: "card-foot" }, el("span", { text: t.created + " → " + t.completed }))
@@ -802,6 +809,18 @@
       .catch(function (e) { showError(e.message); });
   }
 
+  // 哪些办事页把"你的情况"展开了（只存在页面内存里，刷新后恢复成收起）
+  var factsExpanded = {};
+
+  // "你的情况"一行里的短标签：答"是 / 否"的要带上问题，不然看不懂；其他答案本身就说明了
+  function factAnswerLabel(f) {
+    if (f.value === "是" || f.value === "否") {
+      var q = f.question.replace(/[（(].*$/, "").replace(/[？?]$/, "").replace(/^(你|申请人|这次旅行)?(是否|有没有)?/, "");
+      return q + "：" + f.value;
+    }
+    return f.value;
+  }
+
   // 攻略预览和我的办事共用同一套渲染，区别只在 readonly：预览里不能勾选、不能确认
   function trackBody(v, opts) {
     var readonly = opts.readonly;
@@ -819,7 +838,20 @@
 
     // --- 问题 ---
     var asked = v.facts.filter(function (f) { return f.asked; });
-    if (asked.length) {
+    // 答过的问题收成一行"你的情况：…"，点「修改」才展开；没答的问题照常显示在下面
+    var factsOpen = readonly || !!factsExpanded[v.id];
+    var answered = asked.filter(function (f) { return f.value !== null; });
+    var shownFacts = factsOpen ? asked : asked.filter(function (f) { return f.value === null; });
+    if (!readonly && answered.length && !factsOpen) {
+      main.append(el(
+        "section",
+        { class: "panel facts-summary" },
+        el("span", { class: "muted", text: "你的情况：" }),
+        el("span", { text: answered.map(factAnswerLabel).join(" · ") }),
+        el("button", { type: "button", class: "linkish", text: "修改", onclick: function () { factsExpanded[v.id] = true; drawTrack(v); } })
+      ));
+    }
+    if (shownFacts.length) {
       var unanswered = asked.filter(function (f) { return f.value === null; }).length;
       main.append(
         el(
@@ -828,13 +860,17 @@
           el(
             "div",
             { class: "panel-head" },
-            el("h2", { text: readonly ? "开始办之后会问你这些问题" : "先回答几个问题" }),
-            el("small", { text: readonly ? "回答后，和你无关的材料会自动隐藏" : unanswered ? "还有 " + unanswered + " 个没回答" : "都回答了，可以随时改" })
+            el("h2", { text: readonly ? "开始办之后会问你这些问题" : unanswered ? "先回答几个问题" : "你的情况" }),
+            readonly
+              ? el("small", { text: "回答后，和你无关的材料会自动隐藏" })
+              : factsOpen && answered.length
+                ? el("button", { type: "button", class: "linkish", text: "收起", onclick: function () { factsExpanded[v.id] = false; drawTrack(v); } })
+                : el("small", { text: "还有 " + unanswered + " 个没回答" })
           ),
           el(
             "div",
             { class: "facts" },
-            asked.map(function (f) {
+            shownFacts.map(function (f) {
               return el(
                 "div",
                 { class: "fact" + (f.value !== null ? " answered" : "") },
@@ -934,8 +970,6 @@
     return d ? "通常 " + d.typical + " 天，最长 " + d.max + " 天" : null;
   }
 
-  var phaseObserver = null;
-
   function jumpTo(id) {
     var target = document.getElementById(id);
     if (!target) return;
@@ -945,9 +979,8 @@
   }
 
   // 页面最上方的"大阶段"进度条：先让人知道整件事分几段、现在走到哪、一般要多久。
-  // 每一段都可以点，跳到下面这一段的步骤和材料；往下滑之后，顶部会吸住一条精简版，随时能跳。
+  // 每一段都可以点，跳到下面这一段的步骤和材料。（2026-09-28 去掉了往下滑时吸在顶部的精简条：和这里重复，页面太花。）
   function phaseBar(v) {
-    if (phaseObserver) { phaseObserver.disconnect(); phaseObserver = null; }
     if (!v.phases.length) {
       return v.timeline ? el("p", { class: "notice", text: "⏱ " + v.timeline }) : null;
     }
@@ -985,38 +1018,9 @@
       })
     );
 
-    var nextStep = v.steps.filter(function (x) { return x.id === v.next_step; })[0];
-    var strip = el(
-      "nav",
-      { class: "phase-strip", "aria-label": "阶段快捷跳转" },
-      v.phases.map(function (p, i) {
-        return el("button", {
-          type: "button",
-          class: p.state,
-          disabled: p.state === "skipped",
-          text: (p.state === "done" ? "✓ " : (i + 1) + " ") + p.title,
-          onclick: function () { jumpTo("phase-" + p.id); },
-        });
-      }),
-      nextStep
-        ? el("a", { class: "strip-next", href: "#step-" + nextStep.id, text: "下一步：" + nextStep.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + nextStep.id); } })
-        : null
-    );
-
-    // 大进度条滑出屏幕时才显示精简条，避免两条同时出现
-    if ("IntersectionObserver" in window) {
-      phaseObserver = new IntersectionObserver(function (entries) {
-        strip.classList.toggle("visible", !entries[0].isIntersecting);
-      });
-      phaseObserver.observe(bar);
-    } else {
-      strip.classList.add("visible");
-    }
-
     return el(
       "div",
       null,
-      strip,
       el(
         "section",
         { class: "phases", "aria-label": "办理阶段" },
@@ -1123,12 +1127,24 @@
       ];
     }
 
+    // 只说下一步：这一步的官网链接 + 一行总进度。材料清单在右边「材料一览」和各个步骤里，这里不再重复。
+    var online = v.steps.filter(function (x) { return x.applies === "yes" && isOnlineStep(v, x); });
+    var progress = [];
+    if (online.length) progress.push("线上 " + online.filter(function (x) { return x.done; }).length + " / " + online.length + " 步");
+    if (v.progress_total) progress.push("材料 " + v.progress_ready + " / " + v.progress_total + " 已备齐");
+    var links = s && !s.done ? s.links.filter(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); }).slice(0, 2) : [];
     return el(
       "section",
       { class: "next-card overview" + (allDone ? " done-all" : "") + (s && s.late ? " late" : "") },
       headline,
-      el("div", { class: "ov-cols" }, onlineBlock(v), materialsBlock(v)),
-      el("p", { class: "ov-foot muted", text: "材料齐了的步骤会自动打勾；其余步骤做完，在下面点左边的圆圈。" })
+      links.length
+        ? el("div", { class: "ov-links" }, links.map(function (l) {
+            return l.kind === "form_guide" && l.form
+              ? el("a", { class: "ov-link", href: "#/form/" + encodeURIComponent(l.form), text: l.title })
+              : el("a", { class: "ov-link", href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title + " ↗" });
+          }))
+        : null,
+      progress.length ? el("div", { class: "ov-progress" }, v.progress_total ? progressBar(v.progress_ready, v.progress_total) : null, el("small", { class: "muted", text: progress.join(" · ") })) : null
     );
   }
 
@@ -1140,71 +1156,6 @@
       return !!ph && ph.mode === "online";
     }
     return s.links.some(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); });
-  }
-
-  function onlineBlock(v) {
-    var steps = v.steps.filter(function (s) { return s.applies === "yes" && isOnlineStep(v, s); });
-    var done = steps.filter(function (s) { return s.done; }).length;
-    var body = steps.length
-      ? el("ul", { class: "ov-list" }, steps.map(function (s) {
-          var links = s.links.filter(function (l) { return l.applies === "yes" && (l.kind === "official" || l.kind === "form_guide"); }).slice(0, 2);
-          return el(
-            "li",
-            { class: s.done ? "done" : s.id === v.next_step ? "next" : "" },
-            el("span", { class: "ov-mark", "aria-hidden": "true", text: s.done ? "✓" : s.id === v.next_step ? "→" : "·" }),
-            el(
-              "span",
-              null,
-              el("a", { href: "#step-" + s.id, text: s.title, onclick: function (ev) { ev.preventDefault(); jumpTo("step-" + s.id); } }),
-              s.done || !links.length ? null : el("span", { class: "ov-links" }, links.map(function (l) {
-                var internal = l.kind === "form_guide" && l.form;
-                return internal
-                  ? el("a", { class: "ov-link", href: "#/form/" + encodeURIComponent(l.form), text: l.title })
-                  : el("a", { class: "ov-link", href: l.url, target: "_blank", rel: "noopener noreferrer", text: l.title + " ↗" });
-              }))
-            )
-          );
-        }))
-      : el("p", { class: "muted", text: "这件事没有要在网上办的步骤。" });
-    return el(
-      "div",
-      { class: "ov-block" },
-      el("div", { class: "ov-head" }, el("h3", { text: "线上填表" }), steps.length ? el("small", { text: done + " / " + steps.length + " 步" }) : null),
-      body
-    );
-  }
-
-  function materialsBlock(v) {
-    var todo = v.requirements.filter(function (r) { return !r.optional && (r.state === "missing" || r.state === "stale" || r.state === "unconfirmed"); });
-    todo.sort(function (a, b) { return STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state); });
-    var shown = todo.slice(0, 6);
-    var body;
-    if (!v.progress_total) {
-      body = el("p", { class: "muted", text: v.requirements.some(function (r) { return r.state === "undecided"; }) ? "回答上面的问题后，这里会列出要准备的材料。" : "这件事不用准备材料。" });
-    } else if (!todo.length) {
-      body = el("p", { class: "muted", text: "✓ 材料都齐了，可以在右侧导出到文件夹。" });
-    } else {
-      body = el(
-        "div",
-        null,
-        el("ul", { class: "ov-list" }, shown.map(function (r) {
-          return el(
-            "li",
-            null,
-            stateChip(r.state),
-            el("a", { href: "#mat-" + r.id, text: r.name, onclick: function (ev) { ev.preventDefault(); var t = document.getElementById("mat-" + r.id); if (t) t.scrollIntoView({ behavior: "smooth", block: "center" }); } })
-          );
-        })),
-        todo.length > shown.length ? el("p", { class: "muted", text: "还有 " + (todo.length - shown.length) + " 项，见右侧「材料一览」。" }) : null
-      );
-    }
-    return el(
-      "div",
-      { class: "ov-block" },
-      el("div", { class: "ov-head" }, el("h3", { text: "材料准备" }), v.progress_total ? el("small", { text: v.progress_ready + " / " + v.progress_total + " 已备齐" }) : null),
-      v.progress_total ? progressBar(v.progress_ready, v.progress_total) : null,
-      body
-    );
   }
 
   function phaseLabel(v, phaseId) {
@@ -1578,9 +1529,11 @@
       ? el("div", { class: "mats" }, mats, ctx.readonly ? null : addMaterialButton(v, s.id))
       : null;
 
-    return el(
+    // 做完的步骤默认只剩一行标题，点标题展开 / 收起（预览页不折叠）
+    var foldable = !ctx.readonly && s.done;
+    var item = el(
       "li",
-      { class: cls, id: "step-" + s.id },
+      { class: cls + (foldable ? " collapsed" : ""), id: "step-" + s.id },
       el("div", null, tick),
       el(
         "div",
@@ -1588,19 +1541,31 @@
         el(
           "div",
           { class: "step-head" },
-          el("div", { class: "step-title" }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null, s.auto_done ? el("span", { class: "badge", text: "材料齐了 · 自动完成" }) : null),
+          el("div", {
+            class: "step-title" + (foldable ? " foldable" : ""),
+            role: foldable ? "button" : null,
+            tabindex: foldable ? "0" : null,
+            title: foldable ? "点一下展开 / 收起" : null,
+            onclick: foldable ? function () { item.classList.toggle("collapsed"); } : null,
+            onkeydown: foldable ? function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); item.classList.toggle("collapsed"); } } : null,
+          }, s.title, s.custom ? el("span", { class: "badge custom", text: "我加的" }) : null, s.auto_done ? el("span", { class: "badge", text: "材料齐了 · 自动完成" }) : null),
           menu
         ),
-        el("div", { class: "step-meta" }, stepMeta(s)),
-        windowLine(s, ctx.factsByKey, ctx.stepById),
-        linksBlock(s, ctx.factsByKey),
-        blocked,
-        note ? note.node : null,
-        rename ? rename.node : null,
-        matsBlock,
-        evidenceBlock(s.evidence, v.sources)
+        el(
+          "div",
+          { class: "step-body" },
+          el("div", { class: "step-meta" }, stepMeta(s)),
+          windowLine(s, ctx.factsByKey, ctx.stepById),
+          linksBlock(s, ctx.factsByKey),
+          blocked,
+          note ? note.node : null,
+          rename ? rename.node : null,
+          matsBlock,
+          evidenceBlock(s.evidence, v.sources)
+        )
       )
     );
+    return item;
   }
 
   function materialItem(r, v, ctx) {
