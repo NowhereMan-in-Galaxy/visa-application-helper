@@ -1,0 +1,114 @@
+"""调起哪个 Agent CLI、带什么参数（spec 004"模块划分"）。
+
+整个项目里只有这个文件知道具体用的是 Claude Code 的 `claude` 命令。以后要支持 API key 模式或别的 Agent，
+只换这一层，页面和任务管理都不用改。
+
+测试时用环境变量 `PA_AGENT_CLI` 指向一个假的 CLI 脚本，不会调用真的 Claude。
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+
+from config import REPO_ROOT
+
+# MCP 服务在 .mcp.json 里的名字是 personal-assistant，Claude Code 给它的工具加的前缀是 mcp__<服务名>__
+MCP_PREFIX = "mcp__personal-assistant__"
+
+# 追问（kind="ask"）第一版只放行读取类工具；写操作要等 spec 004 第 3 步的撤销 / 确认卡片做好再放开。
+ASK_TOOLS = ["Read"] + [
+    MCP_PREFIX + name
+    for name in (
+        "list_guides",
+        "get_guide",
+        "list_tracks",
+        "get_track",
+        "get_personal_profile",
+        "get_profile_gaps",
+        "validate_community",
+    )
+]
+
+TOOLS_BY_KIND = {"ask": ASK_TOOLS}
+
+DEFAULT_MAX_BUDGET_USD = 5.0
+
+
+def cli_name() -> str:
+    return os.environ.get("PA_AGENT_CLI", "claude")
+
+
+def find_cli() -> str | None:
+    """返回 CLI 的完整路径；找不到返回 None。"""
+    return shutil.which(cli_name())
+
+
+def _run(args: list[str], timeout: float = 15) -> str | None:
+    try:
+        out = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def status() -> dict:
+    """界面用来判断能不能用 Agent、用什么方式登录（spec 004"登录方式提示"）。
+
+    `auth status` 的输出里还有邮箱、组织等信息，这里只取登录方式，其余一概不往外传。
+    `ANTHROPIC_API_KEY` 只报告有没有设置，绝不读取它的值。
+    """
+    api_key_env = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    path = find_cli()
+    if path is None:
+        return {"available": False, "cli_path": None, "cli_version": None,
+                "auth_method": None, "api_key_env": api_key_env}
+    version = _run([path, "--version"])
+    auth_method = None
+    raw = _run([path, "auth", "status"])
+    if raw:
+        try:
+            info = json.loads(raw)
+        except json.JSONDecodeError:
+            info = {}
+        if info.get("loggedIn"):
+            auth_method = info.get("authMethod") or "unknown"
+        else:
+            auth_method = "none"
+    return {
+        "available": version is not None,
+        "cli_path": path,
+        "cli_version": version,
+        "auth_method": auth_method,
+        "api_key_env": api_key_env,
+    }
+
+
+def build_command(kind: str, prompt: str, *, session_id: str | None = None,
+                  max_budget_usd: float = DEFAULT_MAX_BUDGET_USD) -> list[str]:
+    """拼出一次任务的完整命令行。
+
+    - `-p`：问一句、答完就退出（非交互模式）
+    - `stream-json` + `--include-partial-messages`：边干活边输出，页面才能实时显示
+    - `--allowedTools`：白名单；`--permission-mode dontAsk`：白名单以外的工具直接拒绝，不会卡在"要不要允许"
+    - `--mcp-config .mcp.json --strict-mcp-config`：只加载本项目的 MCP 服务
+    - `--max-budget-usd`：用量上限，防止跑飞
+    """
+    if kind not in TOOLS_BY_KIND:
+        raise ValueError(f"未知的任务类型：{kind}")
+    path = find_cli()
+    if path is None:
+        raise FileNotFoundError(cli_name())
+    cmd = [
+        path, "-p", prompt,
+        "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+        "--allowedTools", ",".join(TOOLS_BY_KIND[kind]),
+        "--permission-mode", "dontAsk",
+        "--mcp-config", str(REPO_ROOT / ".mcp.json"), "--strict-mcp-config",
+        "--max-budget-usd", f"{max_budget_usd:g}",
+    ]
+    if session_id:
+        cmd += ["--resume", session_id]
+    return cmd

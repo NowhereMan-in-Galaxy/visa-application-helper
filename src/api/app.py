@@ -8,15 +8,17 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
+from agent_runner import cli as agent_cli, jobs as agent_jobs, prompts as agent_prompts
 from config import COMMUNITY_DIR, REPO_ROOT, get_materials_root
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
@@ -1184,6 +1186,75 @@ def export_track_materials(track_id: str, payload: ExportRequest | None = None) 
         folder=str(result.folder), copied=result.copied,
         missing_files=result.missing_files, pending=result.pending,
     )
+
+
+# ---------- 界面里的 Agent（spec 004）----------
+
+
+class AgentJobContext(BaseModel):
+    page: str | None = None
+    guide_id: str | None = None
+    track_id: str | None = None
+
+
+class AgentJobRequest(BaseModel):
+    kind: str
+    input: str
+    context: AgentJobContext = AgentJobContext()
+    session_id: str | None = None
+
+
+@app.get("/api/agent/status")
+def agent_status() -> dict:
+    return agent_cli.status()
+
+
+@app.post("/api/agent/jobs")
+def agent_start_job(req: AgentJobRequest) -> dict:
+    text = req.input.strip()
+    if not text:
+        raise HTTPException(422, "请输入问题")
+    if len(text) > 20000:
+        raise HTTPException(422, "内容太长（上限 2 万字）")
+    if req.kind != "ask":
+        raise HTTPException(422, f"暂不支持的任务类型：{req.kind}")
+    prompt = agent_prompts.ask_prompt(text, req.context.model_dump())
+    try:
+        job = agent_jobs.start(req.kind, prompt, session_id=req.session_id)
+    except FileNotFoundError:
+        raise HTTPException(503, "没有检测到 Claude Code，装好并登录后再试")
+    except agent_jobs.JobConflictError:
+        raise HTTPException(409, "已经有一个任务在进行，等它结束或先取消")
+    return {"job_id": job.id}
+
+
+def _agent_job_or_404(job_id: str) -> agent_jobs.Job:
+    job = agent_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(404, "找不到这个任务")
+    return job
+
+
+@app.get("/api/agent/jobs/{job_id}/events")
+def agent_job_events(job_id: str) -> StreamingResponse:
+    """SSE 事件流：progress / text / done / error，见 spec 004"接口"。"""
+    job = _agent_job_or_404(job_id)
+
+    def stream():
+        for ev in agent_jobs.iter_events(job):
+            if ev is None:
+                yield ": keepalive\n\n"
+                continue
+            yield f"event: {ev['type']}\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/agent/jobs/{job_id}/cancel")
+def agent_cancel_job(job_id: str) -> dict:
+    agent_jobs.cancel(_agent_job_or_404(job_id))
+    return {"ok": True}
 
 
 @app.get("/", include_in_schema=False)
