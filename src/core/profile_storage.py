@@ -100,6 +100,19 @@ def update_profile_fields(materials_root: Path, group: str, changes: dict) -> tu
     值没有变化时不写文件，变化列表为空。
     分组名不对抛 KeyError；字段名不对、值不合法抛 pydantic ValidationError（文件不会被改动）。
     """
+    profile, part, changed = _apply_fields(materials_root, group, changes)
+    if changed:
+        setattr(profile, group, part)
+        save_personal_profile(materials_root, profile)
+    return profile, changed
+
+
+def preview_profile_fields(materials_root: Path, group: str, changes: dict) -> list[dict]:
+    """和 update_profile_fields 一样校验并算出变化列表，但不写文件（界面 Agent 的"提议"用，spec 004 第 3 步）。"""
+    return _apply_fields(materials_root, group, changes)[2]
+
+
+def _apply_fields(materials_root: Path, group: str, changes: dict):
     if group not in PROFILE_GROUPS:
         raise KeyError(group)
     _, model = PROFILE_GROUPS[group]
@@ -112,10 +125,7 @@ def update_profile_fields(materials_root: Path, group: str, changes: dict) -> tu
         for k in changes
         if before[k] != after[k]
     ]
-    if changed:
-        setattr(profile, group, part)
-        save_personal_profile(materials_root, profile)
-    return profile, changed
+    return profile, part, changed
 
 
 def _is_empty(value) -> bool:

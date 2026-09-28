@@ -7,15 +7,18 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import threading
 import time
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+import config
 from config import REPO_ROOT
 
 from agent_runner import cli
+from agent_tools import activity
 
 # 工具名 → 页面上显示的进度说明。没列出的工具显示原名。
 TOOL_LABELS = {
@@ -38,6 +41,16 @@ TOOL_LABELS = {
     "computer": "查看页面",
     "find": "查找页面元素",
     "read_page": "读取页面结构",
+    "set_step_done": "勾选步骤",
+    "set_fact": "回答问题",
+    "set_hidden": "隐藏 / 恢复",
+    "set_note": "写备注",
+    "add_pitfall": "记避坑点",
+    "add_custom_step": "加步骤",
+    "add_custom_material": "加材料",
+    "confirm_match": "确认材料",
+    "propose_profile_update": "准备基本信息的修改提议",
+    "Bash": "尝试运行命令（没有权限，已被拒绝）",
     "Read": "阅读",
     "Skill": "阅读操作说明",
     "ToolSearch": "准备工具",
@@ -77,7 +90,8 @@ def _tool_label(name: str, args: dict | None = None) -> str:
     label = TOOL_LABELS.get(short, short)
     args = args or {}
     if short == "Read" and args.get("file_path"):
-        label += " " + str(args["file_path"]).rsplit("/", 1)[-1]
+        name = str(args["file_path"]).rsplit("/", 1)[-1]
+        label = "查看较长的工具结果" if name.startswith("toolu_") else label + " " + name
     elif short == "Skill" and args.get("skill"):
         label += "（" + str(args["skill"]) + "）"
     elif short == "navigate" and args.get("url"):
@@ -136,12 +150,35 @@ def translate(line: dict, state: dict) -> list[tuple[str, dict]]:
     return out
 
 
+def side_events(root, state: dict) -> list[tuple[str, dict]]:
+    """Agent 调用工具之后，看看它有没有改办事进度（→ activity，页面显示"已勾上：… [撤销]"）
+    或提议改基本信息（→ proposal，页面弹确认卡片）。只报这次任务开始之后新出现的。"""
+    out: list[tuple[str, dict]] = []
+    seen_acts = state.setdefault("seen_acts", set())
+    for e in activity.read_activities(root):
+        if e.get("id") not in seen_acts:
+            seen_acts.add(e.get("id"))
+            if state.get("baseline_done"):
+                out.append(("activity", {"activity_id": e["id"], "track_id": e["track_id"], "text": e["summary"]}))
+    seen_props = state.setdefault("seen_props", set())
+    for p in activity.read_proposals(root):
+        if p.get("id") not in seen_props:
+            seen_props.add(p.get("id"))
+            if state.get("baseline_done"):
+                out.append(("proposal", {"proposal_id": p["id"], "group": p["group"], "changed": p["changed"]}))
+    state["baseline_done"] = True
+    return out
+
+
 def _run(job: Job, cmd: list[str]) -> None:
     state: dict = {}
+    root = config.get_materials_root()
+    side_events(root, state)  # 先记下任务开始前已有的记录，之后只报新的
     try:
         job.proc = subprocess.Popen(
             cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL, text=True, bufsize=1,
+            env={**os.environ, activity.UI_ENV: "1"},  # 让 MCP 工具知道是网页调起的，要记撤销信息
         )
     except OSError as e:
         job.emit("error", text=f"启动 Agent 失败：{e}")
@@ -157,6 +194,9 @@ def _run(job: Job, cmd: list[str]) -> None:
             continue
         for type_, data in translate(line, state):
             job.emit(type_, **data)
+        if line.get("type") == "user":  # 工具刚返回结果
+            for type_, data in side_events(root, state):
+                job.emit(type_, **data)
     job.proc.wait()
     if not job.finished:
         if job.cancelled:

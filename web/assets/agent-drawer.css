@@ -16,7 +16,7 @@ body.agent-open main { padding-right: 420px; }
 .agent-msg { white-space: pre-wrap; word-break: break-word; font-size: 14px; }
 .agent-msg.user { align-self: flex-end; max-width: 85%; background: var(--green-soft); padding: 8px 12px; }
 .agent-msg.agent { background: #fff; border: 1px solid var(--line-soft); padding: 10px 12px; }
-.agent-msg.progress, .agent-msg.cost { font-size: 12px; color: var(--muted); }
+.agent-msg.progress { font-size: 12px; color: var(--muted); }
 .agent-msg.progress::before { content: "● "; color: var(--green); animation: agent-pulse 1.2s infinite; }
 .agent-msg.error { font-size: 13px; color: var(--danger); background: var(--red-soft); padding: 8px 12px; }
 .agent-foot { border-top: 1px solid var(--line); padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -66,3 +66,15 @@ body.agent-open main { padding-right: 420px; }
 .draft-actions .quiet { border-color: var(--line); color: var(--muted); }
 .draft-box { flex: 1; display: flex; flex-direction: column; padding: 20px 22px; }
 .draft-box > .draft-body { flex: 1; }
+
+/* Agent 改了数据：撤销行、确认卡片（spec 004 第 3 步） */
+.agent-msg.activity { display: flex; align-items: baseline; gap: 10px; font-size: 13px; background: var(--green-soft); padding: 6px 10px; }
+.agent-msg.activity.undone > span:first-child { text-decoration: line-through; color: var(--muted); }
+.agent-undo { margin-left: auto; padding: 2px 10px; font-size: 12px; }
+.agent-inline-error { flex-basis: 100%; color: var(--danger); font-size: 12px; }
+.agent-card { border: 1px solid var(--ink); background: #fff; padding: 10px 12px; font-size: 13px; box-shadow: 3px 3px 0 var(--line); }
+.agent-card ul { margin: 6px 0; padding-left: 18px; }
+.agent-card-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.agent-card-actions button { padding: 4px 12px; font-size: 13px; }
+.agent-card-status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.agent-card-status:empty { display: none; }

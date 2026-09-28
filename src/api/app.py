@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
 from agent_runner import cli as agent_cli, jobs as agent_jobs, prompts as agent_prompts
+from agent_tools import activity as agent_activity
 from config import COMMUNITY_DIR, REPO_ROOT, get_materials_root
 from core.drafts import (
     DRAFT_ID,
@@ -1276,6 +1277,33 @@ def agent_job_events(job_id: str) -> StreamingResponse:
 def agent_cancel_job(job_id: str) -> dict:
     agent_jobs.cancel(_agent_job_or_404(job_id))
     return {"ok": True}
+
+
+def _activity_http(fn, *args):
+    try:
+        return fn(get_materials_root(), *args)
+    except agent_activity.ActivityError as e:
+        raise HTTPException(e.status, str(e)) from e
+
+
+@app.post("/api/agent/undo/{activity_id}")
+def agent_undo(activity_id: str) -> dict:
+    """撤销 Agent 对办事进度的一次修改（spec 004 第 3 步）。之后又改过的不能撤销（409）。"""
+    return _activity_http(agent_activity.undo, activity_id)
+
+
+@app.post("/api/agent/profile-proposals/{proposal_id}/confirm")
+def agent_confirm_proposal(proposal_id: str) -> dict:
+    """用户在确认卡片上点了确认：这时才真正写进基本信息。"""
+    try:
+        return _activity_http(agent_activity.confirm_proposal, proposal_id)
+    except ValidationError as e:
+        raise HTTPException(422, f"这条修改不合法，没有写入：{e}") from e
+
+
+@app.post("/api/agent/profile-proposals/{proposal_id}/reject")
+def agent_reject_proposal(proposal_id: str) -> dict:
+    return _activity_http(agent_activity.reject_proposal, proposal_id)
 
 
 # ---------- 攻略类型、草稿、词表别名（spec 004 第 2 步）----------
