@@ -326,10 +326,11 @@
           return el(
             "a",
             { class: "card", href: "#/guide/" + encodeURIComponent(g.id) },
-            el("span", { class: "meta" }, el("span", { class: "tag", text: g.category }), (g.tags || []).map(function (t) { return el("span", { class: "tag soft", text: t }); })),
+            // 卡片上最多 3 个标签（分类 + 攻略里写的前两个），简介最多两行（CSS 截断），不写更新日期
+            el("span", { class: "meta" }, el("span", { class: "tag", text: g.category }), (g.tags || []).slice(0, 2).map(function (t) { return el("span", { class: "tag soft", text: t }); })),
             el("h3", { text: g.title }),
-            g.summary ? el("p", { class: "meta", text: g.summary }) : null,
-            el("div", { class: "next", text: g.step_count + " 个步骤 · " + g.requirement_count + " 项材料" + (g.updated ? " · 更新于 " + g.updated : "") })
+            g.summary ? el("p", { class: "meta clamp2", text: g.summary }) : null,
+            el("div", { class: "next", text: g.step_count + " 个步骤 · " + g.requirement_count + " 项材料" })
           );
         }
 
@@ -340,8 +341,10 @@
         });
         var cats = [];
         allGuides.forEach(function (g) { if (g.category && cats.indexOf(g.category) === -1) cats.push(g.category); });
+        // 筛选条只放分类 + 最常用的 6 个标签（其余在搜索框里输入照样能搜到）；当前选中的标签总是显示
         var otherTags = Object.keys(tagCounts).filter(function (t) { return cats.indexOf(t) === -1; })
-          .sort(function (x, y) { return tagCounts[y] - tagCounts[x] || x.localeCompare(y, "zh"); });
+          .sort(function (x, y) { return tagCounts[y] - tagCounts[x] || x.localeCompare(y, "zh"); })
+          .filter(function (t, i) { return i < 6 || t === homeState.guideTag; });
         if (homeState.guideTag && !tagCounts[homeState.guideTag]) homeState.guideTag = null;
 
         var libCount = el("span", { class: "count" });
