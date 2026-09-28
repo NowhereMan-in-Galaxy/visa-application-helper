@@ -1,6 +1,6 @@
 """User Story 4（FR-012/FR-013）新增的写入路径：材料记录、上传文件、PersonalProfile。
 
-用 pytest 的 tmp_path 隔离文件系统，不碰真实的 materials_index/ 或 materials_root/。
+用 pytest 的 tmp_path 隔离文件系统，不碰真实的材料根目录（材料索引也在里面）。
 """
 
 from datetime import date

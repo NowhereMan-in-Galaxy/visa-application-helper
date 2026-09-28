@@ -485,8 +485,7 @@ LEGACY_PROFILE_FIELDS: dict[str, tuple[str, str]] = {
 class PersonalProfile(_ProfilePart):
     """申请人级别的结构化个人信息，不挂在某次具体签证申请下（spec.md FR-011，specs/003）。
 
-    这份数据本身就是"真实个人信息"，实际内容 MUST NOT 出现在 materials_index/（仓库会追踪
-    的部分）——存储位置见 src/core/profile_storage.py 的说明。
+    这份数据本身就是"真实个人信息"，实际内容 MUST NOT 进仓库——存储位置见 src/core/profile_storage.py 的说明。
 
     travel_history 留在顶层（而不是挪进 travel 分组）：「出行记录」标签页和出行记录接口
     都按 `profile.travel_history` 读它，挪位置得不偿失。

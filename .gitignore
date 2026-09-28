@@ -29,9 +29,7 @@ config.yaml
 # 一次性原型、临时导出物，不属于项目源码
 outputs/
 
-# 个人材料的索引记录（类型、日期、文件路径）也属于个人信息：只在本机保留，不进仓库。
-# 以 example- 开头的是虚构示例，用来演示格式，继续跟着仓库走。
-materials_index/records/*
-!materials_index/records/example-*
-materials_index/applications/*
-!materials_index/applications/example-*
+# 个人材料的索引记录（类型、日期、文件路径）也属于个人信息：2026-09-24 起放在材料根目录下的 index/
+# （默认 materials/index/，已被上面的 materials/ 忽略）。旧位置 materials_index/ 整个忽略：
+# 切换到旧提交时 git 可能在这里重新放出旧文件，不能让它们再被提交。
+materials_index/

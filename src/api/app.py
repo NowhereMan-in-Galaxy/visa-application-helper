@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
-from config import COMMUNITY_DIR, MATERIALS_INDEX_DIR, REPO_ROOT, get_materials_root
+from config import COMMUNITY_DIR, REPO_ROOT, get_materials_root
 from core.guides import Guide, GuideLoadResult, load_all_guides
 from core.material_types import Vocabulary, VocabularyError, load_vocabulary
 import core.adjustments as adj
@@ -219,6 +219,11 @@ class MaterialView(BaseModel):
     update_overdue: bool | None
 
 
+def materials_index_dir() -> Path:
+    """材料索引在材料根目录下的 index/。每次现算，这样测试替换 get_materials_root 后索引也跟着换。"""
+    return get_materials_root() / "index"
+
+
 def _to_material_view(record: MaterialRecord, today: date) -> MaterialView:
     status_result = compute_status(record, today)
     reminder = compute_update_reminder(record, today)
@@ -240,14 +245,14 @@ def _to_material_view(record: MaterialRecord, today: date) -> MaterialView:
 
 
 def _require_application(application_id: str) -> None:
-    applications = load_visa_applications(MATERIALS_INDEX_DIR)
+    applications = load_visa_applications(materials_index_dir())
     if not any(app_.id == application_id for app_ in applications):
         raise HTTPException(status_code=404, detail=f"没有找到签证申请：{application_id}")
 
 
 @app.get("/api/visa-applications", response_model=list[VisaApplication])
 def list_visa_applications() -> list[VisaApplication]:
-    return load_visa_applications(MATERIALS_INDEX_DIR)
+    return load_visa_applications(materials_index_dir())
 
 
 @app.get(
@@ -257,7 +262,7 @@ def list_visa_applications() -> list[VisaApplication]:
 def list_materials(application_id: str) -> list[MaterialView]:
     """给"办事材料准备" tab 用——只看挂在这次申请下的材料（financial_snapshot / employment_doc）。"""
     _require_application(application_id)
-    records = load_materials_for_application(MATERIALS_INDEX_DIR, application_id)
+    records = load_materials_for_application(materials_index_dir(), application_id)
     today = date.today()
     return [_to_material_view(record, today) for record in records]
 
@@ -265,7 +270,7 @@ def list_materials(application_id: str) -> list[MaterialView]:
 @app.get("/api/materials", response_model=list[MaterialView])
 def list_all_materials(category: MaterialCategory | None = None) -> list[MaterialView]:
     """给"个人材料" tab 用——不看 belongs_to，跨所有申请聚合展示（证件类本来就不该按申请分）。"""
-    records = load_material_records(MATERIALS_INDEX_DIR)
+    records = load_material_records(materials_index_dir())
     if category is not None:
         records = [r for r in records if r.category == category]
     today = date.today()
@@ -286,7 +291,7 @@ async def _create_material(
     material_type: str | None = None,
     for_track: str | None = None,
 ) -> MaterialView:
-    # 用 "类别-日期-随机后缀" 做 id：日期方便人眼在 materials_index/records/ 里按时间找到它，
+    # 用 "类别-日期-随机后缀" 做 id：日期方便人眼在材料索引的 records/ 里按时间找到它，
     # 随机后缀保证不会跟已有记录撞 id（撞了 save_material_record 也会拒绝，不会覆盖）。
     record_id = f"{category.value}-{obtained_date.isoformat()}-{uuid4().hex[:8]}"
 
@@ -315,7 +320,7 @@ async def _create_material(
         for_track=for_track,
     )
     try:
-        save_material_record(MATERIALS_INDEX_DIR, record)
+        save_material_record(materials_index_dir(), record)
     except RecordIdConflictError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -384,7 +389,7 @@ async def append_material_page(material_id: str, file: UploadFile = File(...)) -
     典型场景：护照盖章页那份 PDF 已经有好几页旧章，出国一趟回来又盖了新章，拍照/扫描
     上传新的这一页，追加进同一份文件——不新建一条记录，也不需要用户自己去合并 PDF。
     """
-    all_records = load_material_records(MATERIALS_INDEX_DIR)
+    all_records = load_material_records(materials_index_dir())
     record = next((r for r in all_records if r.id == material_id), None)
     if record is None:
         raise HTTPException(status_code=404, detail=f"没有找到材料记录：{material_id}")
@@ -408,7 +413,7 @@ async def append_material_page(material_id: str, file: UploadFile = File(...)) -
     # 追加了新页，obtained_date 更新成今天——代表这条材料"最新一次更新"的时间，
     # 跟着这个日期算出来的状态/更新提醒也会跟着重新走一遍（见 core/status.py、update_cadence.py）。
     record.obtained_date = date.today()
-    overwrite_material_record(MATERIALS_INDEX_DIR, record)
+    overwrite_material_record(materials_index_dir(), record)
 
     return _to_material_view(record, date.today())
 
@@ -573,7 +578,7 @@ def update_material(material_id: str, payload: MaterialUpdate) -> MaterialView:
     只处理请求体里真正出现的字段（`model_fields_set`）：没提供的字段保持原样；
     `sublabel` / `validity_days` 传 `null` 表示清空；`type` 不能是空字符串。
     """
-    records = load_material_records(MATERIALS_INDEX_DIR)
+    records = load_material_records(materials_index_dir())
     record = next((r for r in records if r.id == material_id), None)
     if record is None:
         raise HTTPException(status_code=404, detail=f"没有找到材料记录：{material_id}")
@@ -598,7 +603,7 @@ def update_material(material_id: str, payload: MaterialUpdate) -> MaterialView:
                 raise HTTPException(status_code=422, detail=f"没有这件办事：{payload.for_track}") from e
         record.for_track = payload.for_track
 
-    overwrite_material_record(MATERIALS_INDEX_DIR, record)
+    overwrite_material_record(materials_index_dir(), record)
     return _to_material_view(record, date.today())
 
 
@@ -711,7 +716,7 @@ def _valid_guide(guide_id: str) -> tuple[Vocabulary, Guide]:
 
 def _track_view(track: Track) -> TrackView:
     vocab, guide = _valid_guide(track.guide)
-    records = load_material_records(MATERIALS_INDEX_DIR)
+    records = load_material_records(materials_index_dir())
     return compute_track_view(guide, track, records, vocab, date.today())
 
 
@@ -745,7 +750,7 @@ def get_guide(guide_id: str) -> GuideDetail:
             preview = None
             if r.valid:
                 blank = Track(id="preview", guide=r.guide.id, title=r.guide.title, created=date.today())
-                records = load_material_records(MATERIALS_INDEX_DIR)
+                records = load_material_records(materials_index_dir())
                 preview = compute_track_view(r.guide, blank, records, vocab, date.today())
             return GuideDetail(summary=_summarize(r), preview=preview)
     raise HTTPException(status_code=404, detail=f"没有找到攻略：{guide_id}")
@@ -886,7 +891,7 @@ def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) ->
         slots = [p["key"] for p in req.parts] or ([req.material_type] if req.material_type else [None])
         if len(payload.records) != len(slots):
             raise HTTPException(status_code=422, detail=f"需要选 {len(slots)} 份材料（{'、'.join(p['name'] for p in req.parts) or req.name}）")
-        by_id = {r.id: r for r in load_material_records(MATERIALS_INDEX_DIR)}
+        by_id = {r.id: r for r in load_material_records(materials_index_dir())}
         for rid in payload.records:
             if rid not in by_id:
                 raise HTTPException(status_code=404, detail=f"没有找到材料记录：{rid}")
@@ -898,7 +903,7 @@ def update_track_match(track_id: str, requirement: str, payload: MatchUpdate) ->
             record = by_id[rid]
             if slot is not None and record_type(record, vocab) is None:
                 record.material_type = slot
-                overwrite_material_record(MATERIALS_INDEX_DIR, record)
+                overwrite_material_record(materials_index_dir(), record)
         track.matches[requirement] = list(payload.records)
     save_track(get_materials_root(), track)
     return _track_view(track)
@@ -1170,7 +1175,7 @@ def export_track_materials(track_id: str, payload: ExportRequest | None = None) 
     dest_text = (payload.dest.strip() if payload and payload.dest else None) or track.export_dir
     dest = _resolve_export_dir(dest_text) if dest_text else None
     view = _track_view(track)
-    records = load_material_records(MATERIALS_INDEX_DIR)
+    records = load_material_records(materials_index_dir())
     result = export_track(view, records, get_materials_root(), datetime.now(), dest_root=dest)
     if payload and payload.dest is not None:
         track.export_dir = dest_text  # 记住这次的选择，下次默认还导出到这里

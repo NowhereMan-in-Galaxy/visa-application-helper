@@ -1,7 +1,7 @@
 """读取配置（docs/SPEC-mvp.md 第 3 条：材料根目录路径必须可配置，不能硬编码）。
 
-只有"材料根目录"（真实文件存放的地方）需要可配置——`materials_index/`（结构化索引）
-本身就是仓库的一部分，路径永远固定，不需要配置。
+只有"材料根目录"（真实文件存放的地方）需要可配置。材料索引（每份材料的类型、日期、文件路径）
+也是个人信息，2026-09-24 起放在材料根目录下的 `index/` 里，跟着材料根目录走，不再放在仓库里。
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MATERIALS_INDEX_DIR = REPO_ROOT / "materials_index"
 # 共享区（specs/002）：大家共同维护的流程攻略和材料类型词表，跟着仓库走，不含个人信息，所以同样不需要配置。
 COMMUNITY_DIR = REPO_ROOT / "community"
 
@@ -38,3 +37,8 @@ def get_materials_root() -> Path:
     if not materials_root_path.is_absolute():
         materials_root_path = REPO_ROOT / materials_root_path
     return materials_root_path
+
+
+def get_materials_index_dir() -> Path:
+    """返回材料索引目录：材料根目录下的 index/（里面分 records/ 和 applications/）。"""
+    return get_materials_root() / "index"

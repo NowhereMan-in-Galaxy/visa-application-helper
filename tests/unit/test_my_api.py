@@ -13,10 +13,10 @@ import api.app as app_module
 
 @pytest.fixture
 def isolated(tmp_path, monkeypatch):
-    root, index = tmp_path / "root", tmp_path / "index"
+    root = tmp_path / "root"
+    index = root / "index"  # 材料索引在材料根目录下的 index/
     (index / "records").mkdir(parents=True)
     monkeypatch.setattr(app_module, "get_materials_root", lambda: root)
-    monkeypatch.setattr(app_module, "MATERIALS_INDEX_DIR", index)
     return TestClient(app_module.app), root, index
 
 

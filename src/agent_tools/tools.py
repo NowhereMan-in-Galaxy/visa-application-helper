@@ -54,7 +54,7 @@ def _community_dir(override: Path | None = None) -> Path:
 
 
 def _materials_index_dir(override: Path | None = None) -> Path:
-    return override if override is not None else config.MATERIALS_INDEX_DIR
+    return override if override is not None else config.get_materials_index_dir()
 
 
 def _materials_root(override: Path | None = None) -> Path:

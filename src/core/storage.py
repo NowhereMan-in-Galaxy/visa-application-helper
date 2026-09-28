@@ -1,12 +1,12 @@
-"""读取 materials_index/ 下的 YAML 记录（docs/SPEC-mvp.md 第 3 条：仓库里只存结构化索引，不存真实材料）。
+"""读写材料索引下的 YAML 记录（docs/SPEC-mvp.md 第 3 条）。
+
+材料索引在材料根目录下的 index/（2026-09-24 从仓库里的 materials_index/ 搬出来，
+索引也是个人信息，不进仓库；位置由 config.get_materials_index_dir() 决定）。
 
 目录约定：
-    materials_index/
+    <材料根目录>/index/
         applications/<visa_application_id>.yaml   一个 VisaApplication
         records/<material_record_id>.yaml           一条 MaterialRecord
-
-（子目录特意不叫 materials——那样会跟"材料根目录"materials/ 撞名，容易搞混，
-也会被 .gitignore 里那条 `materials/` 规则意外忽略掉。）
 
 User Story 1 只需要"读"；User Story 4（前端自主新增材料，见 FR-012）加上了"写"——
 `save_material_record` 只管把一条已经构造好的 MaterialRecord 写成 YAML 文件，

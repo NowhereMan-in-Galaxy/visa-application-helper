@@ -60,11 +60,10 @@ personal-assistant/
     core/                  # 核心库：纯代码、可单独测试（guides.py、tracks.py、material_types.py …）
     api/                   # 本地 Web 服务
   web/                     # 前端静态页面（guides.html 是新主入口）
-  materials_index/         # 个人材料记录的结构化索引（只存元数据；见 spec 002 待决问题）
   tests/                   # pytest 测试
 ```
 
-个人区（不在仓库里）：`config.yaml` 里 `materials_root` 指向的目录，默认是项目内被 `.gitignore` 排除的 `materials/`。里面放真实材料文件、`personal-profile.yaml` 和 `tracks/`（你的办事进度）。
+个人区（不在仓库里）：`config.yaml` 里 `materials_root` 指向的目录，默认是项目内被 `.gitignore` 排除的 `materials/`。里面放真实材料文件、`index/`（材料索引：每份材料的类型、日期、文件路径）、`personal-profile.yaml` 和 `tracks/`（你的办事进度）。
 
 ## 本地跑起来
 
@@ -81,7 +80,7 @@ uv run uvicorn api.app:app --app-dir src --reload    # 启动本地服务
 
 服务没有登录鉴权，只靠 Origin / Host 校验挡浏览器里的跨站请求（见 `specs/002-guide-to-track/spec.md` B3 安全前提），**不要用 `--host 0.0.0.0` 之类的参数把它暴露到局域网/公网**，否则同一网络里的其他设备也能直接读写你的材料数据。
 
-`materials_index/` 里 `example-` 开头的是**虚构示例数据**，只用来演示格式，不会被匹配给真实的办事；确认能跑通之后可以删掉，换成自己的材料记录（只填元数据，真实文件本体放在材料根目录——复制 `config.example.yaml` 为 `config.yaml` 后按需修改）。
+第一次跑起来时「我的资料」是空的，在界面里上传材料即可。材料索引的格式示例（虚构数据）见 `docs/examples/material-index/`。想把材料放到别的位置（例如 iCloud），复制 `config.example.yaml` 为 `config.yaml` 后修改 `materials_root`。
 
 ## 用本地 Agent
 
