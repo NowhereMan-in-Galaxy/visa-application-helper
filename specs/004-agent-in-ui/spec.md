@@ -1,6 +1,6 @@
 # 004 界面里的 Agent：从帖子新建攻略 + 简单追问
 
-- **状态**：项目主已确认（2026-09-28）。第 1 步（地基 + 只读追问）已完成，见文末"进展"
+- **状态**：项目主已确认（2026-09-28）。第 1 步（地基 + 只读追问）、第 2 步（新建攻略）已完成，见文末"进展"
 - **对应**：路线图第 5 项；spec 002"Agent 接入方案"里的 B3
 - **前提（已具备）**：本地服务的防跨站请求校验（spec 002"B3 的安全前提"）；MCP 工具（`src/agent_tools/mcp_server.py`）；skill `xhs-reader`、`guide-author`
 
@@ -20,7 +20,8 @@
 ## 已定的决定（2026-09-28 项目主确认）
 
 1. **主要用途是"从帖子新建攻略"**，其次是简单追问。界面优先服务前者。
-2. **界面形式**：右侧抽屉 + 快捷按钮。每页右下角一个「问 Agent」按钮；抽屉顶部是和当前页面相关的快捷按钮，下面可以自由输入。
+2. **界面形式**：右侧抽屉 + 快捷按钮，**只用于追问**。每页右下角一个「问 Agent」按钮；抽屉顶部是和当前页面相关的快捷按钮，下面可以自由输入。
+   - **替换（2026-09-28，项目主试用第 1 步后）**：原计划"新建攻略也在抽屉里做"不再成立。新建攻略有自己的入口和窗口：攻略库「+ 新建攻略」→ **先选攻略类型** → 进入新建窗口（左边和 Agent 对话，右边是草稿）。理由：新建是主要用途，需要大输入框和持续对话；另外以后要支持结构和办事流程很不一样的攻略（例如旅游攻略），所以先选类型。
 3. **Agent 在本机运行**：本地服务调起用户自己已安装、已登录的 Claude Code CLI。项目**不保存任何 API key**，用量算在用户自己的订阅里。
 4. **不加 API key 模式**（第一版）：记入 BACKLOG。调起 Agent 的代码写成可替换的一层（见"模块划分"），以后加 API 或其他 Agent 只换这一层。
 5. **三类写操作，三种确认方式**：
@@ -56,23 +57,45 @@
 
 | 页面 | 快捷按钮 |
 |---|---|
-| 攻略库首页 | 「从帖子新建攻略」 |
-| 攻略详情 / 草稿预览 | 「按我说的修改这份草稿」（仅草稿）、「这份攻略说了什么」 |
+| 攻略库首页 | 「我正在办的事进展怎么样？」（新建攻略用攻略库里的「+ 新建攻略」按钮，不在抽屉里） |
+| 攻略详情 | 「这份攻略说了什么？」 |
+| 草稿完整预览 | 「这份草稿还有哪些不确定的地方？」 |
 | 我的办事 | 「我还缺什么？」「下一步做什么？」 |
 | 我的资料 → 基本信息 | 「查查我的基本信息还缺什么」 |
 
 抽屉知道当前页面是哪份攻略 / 哪件办事，把 id 作为上下文传给 Agent。
 
+### 攻略类型
+
+`src/core/guide_types.py` 登记全部攻略类型：`id`、名称、说明、能不能新建、发布到 `community/` 下哪个目录、整理时遵循哪个 skill。
+- 现在：`process`「办事流程攻略」（可新建，发布到 `community/guides/`，skill `guide-author`）；`travel`「旅游攻略」（规划中，页面上灰色不可选）。
+- 以后加一种类型 = 登记它 + 写它的数据结构、校验、整理 skill 和预览；新建流程（读帖子 → 草稿 → 预览 → 保存）不用改。
+- 草稿按类型分目录存（见"数据与存储"）。
+
 ### 新建攻略的流程
 
-1. **输入**：抽屉切到"新建攻略"。一个大文本框，可以粘贴：小红书分享文字（含链接）、帖子正文、或别的网页文字；可选填"这是关于什么的"（例如"在美 F-1 办阿根廷签证"）。按钮「开始整理」。
+页面路由：`#/new`（选类型，下方列出还没保存的草稿，可以继续编辑）→ `#/new/<类型>[/<草稿 id>]`（新建窗口）→ `#/draft/<类型>/<草稿 id>`（草稿完整预览，在新标签页打开，不打断对话）。
+
+```
+┌ 新建办事流程攻略 ─────────────────────────────────────────────┐
+│ ┌ 和 Agent 对话 ──────────────┐ ┌ 草稿 ─────────────────────┐ │
+│ │ 说明 / 对话记录 / 过程（可折叠）│ │ 标题 · ✓ 校验通过           │ │
+│ │                            │ │ 13 项材料 · 16 个步骤       │ │
+│ │                            │ │ 词表认不出的叫法（勾选）      │ │
+│ │ [大输入框：粘贴分享文字…]      │ │ 还不确定、建议核实          │ │
+│ │               [开始整理]     │ │ 查看完整预览↗ 丢弃 [保存]    │ │
+│ └────────────────────────────┘ └───────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
+
+1. **输入**：大文本框，可以粘贴：小红书分享文字（含链接）、帖子正文、或别处的总结。回车换行，⌘ / Ctrl + 回车发送。按钮第一次叫「开始整理」，有草稿后叫「发送」。
    - 链接超过 6 条时，按钮不可点，提示"一次最多 6 条"。
-2. **进度**：抽屉里显示阶段清单，每完成一步打勾：`读取帖子（2/5）→ 整理 → 校验 → 完成`；有「取消」按钮。出错或遇到验证码时停下，显示原因。
-3. **结果**：页面跳到草稿预览（和正式攻略的详情页长得一样，顶部有"草稿"横幅），抽屉里显示：
+2. **进度**：对话里显示当前在做什么（"正在打开网页 xhslink.cn""正在保存草稿并校验"），做完后收进可折叠的「过程」；Agent 调用工具前说的话也收进「过程」，最后一段才是回答。有「取消」按钮。出错或遇到验证码时停下，显示原因。
+3. **结果**：Agent 保存草稿后，右边立即显示：
    - 校验结果（✓ / ✗ 及错误）
    - "词表认不出的叫法"及 Agent 的建议，每条一个勾选框（默认不勾）
    - 攻略里的 `uncertain` 和 `conflicts` 摘要
-   - 按钮：「保存到攻略库」（校验有 ✗ 时不可点）、「丢弃草稿」；输入框可以继续说"把第 3 步拆开"之类，Agent 修改同一份草稿
+   - 按钮：「查看完整预览 ↗」、「丢弃草稿」（点两次确认）、「保存到攻略库」（校验有 ✗ 时不可点）；左边可以继续说"把第 3 步拆开"之类，Agent 接着同一次对话修改同一份草稿
    - 本次用量（折合美元，来自 CLI 的 `total_cost_usd`；订阅用户计入额度）
 4. **保存后**：提示"已保存到攻略库，还没提交到 git"。git 提交仍在终端里做（按 AGENTS.md 逐文件检查）。
 
@@ -100,18 +123,18 @@
 
 | 任务 | 允许的工具 |
 |---|---|
-| 新建 / 修改攻略 | `Read`（读仓库里的规则和词表）；Claude in Chrome 读取类工具（`tabs_context_mcp`、`tabs_create_mcp`、`navigate`、`javascript_tool`、`computer` 的截图、`get_page_text`、`tabs_close_mcp`）；新增 MCP 工具 `save_guide_draft`、`validate_guide_draft` |
-| 追问 | `Read`；现有 MCP 读取工具；② 类写工具（`set_step_done`、`set_fact`、`set_hidden`、`set_note`、`add_pitfall`、`add_custom_step`、`add_custom_material`、`confirm_match`）；③ 类只允许"提议"工具 `propose_profile_update` |
+| 新建 / 修改攻略（`create_guide`） | `Read` 只限 `./specs/**`、`./community/**`、`./docs/**`、`./.claude/skills/**`（读不到材料根目录）；`Skill`（读 `guide-author`、`xhs-reader`）；Claude in Chrome（`tabs_context_mcp`、`tabs_create_mcp`、`tabs_close_mcp`、`navigate`、`get_page_text`、`javascript_tool`、`computer`、`find`、`read_page`）；MCP 工具 `list_guides`、`get_guide`、`save_guide_draft`、`get_guide_draft`、`validate_guide_draft` |
+| 追问（`ask`） | `Read`（同上的路径限制）；现有 MCP 读取工具；② 类写工具（`set_step_done`、`set_fact`、`set_hidden`、`set_note`、`add_pitfall`、`add_custom_step`、`add_custom_material`、`confirm_match`）；③ 类只允许"提议"工具 `propose_profile_update` |
 
 - **不给** `Write`、`Edit`、`Bash`：Agent 不能直接写任何文件、不能跑命令。攻略只能通过 `save_guide_draft` 写进草稿区；校验通过 `validate_guide_draft` 做。
 - 新建攻略时浏览器必须是**未登录**小红书的状态，规则照搬 `xhs-reader`；Agent 发现已登录就停止并报告。
-- 调用时加 `--max-budget-usd`（默认 5，可在 `config.yaml` 的 `agent.max_budget_usd` 调整），超出即停止。
+- 调用时加 `--max-budget-usd`，超出即停止：追问 2、新建攻略 20（折合美元；订阅用户只是防止跑飞）。**修改（2026-09-28）**：原定默认 5 对新建攻略太紧（读帖子、看图、写一份完整攻略），改为按任务类型设；`config.yaml` 可调留到以后。
 
 ## 数据与存储
 
-- **草稿区**：`<材料根目录>/drafts/guides/<id>.yaml`。放在材料根目录（被 git 忽略），因为草稿还没经过用户检视，不能进仓库。
-- **发布**：`POST /api/guide-drafts/{id}/publish` 由本地服务（确定性代码，不是 Agent）完成：重新校验 → 通过则写到 `community/guides/<id>.yaml` → 删除草稿。
-- **词表别名**：Agent 在草稿结果里给出建议 `[{raw_name, suggest_key}]`；用户勾选后由 `POST /api/vocab/aliases` 写进 `community/material_types.yaml`（确定性代码：追加到对应 key 的 `aliases`，然后重新加载校验；撞名则整体拒绝）。**第一版只支持"加别名到已有 key"**，新增 key 仍在终端里做。
+- **草稿区**：`<材料根目录>/drafts/<攻略类型>/<id>.yaml`，旁边的 `<id>.meta.json` 存别名建议和更新时间。放在材料根目录（被 git 忽略），因为草稿还没经过用户检视，不能进仓库。
+- **发布**：`POST /api/guide-drafts/{type}/{id}/publish` 由本地服务（确定性代码，不是 Agent）完成：重新校验 → 通过则写到该类型对应的目录（办事流程攻略是 `community/guides/<id>.yaml`）→ 删除草稿。
+- **词表别名**：Agent 在草稿结果里给出建议 `[{raw_name, suggest_key}]`；用户勾选后由 `POST /api/vocab/aliases` 写进 `community/material_types.yaml`（确定性代码：只改对应 key 那一行 `aliases: [...]`，文件里的注释和排版不动；然后重新加载校验；撞名则整体拒绝）。**第一版只支持"加别名到已有 key"**，新增 key 仍在终端里做。
 - **② 类修改的撤销记录**：`<材料根目录>/agent/activity.jsonl`，每行一次写操作：时间、工具名、参数、修改前的值。`POST /api/agent/undo/{activity_id}` 按记录恢复。只保留最近 200 条。
 - **③ 类提议**：`<材料根目录>/agent/pending-profile.json`，`propose_profile_update` 只写这里；用户确认后由 `POST /api/agent/profile-proposals/{id}/confirm` 调用现有的基本信息写入逻辑。
 
@@ -120,14 +143,16 @@
 | 方法 | 路径 | 作用 |
 |---|---|---|
 | GET | `/api/agent/status` | `{available, cli_path, cli_version, auth_method, api_key_env}`：检测 `claude` 是否在 PATH 里、能否运行、用什么方式登录 |
-| POST | `/api/agent/jobs` | 开始一次任务：`{kind: "create_guide" \| "edit_draft" \| "ask", context: {page, guide_id?, track_id?, draft_id?}, input: 文本, session_id?}` → `{job_id}`。同一时间只允许 1 个任务在跑，否则 409 |
-| GET | `/api/agent/jobs/{job_id}/events` | SSE 事件流：`progress`（阶段、说明）、`text`（回答文字片段）、`activity`（② 类修改，含撤销 id）、`proposal`（③ 类提议）、`draft`（草稿 id + 校验结果 + 别名建议）、`done`（`session_id`、用量）、`error` |
+| POST | `/api/agent/jobs` | 开始一次任务：`{kind: "create_guide" \| "ask", context: {page, guide_id?, track_id?, guide_type?, draft_id?}, input: 文本, session_id?}` → `{job_id}`。同一时间只允许 1 个任务在跑，否则 409。`create_guide` 必须带一个可新建的 `guide_type`；带 `session_id` 时是在同一次对话里继续修改（原计划的 `edit_draft` 并进来了） |
+| GET | `/api/agent/jobs/{job_id}/events` | SSE 事件流：`progress`（阶段、说明）、`text`（回答文字片段）、`activity`（② 类修改，含撤销 id）、`proposal`（③ 类提议）、`draft`（Agent 刚保存的草稿类型和 id，页面据此刷新右边）、`done`（`session_id`、用量）、`error` |
 | POST | `/api/agent/jobs/{job_id}/cancel` | 结束子进程 |
 | POST | `/api/agent/undo/{activity_id}` | 撤销一条 ② 类修改 |
 | POST | `/api/agent/profile-proposals/{id}/confirm` · `/reject` | 处理 ③ 类提议 |
-| GET | `/api/guide-drafts/{id}` | 草稿预览（格式同 `GET /api/guides/{id}`，多一个 `draft: true`） |
-| POST | `/api/guide-drafts/{id}/publish` | 发布；已存在同名攻略时 409（第一版不支持覆盖） |
-| DELETE | `/api/guide-drafts/{id}` | 丢弃草稿 |
+| GET | `/api/guide-types` | 全部攻略类型（见"攻略类型"） |
+| GET | `/api/guide-drafts` | 还没保存的草稿列表（含校验结果） |
+| GET | `/api/guide-drafts/{type}/{id}` | `{check, preview}`：校验结果（valid、errors、词表认不出的叫法、别名建议、uncertain…）+ 和正式攻略一样的预览 |
+| POST | `/api/guide-drafts/{type}/{id}/publish` | 发布；已存在同名攻略时 409（第一版不支持覆盖） |
+| DELETE | `/api/guide-drafts/{type}/{id}` | 丢弃草稿 |
 | POST | `/api/vocab/aliases` | `[{key, alias}]`，全部成功或全部失败 |
 
 所有写接口沿用现有的防跨站请求中间件。
@@ -138,16 +163,19 @@
   - `cli.py`：拼 `claude` 命令行（`-p`、`--output-format stream-json`、`--include-partial-messages`、`--allowedTools`、`--permission-mode`、`--max-budget-usd`、`--resume`、新建攻略时加 `--chrome`）；**只有这里知道具体是哪个 CLI**，以后换 API / 其他 Agent 就换这个文件。
   - `jobs.py`：启动 / 取消子进程，把 stream-json 逐行解析成上面的 SSE 事件；一次只跑一个。
   - `prompts.py`：各类任务的提示词模板（指向 `xhs-reader`、`guide-author` skill，写明只能用草稿工具、最后要调用 `validate_guide_draft`）。
+- `src/core/guide_types.py`（新）：攻略类型登记表。
 - `src/core/drafts.py`（新）：草稿的读写、校验、发布（确定性，可单测）。
-- `src/agent_tools/`：新增 `save_guide_draft`、`validate_guide_draft`、`propose_profile_update`；② 类写工具在"界面模式"（环境变量 `PA_AGENT_ACTIVITY_LOG` 指向日志文件）下记录撤销信息。
+- `src/core/material_types.py`：新增 `add_aliases`（按行追加别名，保留注释）。
+- `src/agent_tools/`：新增 `save_guide_draft`、`get_guide_draft`、`validate_guide_draft`（第 2 步），`propose_profile_update`（第 3 步）；② 类写工具在"界面模式"（环境变量 `PA_AGENT_ACTIVITY_LOG` 指向日志文件）下记录撤销信息。
 - `src/api/app.py`：上面的新接口。
-- `web/assets/agent-drawer.js` + `agent-drawer.css`（新）：抽屉，两个页面共用。
+- `web/assets/agent-drawer.js` + `agent-drawer.css`（新）：可复用的对话窗口组件 `window.AgentChat` + 抽屉，两个页面共用，要在页面自己的脚本之前加载。
+- `web/assets/guides.js`：「+ 新建攻略」、选类型、新建窗口、草稿完整预览。
 - **不改**：攻略数据结构、`community/` 里已有的攻略、`xhs-reader` / `guide-author` 的规则本身（提示词里引用它们）。
 
 ## 分步实现
 
 1. **地基**：`agent_runner`（含假 CLI 测试）、`/api/agent/status`、jobs + SSE、抽屉外壳 + 追问（只放行读取工具）。
-2. **新建攻略**：草稿区、`save_guide_draft` / `validate_guide_draft`、草稿预览、发布、别名勾选。
+2. **新建攻略**：攻略类型、草稿区、草稿工具、新建窗口、草稿预览、发布、别名勾选。
 3. **写操作**：② 类撤销、③ 类确认卡片、快捷按钮补全、没装 CLI 时的「复制给 Agent」。
 
 每一步做完都能单独用，单独提交、单独合并。
@@ -160,7 +188,7 @@
 2. `cli.py` 生成的命令行：包含 `-p`、`--output-format stream-json`、`--max-budget-usd`；`--allowedTools` 里**不含** `Write`、`Edit`、`Bash`；`create_guide` 任务含 `--chrome`，`ask` 任务不含。
 3. 第一个任务没结束时再 `POST /api/agent/jobs` 返回 409；`cancel` 后子进程已退出，事件流以 `error`（原因"已取消"）结束。
 4. 假 CLI 输出的工具调用和文字，在 SSE 里按顺序变成 `progress` / `text` / `done` 事件；`done` 带 `session_id` 和用量。
-5. `save_guide_draft` 只写 `<材料根目录>/drafts/guides/`：id 不符合 `^[a-z0-9-]+$` 时拒绝；测试结束后 `community/` 目录没有任何变化。
+5. `save_guide_draft` 只写 `<材料根目录>/drafts/<类型>/`：id 不符合 `^[a-z0-9-]+$` 时拒绝；测试结束后 `community/` 目录没有任何变化。
 6. 发布：草稿有 ✗ 时 422 且 `community/guides/` 不变；同名攻略已存在时 409；成功后 `community/guides/<id>.yaml` 内容与草稿一致、草稿被删除。
 7. 别名：加到不存在的 key 或与其他 key 的别名撞名时 422，`material_types.yaml` 内容不变；成功后校验命令退出码为 0。
 8. ② 类：通过 MCP 工具勾上一个步骤 → 活动日志多一条 → `undo` 后步骤恢复未勾选。
@@ -184,4 +212,9 @@
 - **第 1 步完成（2026-09-28）**：`src/agent_runner/`（`cli.py` / `jobs.py` / `prompts.py`）、`/api/agent/status`、`/api/agent/jobs`（+ SSE 事件流、取消）、抽屉 `web/assets/agent-drawer.{js,css}`（两个页面都有，快捷按钮按页面变化，只读）。自动测试 12 条（`tests/unit/test_agent_runner.py`，用假 CLI `tests/unit/fake_claude.py`）覆盖验收 1–4、10。
   - 真机检查：在申根办事页点「我还缺什么？」，约 15 秒流式给出基于真实数据的回答（还指出了"步骤已勾完成、但申请表和预约单还没登记"的不一致），折合约 $0.39；接着追问"你刚才说的第一项…"能接上前文。
   - 发现：后台 Claude 会先调用 `ToolSearch` 加载 MCP 工具（工具是按需加载的），不在白名单里也能用，属于 CLI 自带、不涉及读写数据。
+- **项目主试用第 1 步后改设计（2026-09-28）**：在抽屉里贴了 3 条英签帖子想新建攻略，得到"请去终端做"。结论：新建攻略要有自己的入口（「+ 新建攻略」→ 选攻略类型 → 新建窗口），抽屉只管追问。已改"已定的决定"第 2 条和"界面"一节。
+- **第 2 步完成（2026-09-28）**：攻略类型（`src/core/guide_types.py`）、草稿区与发布（`src/core/drafts.py`）、按行加词表别名（`add_aliases`）、MCP 草稿工具、`create_guide` 任务（Read 限定路径、Skill、Chrome、草稿工具；`--chrome`；上限 20）、接口、新建窗口和草稿完整预览。可复用的对话组件 `window.AgentChat`。自动测试 16 条（`tests/unit/test_guide_drafts.py`）覆盖验收 5–7、10，并确认测试不改动真实的 `community/`。
+  - 真机检查：在新建窗口贴了项目主的 3 条英签分享链接 + 一段 AI 搜索总结。Agent 在未登录浏览器读完 3 篇（配图是签证页 / 邮件截图，按规则跳过），AI 总结按二手来源处理；保存的草稿一次校验通过：20 项材料、15 个步骤、4 处说法冲突、10 条待核实；16 个认不出的叫法里给了 8 条别名建议。全程约 6 分钟，折合约 $1.69。中途它尝试用 Bash，被白名单自动拒绝。
+  - 真机发现并已修：①写长草稿时一两分钟没有进度 → 一开始写就显示"正在写草稿"；②Agent 调工具前的旁白混进最终回答 → 收进「过程」；③草稿面板多显示了一个 "null"。
+  - 这份英签草稿（`uk-visitor-from-us-f1`）留在材料根目录的草稿区，由项目主检视后决定是否保存进攻略库。
 
