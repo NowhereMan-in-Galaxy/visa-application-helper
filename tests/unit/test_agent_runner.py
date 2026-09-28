@@ -57,7 +57,7 @@ def test_status_reports_api_key_without_value(fake_cli, monkeypatch, client):
 
 # ---- 验收 2：命令行 ----
 
-def test_ask_command_is_read_only(fake_cli):
+def test_ask_command_permissions(fake_cli):
     cmd = cli.build_command("ask", "你好", session_id="sess-9", max_budget_usd=3)
     assert cmd[1:3] == ["-p", "你好"]
     assert cmd[cmd.index("--output-format") + 1] == "stream-json"
@@ -65,10 +65,13 @@ def test_ask_command_is_read_only(fake_cli):
     assert cmd[cmd.index("--permission-mode") + 1] == "dontAsk"
     assert cmd[cmd.index("--resume") + 1] == "sess-9"
     allowed = cmd[cmd.index("--allowedTools") + 1].split(",")
-    for forbidden in ("Write", "Edit", "Bash"):
+    for forbidden in ("Write", "Edit", "Bash", "Read"):  # Read 只能以带路径的规则出现
         assert forbidden not in allowed
-    # 第一版追问只放行读取类工具
-    assert not any(t.endswith(("set_step_done", "set_fact", "update_personal_profile")) for t in allowed)
+    # spec 004 第 3 步：可以改自己的办事进度（能撤销）、只能提议改基本信息
+    assert cli.MCP_PREFIX + "set_step_done" in allowed
+    assert cli.MCP_PREFIX + "propose_profile_update" in allowed
+    for direct in ("update_personal_profile", "confirm_personal_profile_none", "save_guide_draft"):
+        assert cli.MCP_PREFIX + direct not in allowed
     assert "--chrome" not in cmd
 
 

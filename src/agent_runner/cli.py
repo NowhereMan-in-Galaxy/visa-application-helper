@@ -23,7 +23,8 @@ CHROME_PREFIX = "mcp__claude-in-chrome__"
 # Read 只能读仓库里的规则、词表和攻略，读不到材料根目录里的个人文件（./ 表示相对仓库根目录）
 READ_RULES = ["Read(./specs/**)", "Read(./community/**)", "Read(./docs/**)", "Read(./.claude/skills/**)"]
 
-# 追问（kind="ask"）第一版只放行读取类工具；写操作要等 spec 004 第 3 步的撤销 / 确认卡片做好再放开。
+# 追问（kind="ask"）：读取 + 改自己的办事进度（每次都能在页面上撤销）+ 只能"提议"改基本信息（页面上确认才写）。
+# 不给 update_personal_profile / confirm_personal_profile_none：那两个会直接写基本信息，只在终端里用。
 ASK_TOOLS = READ_RULES + [
     MCP_PREFIX + name
     for name in (
@@ -34,6 +35,17 @@ ASK_TOOLS = READ_RULES + [
         "get_personal_profile",
         "get_profile_gaps",
         "validate_community",
+        # ② 改自己的办事进度（spec 004 第 3 步）
+        "set_step_done",
+        "set_fact",
+        "set_hidden",
+        "set_note",
+        "add_pitfall",
+        "add_custom_step",
+        "add_custom_material",
+        "confirm_match",
+        # ③ 基本信息只能提议
+        "propose_profile_update",
     )
 ]
 

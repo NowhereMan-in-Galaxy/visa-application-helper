@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
+from pydantic import ValidationError
 
-from agent_tools import tools
+import config
+from agent_tools import activity, tools
 
 mcp = MCPServer(
     name="personal-assistant",
@@ -20,6 +22,11 @@ mcp = MCPServer(
         "「基本信息」（PersonalProfile）可读；写回只能写用户亲口回答并确认过的内容。"
     ),
 )
+
+
+def _logged(tool: str, args: dict, fn):
+    """改办事进度的工具：从网页调起时记下撤销信息（spec 004 第 3 步），在终端里用时照常执行。"""
+    return activity.record_track_write(config.get_materials_root(), tool, dict(args), fn)
 
 
 @mcp.tool(description="列出共享区里全部流程攻略（含没通过校验的，标 valid=false 和 errors）")
@@ -49,12 +56,12 @@ def get_track(track_id: str) -> dict:
     )
 )
 def set_fact(track_id: str, fact: str, value: str | None) -> dict:
-    return tools.set_fact(track_id, fact, value)
+    return _logged("set_fact", locals(), lambda: tools.set_fact(track_id, fact, value))
 
 
 @mcp.tool(description="勾选或取消一件办事里的某个步骤")
 def set_step_done(track_id: str, step_id: str, done: bool) -> dict:
-    return tools.set_step_done(track_id, step_id, done)
+    return _logged("set_step_done", locals(), lambda: tools.set_step_done(track_id, step_id, done))
 
 
 @mcp.tool(
@@ -63,7 +70,7 @@ def set_step_done(track_id: str, step_id: str, done: bool) -> dict:
     )
 )
 def confirm_match(track_id: str, requirement_id: str, confirmed: bool) -> dict:
-    return tools.confirm_match(track_id, requirement_id, confirmed)
+    return _logged("confirm_match", locals(), lambda: tools.confirm_match(track_id, requirement_id, confirmed))
 
 
 @mcp.tool(
@@ -75,27 +82,27 @@ def validate_community() -> dict:
 
 @mcp.tool(description='隐藏或恢复一件办事里的步骤（kind="step"）或材料（kind="requirement"）；只影响个人进度，不改共享攻略。写之前先向用户复述并征得同意')
 def set_hidden(track_id: str, kind: str, item_id: str, hidden: bool) -> dict:
-    return tools.set_hidden(track_id, kind, item_id, hidden)
+    return _logged("set_hidden", locals(), lambda: tools.set_hidden(track_id, kind, item_id, hidden))
 
 
 @mcp.tool(description='给步骤（kind="step"）或材料（kind="requirement"）写个人备注，note 为空表示删除备注')
 def set_note(track_id: str, kind: str, item_id: str, note: str | None) -> dict:
-    return tools.set_note(track_id, kind, item_id, note)
+    return _logged("set_note", locals(), lambda: tools.set_note(track_id, kind, item_id, note))
 
 
 @mcp.tool(description="在一件办事里加一个自己的步骤（phase=阶段 id，after=插在哪个步骤后面，都可省略）；只存在个人区")
 def add_custom_step(track_id: str, title: str, phase: str | None = None, after: str | None = None, where: str | None = None) -> dict:
-    return tools.add_custom_step(track_id, title, phase, after, where)
+    return _logged("add_custom_step", locals(), lambda: tools.add_custom_step(track_id, title, phase, after, where))
 
 
 @mcp.tool(description="在一件办事的某个步骤下加一项自己的材料；名字能被词表认出时自动匹配材料库")
 def add_custom_material(track_id: str, name: str, step: str, material_type: str | None = None, optional: bool = False) -> dict:
-    return tools.add_custom_material(track_id, name, step, material_type, optional)
+    return _logged("add_custom_material", locals(), lambda: tools.add_custom_material(track_id, name, step, material_type, optional))
 
 
 @mcp.tool(description="把一条避坑点记到办事页右侧的核对清单里（1–300 字）")
 def add_pitfall(track_id: str, text: str) -> dict:
-    return tools.add_pitfall(track_id, text)
+    return _logged("add_pitfall", locals(), lambda: tools.add_pitfall(track_id, text))
 
 
 @mcp.tool(
@@ -172,6 +179,22 @@ def get_guide_draft(guide_id: str, guide_type: str = "process") -> dict:
 @mcp.tool(description="只读：重新校验一份攻略草稿（valid、errors、词表认不出的叫法）")
 def validate_guide_draft(guide_id: str, guide_type: str = "process") -> dict:
     return tools.validate_guide_draft(guide_id, guide_type)
+
+
+@mcp.tool(
+    description=(
+        "网页里的 Agent 用：提议修改「基本信息」的一个分组（参数同 update_personal_profile）。不会直接写入——"
+        "页面上会弹出确认卡片（旧值 → 新值），用户点确认后才写。只提议用户在对话里亲口说的内容。"
+        "返回 proposal_id 和 changed；告诉用户\"请在下面的卡片里确认\""
+    )
+)
+def propose_profile_update(group: str, changes: dict) -> dict:
+    try:
+        return activity.propose_profile_update(config.get_materials_root(), group, changes)
+    except KeyError:
+        raise ValueError(f"没有这个分组：{group}")
+    except ValidationError as e:
+        raise ValueError(f"字段名或取值不对，没有记下提议：{e}") from e
 
 
 def main() -> None:

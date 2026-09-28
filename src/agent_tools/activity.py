@@ -1,0 +1,207 @@
+"""界面里的 Agent 做的修改：撤销记录和基本信息提议（spec 004 第 3 步）。
+
+- ② 类（改自己的办事进度）：只有从网页调起时（环境变量 PA_AGENT_UI=1）才记录。每次写之前先存一份这件办事的
+  原文件，撤销就是放回原文件；如果之后这件办事又被改过（文件和记录里的"改完后"对不上），拒绝撤销，免得冲掉新的修改。
+- ③ 类（改基本信息）：Agent 只能"提议"，写进提议文件；用户在页面上点确认，才调用正常的写入逻辑。
+
+记录都放在材料根目录的 agent/ 下（被 git 忽略）。
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from uuid import uuid4
+
+from core.models import describe_personal_profile
+from core.profile_storage import preview_profile_fields, update_profile_fields
+from core.tracks import tracks_dir
+
+UI_ENV = "PA_AGENT_UI"
+MAX_ACTIVITIES = 200
+
+
+class ActivityError(Exception):
+    def __init__(self, message: str, status: int = 409):
+        super().__init__(message)
+        self.status = status
+
+
+def activity_path(root: Path) -> Path:
+    return root / "agent" / "activity.jsonl"
+
+
+def proposals_path(root: Path) -> Path:
+    return root / "agent" / "profile-proposals.json"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _sha(text: str | None) -> str | None:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() if text is not None else None
+
+
+# ---------- ② 撤销记录 ----------
+
+
+def read_activities(root: Path) -> list[dict]:
+    path = activity_path(root)
+    if not path.is_file():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def _write_activities(root: Path, entries: list[dict]) -> None:
+    path = activity_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries[-MAX_ACTIVITIES:]), encoding="utf-8")
+
+
+def _name_in_view(view: dict, kind: str, item_id: str) -> str:
+    if kind in ("step", "steps"):
+        return next((s.get("title") for s in view.get("steps", []) if s.get("id") == item_id), item_id)
+    if kind in ("requirement", "requirements"):
+        return next((r.get("name") for r in view.get("requirements", []) if r.get("id") == item_id), item_id)
+    return item_id
+
+
+def summarize(tool: str, args: dict, view: dict) -> str:
+    """页面上显示的一句话，例如"已勾上：递交材料"。"""
+    if tool == "set_step_done":
+        return ("已勾上：" if args.get("done") else "已取消勾选：") + _name_in_view(view, "step", args.get("step_id", ""))
+    if tool == "set_fact":
+        q = next((f.get("question") for f in view.get("facts", []) if f.get("key") == args.get("fact")), args.get("fact"))
+        return f"已回答：{q} → {args.get('value')}" if args.get("value") is not None else f"已清除回答：{q}"
+    if tool == "set_hidden":
+        return ("已隐藏：" if args.get("hidden") else "已恢复：") + _name_in_view(view, args.get("kind", ""), args.get("item_id", ""))
+    if tool == "set_note":
+        return ("已写备注：" if args.get("note") else "已删除备注：") + _name_in_view(view, args.get("kind", ""), args.get("item_id", ""))
+    if tool == "add_custom_step":
+        return f"已加步骤：{args.get('title')}"
+    if tool == "add_custom_material":
+        return f"已加材料：{args.get('name')}"
+    if tool == "confirm_match":
+        return ("已确认使用：" if args.get("confirmed") else "已取消确认：") + _name_in_view(view, "requirement", args.get("requirement_id", ""))
+    if tool == "add_pitfall":
+        text = str(args.get("text", ""))
+        return "已记避坑点：" + (text[:24] + "…" if len(text) > 24 else text)
+    return f"已修改（{tool}）"
+
+
+def record_track_write(root: Path, tool: str, args: dict, fn):
+    """执行一次改办事进度的操作；从网页调起时顺便记下撤销信息。返回 fn() 的结果。"""
+    if os.environ.get(UI_ENV) != "1":
+        return fn()
+    path = tracks_dir(root) / f"{args['track_id']}.yaml"
+    before = path.read_text(encoding="utf-8") if path.is_file() else None
+    result = fn()
+    after = path.read_text(encoding="utf-8") if path.is_file() else None
+    if after == before:
+        return result
+    entries = read_activities(root)
+    entries.append({
+        "id": uuid4().hex[:12],
+        "time": _now(),
+        "tool": tool,
+        "track_id": args["track_id"],
+        "summary": summarize(tool, args, result if isinstance(result, dict) else {}),
+        "before": before,
+        "after_sha": _sha(after),
+    })
+    _write_activities(root, entries)
+    return result
+
+
+def undo(root: Path, activity_id: str) -> dict:
+    entries = read_activities(root)
+    entry = next((e for e in entries if e.get("id") == activity_id), None)
+    if entry is None:
+        raise ActivityError("找不到这条修改记录（可能太久了）", 404)
+    if entry.get("undone"):
+        raise ActivityError("已经撤销过了")
+    path = tracks_dir(root) / f"{entry['track_id']}.yaml"
+    current = path.read_text(encoding="utf-8") if path.is_file() else None
+    if _sha(current) != entry.get("after_sha"):
+        raise ActivityError("这件事之后又改过，不能直接撤销了，请在页面上手动改回来")
+    if entry.get("before") is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(entry["before"], encoding="utf-8")
+    entry["undone"] = True
+    _write_activities(root, entries)
+    return {"id": activity_id, "track_id": entry["track_id"], "summary": entry["summary"]}
+
+
+# ---------- ③ 基本信息提议 ----------
+
+
+def _labels() -> dict[str, str]:
+    out = {}
+    for g in describe_personal_profile():
+        for f in g["fields"]:
+            out[f"{g['key']}.{f['key']}"] = f"{g['label']} › {f['label']}"
+    return out
+
+
+def read_proposals(root: Path) -> list[dict]:
+    try:
+        return json.loads(proposals_path(root).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _write_proposals(root: Path, items: list[dict]) -> None:
+    path = proposals_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def propose_profile_update(root: Path, group: str, changes: dict) -> dict:
+    """校验并记下一条提议，不改基本信息。值没有变化时不记。"""
+    changed = preview_profile_fields(root, group, changes)
+    if not changed:
+        return {"proposal_id": None, "changed": []}
+    labels = _labels()
+    item = {
+        "id": uuid4().hex[:12],
+        "time": _now(),
+        "group": group,
+        "changes": changes,
+        "changed": [{**c, "label": labels.get(f"{group}.{c['field']}", c["field"])} for c in changed],
+    }
+    _write_proposals(root, read_proposals(root) + [item])
+    return {"proposal_id": item["id"], "changed": item["changed"]}
+
+
+def _pop_proposal(root: Path, proposal_id: str) -> dict:
+    items = read_proposals(root)
+    item = next((p for p in items if p.get("id") == proposal_id), None)
+    if item is None:
+        raise ActivityError("找不到这条提议（可能已经处理过了）", 404)
+    _write_proposals(root, [p for p in items if p.get("id") != proposal_id])
+    return item
+
+
+def confirm_proposal(root: Path, proposal_id: str) -> dict:
+    item = next((p for p in read_proposals(root) if p.get("id") == proposal_id), None)
+    if item is None:
+        raise ActivityError("找不到这条提议（可能已经处理过了）", 404)
+    _, changed = update_profile_fields(root, item["group"], item["changes"])  # 校验不过会抛错，提议保留
+    _pop_proposal(root, proposal_id)
+    return {"id": proposal_id, "changed": changed}
+
+
+def reject_proposal(root: Path, proposal_id: str) -> dict:
+    _pop_proposal(root, proposal_id)
+    return {"id": proposal_id}
