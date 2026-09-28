@@ -4,9 +4,6 @@
 """
 
 import json
-import os
-import stat
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,24 +11,8 @@ from fastapi.testclient import TestClient
 from agent_runner import cli, jobs
 from api.app import app
 
-FAKE = Path(__file__).with_name("fake_claude.py")
 LOCAL = {"Host": "127.0.0.1:8000"}
-
-
-@pytest.fixture
-def fake_cli(monkeypatch, tmp_path):
-    FAKE.chmod(FAKE.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-    monkeypatch.setenv("PA_AGENT_CLI", str(FAKE))
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    argv_file = tmp_path / "argv.json"
-    monkeypatch.setenv("FAKE_CLAUDE_ARGV", str(argv_file))
-    yield argv_file
-    # 别让没结束的任务影响下一个测试
-    for job in list(jobs._jobs.values()):
-        if not job.finished:
-            jobs.cancel(job)
-            jobs.wait_finished(job)
-    jobs._jobs.clear()
+# fake_cli fixture 在 conftest.py 里
 
 
 @pytest.fixture

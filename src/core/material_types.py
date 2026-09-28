@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -118,3 +119,45 @@ def build_vocabulary(raw: dict) -> Vocabulary:
 def load_vocabulary(path: Path) -> Vocabulary:
     with path.open("r", encoding="utf-8") as f:
         return build_vocabulary(yaml.safe_load(f))
+
+
+_PLAIN_ALIAS = re.compile(r"^[^\s,\[\]{}:#\"'&*!|>%@`?-][^,\[\]{}:#\"'&*!|>%@`]*$")
+
+
+def add_aliases(path: Path, pairs: list[tuple[str, str]]) -> None:
+    """给已有 key 追加别名（spec 004"词表别名"），全部成功或全部不改。
+
+    直接改文本行而不是整份重新 dump，这样文件里的注释和排版都保留。要求每个类型的别名写在一行
+    `    aliases: [a, b]` 里（现在的词表都是这样）。写完重新加载一遍；有冲突就恢复原文件并报错。
+    """
+    original = path.read_text(encoding="utf-8")
+    vocab = build_vocabulary(yaml.safe_load(original))
+    lines = original.split("\n")
+    for key, alias in pairs:
+        alias = alias.strip()
+        if not alias or len(alias) > 60:
+            raise VocabularyError(f"别名 {alias!r} 为空或太长")
+        if key not in vocab.types:
+            raise VocabularyError(f"词表里没有 {key}")
+        if vocab.lookup(alias) == key:
+            continue  # 已经能认出来，不用加
+        start = next((i for i, l in enumerate(lines) if l.strip() == f"- key: {key}"), None)
+        idx = None
+        if start is not None:
+            for i in range(start + 1, len(lines)):
+                if lines[i].lstrip().startswith("- key:"):
+                    break
+                if re.match(r"^\s+aliases: \[.*\]\s*$", lines[i]):
+                    idx = i
+                    break
+        if idx is None:
+            raise VocabularyError(f"{key} 的别名不是单行 aliases: [...] 格式，请在终端里手动改")
+        item = alias if _PLAIN_ALIAS.match(alias) else json.dumps(alias, ensure_ascii=False)
+        head, _, _ = lines[idx].rstrip().rpartition("]")
+        lines[idx] = head + ("" if head.endswith("[") else ", ") + item + "]"
+    updated = "\n".join(lines)
+    try:
+        build_vocabulary(yaml.safe_load(updated))
+    except (VocabularyError, yaml.YAMLError) as e:
+        raise VocabularyError(f"加上这些别名后词表有冲突，没有保存：{e}") from e
+    path.write_text(updated, encoding="utf-8")

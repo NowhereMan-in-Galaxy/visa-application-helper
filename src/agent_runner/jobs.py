@@ -26,7 +26,20 @@ TOOL_LABELS = {
     "get_personal_profile": "读取基本信息",
     "get_profile_gaps": "检查基本信息缺口",
     "validate_community": "校验共享内容",
-    "Read": "阅读项目文件",
+    "save_guide_draft": "保存草稿并校验",
+    "get_guide_draft": "读取草稿",
+    "validate_guide_draft": "校验草稿",
+    "tabs_context_mcp": "准备浏览器",
+    "tabs_create_mcp": "打开新标签页",
+    "tabs_close_mcp": "关闭标签页",
+    "navigate": "打开网页",
+    "get_page_text": "读取页面文字",
+    "javascript_tool": "读取帖子内容",
+    "computer": "查看页面",
+    "find": "查找页面元素",
+    "read_page": "读取页面结构",
+    "Read": "阅读",
+    "Skill": "阅读操作说明",
     "ToolSearch": "准备工具",
 }
 
@@ -59,9 +72,18 @@ _jobs: dict[str, Job] = {}
 _lock = threading.Lock()
 
 
-def _tool_label(name: str) -> str:
-    short = name.removeprefix(cli.MCP_PREFIX)
-    return TOOL_LABELS.get(short, short)
+def _tool_label(name: str, args: dict | None = None) -> str:
+    short = name.split("__", 2)[-1] if name.startswith("mcp__") else name
+    label = TOOL_LABELS.get(short, short)
+    args = args or {}
+    if short == "Read" and args.get("file_path"):
+        label += " " + str(args["file_path"]).rsplit("/", 1)[-1]
+    elif short == "Skill" and args.get("skill"):
+        label += "（" + str(args["skill"]) + "）"
+    elif short == "navigate" and args.get("url"):
+        host = str(args["url"]).split("//", 1)[-1].split("/", 1)[0]
+        label += " " + host  # 只显示域名，不显示带分享参数的完整链接
+    return label
 
 
 def translate(line: dict, state: dict) -> list[tuple[str, dict]]:
@@ -78,16 +100,32 @@ def translate(line: dict, state: dict) -> list[tuple[str, dict]]:
     elif kind == "stream_event":
         ev = line.get("event") or {}
         delta = ev.get("delta") or {}
-        if ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
+        block = ev.get("content_block") or {}
+        if (ev.get("type") == "content_block_start" and block.get("type") == "tool_use"
+                and block.get("name") == cli.MCP_PREFIX + "save_guide_draft"):
+            # 写整份攻略要生成很长的内容，可能一两分钟没有别的动静；一开始写就告诉页面
+            out.append(("progress", {"text": "正在写草稿（内容长，要一两分钟）"}))
+        elif ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
             state["streamed"] = True
             out.append(("text", {"text": delta.get("text", "")}))
     elif kind == "assistant":
         for block in (line.get("message") or {}).get("content") or []:
             if block.get("type") == "tool_use":
-                out.append(("progress", {"text": "正在" + _tool_label(block.get("name", ""))}))
+                name, args = block.get("name", ""), block.get("input") or {}
+                out.append(("progress", {"text": "正在" + _tool_label(name, args)}))
+                if name == cli.MCP_PREFIX + "save_guide_draft":
+                    state.setdefault("draft_calls", {})[block.get("id")] = {
+                        "id": args.get("guide_id"), "type": args.get("guide_type") or "process"}
             elif block.get("type") == "text" and not state.get("streamed"):
                 out.append(("text", {"text": block.get("text", "")}))
         state["streamed"] = False
+    elif kind == "user":
+        # 工具返回结果：草稿保存成功后通知页面刷新右侧的草稿预览
+        content = (line.get("message") or {}).get("content")
+        for block in content if isinstance(content, list) else []:
+            call = (state.get("draft_calls") or {}).pop(block.get("tool_use_id"), None)
+            if call and call["id"] and not block.get("is_error"):
+                out.append(("draft", {"draft_type": call["type"], "draft_id": call["id"]}))
     elif kind == "result":
         state["session_id"] = line.get("session_id") or state.get("session_id")
         usage = {"session_id": state.get("session_id"), "cost_usd": line.get("total_cost_usd")}

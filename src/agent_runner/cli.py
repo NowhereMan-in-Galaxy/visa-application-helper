@@ -18,8 +18,13 @@ from config import REPO_ROOT
 # MCP 服务在 .mcp.json 里的名字是 personal-assistant，Claude Code 给它的工具加的前缀是 mcp__<服务名>__
 MCP_PREFIX = "mcp__personal-assistant__"
 
+CHROME_PREFIX = "mcp__claude-in-chrome__"
+
+# Read 只能读仓库里的规则、词表和攻略，读不到材料根目录里的个人文件（./ 表示相对仓库根目录）
+READ_RULES = ["Read(./specs/**)", "Read(./community/**)", "Read(./docs/**)", "Read(./.claude/skills/**)"]
+
 # 追问（kind="ask"）第一版只放行读取类工具；写操作要等 spec 004 第 3 步的撤销 / 确认卡片做好再放开。
-ASK_TOOLS = ["Read"] + [
+ASK_TOOLS = READ_RULES + [
     MCP_PREFIX + name
     for name in (
         "list_guides",
@@ -32,8 +37,22 @@ ASK_TOOLS = ["Read"] + [
     )
 ]
 
-TOOLS_BY_KIND = {"ask": ASK_TOOLS}
+# 新建 / 修改攻略（kind="create_guide"）：读规则 + 未登录浏览器读帖子 + 只能写草稿区。没有 Write / Edit / Bash。
+CREATE_GUIDE_TOOLS = READ_RULES + ["Skill"] + [
+    MCP_PREFIX + name
+    for name in ("list_guides", "get_guide", "save_guide_draft", "get_guide_draft", "validate_guide_draft")
+] + [
+    CHROME_PREFIX + name
+    for name in (
+        "tabs_context_mcp", "tabs_create_mcp", "tabs_close_mcp", "navigate",
+        "get_page_text", "javascript_tool", "computer", "find", "read_page",
+    )
+]
 
+TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS}
+
+# 用量上限（CLI 报告的折合美元；订阅用户不另收费，只是防止跑飞）。读帖子 + 看图 + 整理一份攻略比问答耗得多。
+MAX_BUDGET_USD_BY_KIND = {"ask": 2.0, "create_guide": 20.0}
 DEFAULT_MAX_BUDGET_USD = 5.0
 
 
@@ -87,7 +106,7 @@ def status() -> dict:
 
 
 def build_command(kind: str, prompt: str, *, session_id: str | None = None,
-                  max_budget_usd: float = DEFAULT_MAX_BUDGET_USD) -> list[str]:
+                  max_budget_usd: float | None = None) -> list[str]:
     """拼出一次任务的完整命令行。
 
     - `-p`：问一句、答完就退出（非交互模式）
@@ -101,6 +120,8 @@ def build_command(kind: str, prompt: str, *, session_id: str | None = None,
     path = find_cli()
     if path is None:
         raise FileNotFoundError(cli_name())
+    if max_budget_usd is None:
+        max_budget_usd = MAX_BUDGET_USD_BY_KIND.get(kind, DEFAULT_MAX_BUDGET_USD)
     cmd = [
         path, "-p", prompt,
         "--output-format", "stream-json", "--verbose", "--include-partial-messages",
@@ -109,6 +130,8 @@ def build_command(kind: str, prompt: str, *, session_id: str | None = None,
         "--mcp-config", str(REPO_ROOT / ".mcp.json"), "--strict-mcp-config",
         "--max-budget-usd", f"{max_budget_usd:g}",
     ]
+    if kind == "create_guide":
+        cmd.append("--chrome")  # 读小红书帖子要用浏览器
     if session_id:
         cmd += ["--resume", session_id]
     return cmd
