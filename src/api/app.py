@@ -8,18 +8,30 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
+from agent_runner import cli as agent_cli, jobs as agent_jobs, prompts as agent_prompts
 from config import COMMUNITY_DIR, REPO_ROOT, get_materials_root
-from core.guides import Guide, GuideLoadResult, load_all_guides
-from core.material_types import Vocabulary, VocabularyError, load_vocabulary
+from core.drafts import (
+    DRAFT_ID,
+    DraftError,
+    check_draft,
+    delete_draft,
+    drafts_dir,
+    list_drafts,
+    publish_draft,
+)
+from core.guide_types import GUIDE_TYPES, get_guide_type
+from core.guides import Guide, GuideLoadResult, load_all_guides, load_guide
+from core.material_types import Vocabulary, VocabularyError, add_aliases, load_vocabulary
 import core.adjustments as adj
 from core.adjustments import AdjustmentError
 from core.export import export_track
@@ -1184,6 +1196,159 @@ def export_track_materials(track_id: str, payload: ExportRequest | None = None) 
         folder=str(result.folder), copied=result.copied,
         missing_files=result.missing_files, pending=result.pending,
     )
+
+
+# ---------- 界面里的 Agent（spec 004）----------
+
+
+class AgentJobContext(BaseModel):
+    page: str | None = None
+    guide_id: str | None = None
+    track_id: str | None = None
+    guide_type: str | None = None  # 新建攻略时选的攻略类型
+    draft_id: str | None = None  # 新建攻略窗口里已经有的草稿
+
+
+class AgentJobRequest(BaseModel):
+    kind: str
+    input: str
+    context: AgentJobContext = AgentJobContext()
+    session_id: str | None = None
+
+
+@app.get("/api/agent/status")
+def agent_status() -> dict:
+    return agent_cli.status()
+
+
+@app.post("/api/agent/jobs")
+def agent_start_job(req: AgentJobRequest) -> dict:
+    text = req.input.strip()
+    if not text:
+        raise HTTPException(422, "请输入问题")
+    if len(text) > 20000:
+        raise HTTPException(422, "内容太长（上限 2 万字）")
+    if req.kind == "ask":
+        prompt = agent_prompts.ask_prompt(text, req.context.model_dump())
+    elif req.kind == "create_guide":
+        gt = get_guide_type(req.context.guide_type or "")
+        if gt is None or not gt.available:
+            raise HTTPException(422, "请先选一种可以新建的攻略类型")
+        if req.context.draft_id and not DRAFT_ID.match(req.context.draft_id):
+            raise HTTPException(422, "草稿 id 不合法")
+        prompt = agent_prompts.create_guide_prompt(
+            text, gt.id, follow_up=bool(req.session_id), draft_id=req.context.draft_id)
+    else:
+        raise HTTPException(422, f"暂不支持的任务类型：{req.kind}")
+    try:
+        job = agent_jobs.start(req.kind, prompt, session_id=req.session_id)
+    except FileNotFoundError:
+        raise HTTPException(503, "没有检测到 Claude Code，装好并登录后再试")
+    except agent_jobs.JobConflictError:
+        raise HTTPException(409, "已经有一个任务在进行，等它结束或先取消")
+    return {"job_id": job.id}
+
+
+def _agent_job_or_404(job_id: str) -> agent_jobs.Job:
+    job = agent_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(404, "找不到这个任务")
+    return job
+
+
+@app.get("/api/agent/jobs/{job_id}/events")
+def agent_job_events(job_id: str) -> StreamingResponse:
+    """SSE 事件流：progress / text / done / error，见 spec 004"接口"。"""
+    job = _agent_job_or_404(job_id)
+
+    def stream():
+        for ev in agent_jobs.iter_events(job):
+            if ev is None:
+                yield ": keepalive\n\n"
+                continue
+            yield f"event: {ev['type']}\ndata: {json.dumps(ev, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/agent/jobs/{job_id}/cancel")
+def agent_cancel_job(job_id: str) -> dict:
+    agent_jobs.cancel(_agent_job_or_404(job_id))
+    return {"ok": True}
+
+
+# ---------- 攻略类型、草稿、词表别名（spec 004 第 2 步）----------
+
+
+def _form_ids() -> set[str] | None:
+    forms = COMMUNITY_DIR / "forms"
+    return {p.stem for p in forms.glob("*.yaml")} if forms.is_dir() else None
+
+
+def _draft_http(fn, *args):
+    try:
+        return fn(*args)
+    except DraftError as e:
+        raise HTTPException(e.status, str(e)) from e
+
+
+@app.get("/api/guide-types")
+def list_guide_types() -> list[dict]:
+    return [t.to_dict() for t in GUIDE_TYPES]
+
+
+@app.get("/api/guide-drafts")
+def list_guide_drafts() -> list[dict]:
+    return list_drafts(get_materials_root(), _vocabulary(), _form_ids())
+
+
+@app.get("/api/guide-drafts/{type_id}/{draft_id}")
+def get_guide_draft(type_id: str, draft_id: str) -> dict:
+    """草稿预览：校验结果 + 和正式攻略一样的预览（用你现有的材料先对一遍）。"""
+    root, vocab = get_materials_root(), _vocabulary()
+    check = _draft_http(check_draft, root, type_id, draft_id, vocab, _form_ids())
+    preview = None
+    if check["valid"]:
+        path = drafts_dir(root, type_id) / f"{draft_id}.yaml"
+        guide = load_guide(path, vocab, _form_ids()).guide
+        blank = Track(id="preview", guide=guide.id, title=guide.title, created=date.today())
+        preview = compute_track_view(guide, blank, load_material_records(materials_index_dir()), vocab, date.today())
+    return {"check": check, "preview": preview.model_dump(mode="json") if preview else None}
+
+
+@app.post("/api/guide-drafts/{type_id}/{draft_id}/publish")
+def publish_guide_draft(type_id: str, draft_id: str) -> dict:
+    target = _draft_http(publish_draft, get_materials_root(), type_id, draft_id, COMMUNITY_DIR,
+                         _vocabulary(), _form_ids())
+    return {"guide_id": draft_id, "file": "community/" + str(target.relative_to(COMMUNITY_DIR))}
+
+
+@app.delete("/api/guide-drafts/{type_id}/{draft_id}")
+def delete_guide_draft(type_id: str, draft_id: str) -> dict:
+    _draft_http(delete_draft, get_materials_root(), type_id, draft_id)
+    return {"ok": True}
+
+
+class AliasItem(BaseModel):
+    key: str
+    alias: str
+
+
+class AliasRequest(BaseModel):
+    aliases: list[AliasItem]
+
+
+@app.post("/api/vocab/aliases")
+def add_vocab_aliases(req: AliasRequest) -> dict:
+    """把用户勾选的别名加进共享词表；全部成功或全部不改。"""
+    if not req.aliases:
+        raise HTTPException(422, "没有要加的别名")
+    try:
+        add_aliases(COMMUNITY_DIR / "material_types.yaml", [(a.key, a.alias) for a in req.aliases])
+    except VocabularyError as e:
+        raise HTTPException(422, str(e)) from e
+    return {"ok": True, "added": len(req.aliases)}
 
 
 @app.get("/", include_in_schema=False)

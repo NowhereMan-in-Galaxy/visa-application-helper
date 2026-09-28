@@ -72,7 +72,7 @@ types:
   - key: student_card
     name: 学生证
     category: null
-    aliases: [学生证]
+    aliases: [学生证, 学生卡]
   - key: chsi_status_report
     name: 学信网学籍证明
     category: null
@@ -117,7 +117,7 @@ types:
   - key: itinerary
     name: 行程单
     category: null
-    aliases: [行程单, 行程计划, itinerary]
+    aliases: [行程单, 行程计划, itinerary, travel plan]
     reusable: false
   - key: flight_reservation
     name: 机票预订单

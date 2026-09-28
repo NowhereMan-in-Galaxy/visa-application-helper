@@ -151,6 +151,29 @@ def get_profile_gaps() -> dict:
     return tools.get_profile_gaps()
 
 
+@mcp.tool(
+    description=(
+        "新建 / 修改攻略时用：把整份攻略 YAML 写进草稿区（不会写进攻略库，用户在页面上确认后才发布），"
+        "返回校验结果。guide_id 必须和 YAML 里的 id 一致（小写字母、数字、连字符）。"
+        "alias_suggestions 是给词表认不出的叫法提的建议：[{raw_name: 原叫法, key: 建议归入的已有词表 key}]，"
+        "只写你有把握的；用户会在页面上逐条勾选。有 errors 就改完再调用一次，直到 valid 为 true"
+    )
+)
+def save_guide_draft(guide_id: str, yaml_text: str, alias_suggestions: list[dict] | None = None,
+                     guide_type: str = "process") -> dict:
+    return tools.save_guide_draft(guide_id, yaml_text, alias_suggestions, guide_type)
+
+
+@mcp.tool(description="读一份攻略草稿的全文和校验结果；按用户要求修改草稿前先读")
+def get_guide_draft(guide_id: str, guide_type: str = "process") -> dict:
+    return tools.get_guide_draft(guide_id, guide_type)
+
+
+@mcp.tool(description="只读：重新校验一份攻略草稿（valid、errors、词表认不出的叫法）")
+def validate_guide_draft(guide_id: str, guide_type: str = "process") -> dict:
+    return tools.validate_guide_draft(guide_id, guide_type)
+
+
 def main() -> None:
     mcp.run("stdio")
 

@@ -1,0 +1,420 @@
+# 在美国持 F-1 签证（中国护照）通过纽约 VFS 申请英国标准访客签证（Standard Visitor Visa）的流程攻略。
+# 整理自 3 篇小红书帖子（2026-09-28 用 xhs-reader 在未登录浏览器里读取）和 1 份小红书 AI 搜索总结：
+#   g1 纽约 VFS，3 个工作日下签（2026-02，timeline + 材料清单，护照快递寄回）
+#   g2 纽约 DIY，2 个工作日下签（2026-02，步骤 + 材料清单，回 VFS 自取护照）
+#   g3 省钱版（2026-01 办理、2026-06 编辑，步骤 + 材料清单 + 回邮快递面单）
+#   g4 小红书 AI 搜索总结（概括 18 篇帖子，二手资料）：只用来补充，只由 g4 支持的条目列进 uncertain。
+# 没有读取的配图：三篇正文已写全流程和材料，配图多为签证 / 邮件截图，可能带申请人个人信息，未读。
+# evidence 只摘录不超过 60 字的原话；不含作者或任何人的个人信息。
+
+id: uk-visitor-from-us-f1
+title: 在美 F-1 学生申请英国标准访客签证（纽约 VFS）
+category: 签证
+tags: [英国, 美国, 留学生, 旅游, 纽约]
+summary: 持 F-1 签证在美国的中国学生，在 gov.uk 填 Standard Visitor Visa 申请并缴费 → 跳转 VFS 预约录指纹、自己上传材料 → 按时去 VFS 录指纹 → 几个工作日下签，回 VFS 取护照或快递寄回。
+maintainers: []
+updated: 2026-09-28
+timeline: 资料里的实际用时：g2 录指纹后不到 2 个工作日下签；g1 录指纹后 3 天下签、一周收到快递寄回的护照；g3 录指纹到收到护照 8 天。g3 说 VFS 工作人员讲 15 个工作日可以拿到签证。
+
+sources:
+  - id: g1
+    title: 小红书 · F1留子🇺🇸｜纽约VFS 3个工作日下签🇬🇧
+    url: https://www.xiaohongshu.com/explore/699deea7000000001a0202d1
+    as_of: 2026-02-25
+  - id: g2
+    title: 小红书 · 🇺🇸F1纽约DIY英签 2工作日下签全攻略
+    url: https://www.xiaohongshu.com/explore/6982ab67000000001a03506a
+    as_of: 2026-02-04
+  - id: g3
+    title: 小红书 · F1美签申请英国visa（省钱版）
+    url: https://www.xiaohongshu.com/explore/695d1af9000000002203210e
+    as_of: 2026-06-26
+  - id: g4
+    title: 小红书 AI 搜索总结（概括 18 篇帖子，二手资料）
+    as_of: 2026-09-28
+
+phases:
+  - id: p-online
+    title: 官网申请、缴费、预约 VFS
+    mode: online
+    summary: 在 gov.uk 填 Standard Visitor Visa 申请、选有效期、缴费；下载 checklist，跳转 VFS 选地点和录指纹时间（选 self-upload），打印 appointment letter。
+    evidence:
+      - {source: g3, quote: "去gov.uk申请standard visitor visa（我选的6个月有效期）填写好所有信息并缴费"}
+      - {source: g3, quote: "记得选self-upload不然额外花钱"}
+  - id: p-materials
+    title: 准备并上传材料
+    mode: online
+    summary: 大部分是现成的证件和在美身份文件（护照、F1 签证页、I-20、I-94、学生卡、租房合同），另外下载银行流水、开在读证明和成绩单；录指纹前 24 小时内在 VFS 上传完。
+    evidence:
+      - {source: g2, quote: "要在录指纹前24h上传完资料"}
+  - id: p-biometrics
+    title: 去 VFS 录指纹
+    mode: offline
+    summary: 带护照和 appointment letter 按预约时间去 VFS 录指纹、现场拍照；选快递寄回护照的，同时办好回寄。
+    evidence:
+      - {source: g2, quote: "全程大概20分钟就好（要现场拍照）"}
+  - id: p-after
+    title: 等结果、拿回护照
+    summary: 通常几个工作日收到批准邮件；在纽约 VFS 录指纹的可以收到邮件后回去自取，或等快递寄回。
+    evidence:
+      - {source: g2, quote: "1.20录指纹🫆——1.22显示收到申请——1.26下签"}
+      - {source: g3, quote: "2026.1.13收到邮件签证受批准，快递发出"}
+
+facts:
+  passport_return:
+    question: 录完指纹后护照打算怎么拿回来？（资料里纽约 VFS 可以回去自取，也可以选快递寄回）
+    options: [回 VFS 自取, 快递寄回]
+
+requirements:
+  # ---- 线上流程产生的 ----
+  - id: r-checklist
+    kind: output
+    material_type: null
+    raw_name: Checklist
+    note: gov.uk 缴费后下载打印；g3 交的是空白 checklist
+    evidence:
+      - {source: g1, quote: "Checklist"}
+      - {source: g3, quote: "空白checklist"}
+      - {source: g3, quote: "缴费后download checklist自己打印"}
+  - id: r-appointment-letter
+    kind: output
+    material_type: null
+    raw_name: appointment letter
+    note: VFS 预约后在 appointment details 里下载打印，录指纹当天带上
+    evidence:
+      - {source: g3, quote: "appointment details里download appointment letter自己打印"}
+      - {source: g2, quote: "打印的appointment letter"}
+  # ---- 护照和在美身份 ----
+  - id: r-passport
+    kind: obtain
+    material_type: null
+    raw_name: 护照的每一页和美签页
+    note: 上传扫描件，录指纹当天带护照原件；要扫哪些页说法不同（见冲突）
+    evidence:
+      - {source: g2, quote: "护照的每一页和美签页"}
+      - {source: g3, quote: "Passport首页+美签"}
+      - {source: g4, quote: "必须提供正在使用的护照所有页面的彩色扫描件，包括所有空白页"}
+  - id: r-us-visa
+    kind: obtain
+    material_type: null
+    raw_name: F1签证页
+    evidence:
+      - {source: g1, quote: "F1签证页"}
+      - {source: g3, quote: "Passport首页+美签"}
+      - {source: g4, quote: "有效的F1签证和I-20表格"}
+  - id: r-i20
+    kind: obtain
+    material_type: null
+    raw_name: I-20
+    note: AI 总结提醒出发前检查 I-20 上的旅行签字（Travel Signature）是否在有效期内；原帖未提及，建议核实
+    evidence:
+      - {source: g1, quote: "I-20"}
+      - {source: g2, quote: "I-20"}
+      - {source: g3, quote: "i20"}
+      - {source: g4, quote: "出发前务必检查I-20上的旅行签字（Travel Signature）是否在有效期内"}
+  - id: r-i94
+    kind: obtain
+    material_type: null
+    raw_name: I-94
+    evidence:
+      - {source: g2, quote: "I-94"}
+      - {source: g3, quote: "i94"}
+  - id: r-student-card
+    kind: obtain
+    material_type: null
+    raw_name: 学生卡
+    evidence:
+      - {source: g1, quote: "学生卡"}
+      - {source: g2, quote: "student card"}
+      - {source: g3, quote: "学生id"}
+  - id: r-enrollment
+    kind: obtain
+    material_type: enrollment_certificate
+    raw_name: Enrollment verification
+    evidence:
+      - {source: g1, quote: "Enrollment verification"}
+      - {source: g4, quote: "在读证明"}
+  - id: r-transcript
+    kind: obtain
+    material_type: transcript
+    raw_name: 成绩单
+    evidence:
+      - {source: g1, quote: "Transcript"}
+      - {source: g3, quote: "成绩单"}
+  - id: r-offer
+    kind: obtain
+    material_type: null
+    raw_name: offer
+    optional: true
+    note: 只有 g2 交了
+    evidence: [{source: g2, quote: "offer"}]
+  - id: r-lease
+    kind: obtain
+    material_type: null
+    raw_name: 美国的租房合同
+    note: AI 总结说租房合同或水电费账单等居住证明都可以
+    evidence:
+      - {source: g1, quote: "美国租房lease"}
+      - {source: g2, quote: "美国的租房合同"}
+      - {source: g4, quote: "租房合同或水电费账单等居住证明"}
+  - id: r-national-id
+    kind: obtain
+    material_type: null
+    raw_name: 中国身份证
+    evidence:
+      - {source: g1, quote: "中国身份证"}
+      - {source: g4, quote: "其他：身份证扫描件"}
+  # ---- 资金 ----
+  - id: r-bank
+    kind: obtain
+    material_type: bank_statement
+    raw_name: 三个月银行流水
+    note: g2 在 BOA app 里下载；AI 总结说近 3–6 个月，看重流水稳定，避免申请前突然存入大额资金，美国账户余额不足可以补国内流水或存款证明
+    evidence:
+      - {source: g2, quote: "三个月银行流水（BOA卡在app下载）"}
+      - {source: g1, quote: "三个月bank statement"}
+      - {source: g3, quote: "bank statement"}
+      - {source: g4, quote: "避免在申请前突然存入一大笔钱"}
+  - id: r-deposit
+    kind: obtain
+    material_type: null
+    raw_name: 定期存款
+    optional: true
+    note: 只有 g2 交了；去银行跟工作人员说要 fund proof for visa，第二天邮件收到
+    evidence:
+      - {source: g2, quote: "定期存款"}
+      - {source: g2, quote: "第二天就收到邮件了"}
+  - id: r-cover-letter
+    kind: generate
+    material_type: cover_letter
+    raw_name: cover letter
+    optional: true
+    note: 流水里有大额支出或转入（例如学费）时，写信解释资金来源和用途
+    evidence:
+      - {source: g1, quote: "附了cover letter解释资金来源和学费用途"}
+      - {source: g1, quote: "一月有大额学费支出 + 资金转入"}
+  # ---- 行程 ----
+  - id: r-travel-plan
+    kind: generate
+    material_type: null
+    raw_name: travel plan
+    optional: true
+    note: 只有 g2 交了；AI 总结说不需要行程单（见冲突）
+    evidence: [{source: g2, quote: "travel plan"}]
+  - id: r-hotel
+    kind: obtain
+    material_type: null
+    raw_name: 英国酒店订单
+    optional: true
+    note: 只有 g2 交了，订的是 booking 上可退的；AI 总结说不需要机票酒店订单（见冲突）
+    evidence: [{source: g2, quote: "英国酒店订单（在booking上订的可退的）"}]
+  - id: r-host-letter
+    kind: obtain
+    material_type: null
+    raw_name: 房东邀请信（住朋友家）
+    optional: true
+    note: 只有 g3 交了；住朋友家的情况
+    evidence: [{source: g3, quote: "房东邀请信（住朋友家）"}]
+  - id: r-flight
+    kind: obtain
+    material_type: null
+    raw_name: 航班信息
+    optional: true
+    note: 只有 g3 交了；AI 总结说不需要机票订单（见冲突）
+    evidence: [{source: g3, quote: "航班信息"}]
+  # ---- 回寄护照 ----
+  - id: r-return-label
+    kind: obtain
+    material_type: null
+    raw_name: ups的return lable
+    applies_if: [{fact: passport_return, in: [快递寄回]}]
+    note: g3 提前在 UPS 官网买 UPS Letter 面单并打印；但 g3 后来补充有人被要求用 FedEx，建议先别买；g1 是在现场选 FedEx next day 寄回（$65）
+    evidence:
+      - {source: g3, quote: "提前买好的ups的return lable（如果你不打算之后回现场取护照）"}
+      - {source: g3, quote: "被要求用fedex而不是ups，可能改快递公司要求了，所以保险起见可以先不买lable"}
+      - {source: g1, quote: "✔ 选FedEx next day寄回（$65）"}
+
+steps:
+  # ---- 官网申请、缴费、预约 VFS ----
+  - id: s-apply
+    title: 在 gov.uk 填写 Standard Visitor Visa 申请、选有效期并缴费
+    phase: p-online
+    where: GOV.UK 英国政府官网
+    estimate: 两篇原帖都选了 6 个月有效期（g2 说 6 个月 178 美元）；AI 总结说可选 6 个月、2 年、5 年、10 年
+    evidence:
+      - {source: g2, quote: "gov.uk申请standard visitor visa填写信息 选择有效期（我申请的6个月178🔪）"}
+      - {source: g3, quote: "去gov.uk申请standard visitor visa（我选的6个月有效期）填写好所有信息并缴费"}
+      - {source: g4, quote: "你可以选择6个月、2年、5年或10年多次的有效期"}
+    links:
+      - title: GOV.UK（英国政府官网）
+        kind: official
+        url: https://www.gov.uk
+  - id: s-checklist
+    title: 缴费后下载 checklist 并打印
+    phase: p-online
+    depends_on: [s-apply]
+    requirements: [r-checklist]
+    evidence:
+      - {source: g3, quote: "缴费后download checklist自己打印"}
+  - id: s-book-vfs
+    title: 跳转 VFS 选地点和录指纹时间（选 self-upload），下载打印 appointment letter
+    phase: p-online
+    where: 资料里都选了纽约 VFS（128 East 32nd Street）；楼层说法不同（见冲突）
+    estimate: 费城等部分地点要额外收费（g3 说只有 premium 服务、加收 260 美元）；预约早一点人少；选 self-upload 免费
+    depends_on: [s-apply]
+    requirements: [r-appointment-letter]
+    evidence:
+      - {source: g3, quote: "有些地方虽然离你近但是只有premium服务要加收260美元"}
+      - {source: g2, quote: "费城的地址要额外收钱，而且很远，我就预约了纽约的"}
+      - {source: g3, quote: "预约时间，可以早一点，人少"}
+      - {source: g3, quote: "appointment details里download appointment letter自己打印"}
+      - {source: g4, quote: "一般一周内就能约到"}
+  # ---- 准备并上传材料 ----
+  - id: s-bank
+    title: 下载近三个月银行流水
+    phase: p-materials
+    where: 银行 app（g2 用 BOA app 下载）
+    requirements: [r-bank]
+    evidence:
+      - {source: g2, quote: "三个月银行流水（BOA卡在app下载）"}
+  - id: s-deposit
+    title: （可选）去银行开存款证明（fund proof for visa）
+    phase: p-materials
+    where: 开户银行柜台
+    estimate: g2 第二天收到邮件
+    requirements: [r-deposit]
+    evidence:
+      - {source: g2, quote: "第二天就收到邮件了"}
+  - id: s-cover-letter
+    title: （流水有大额进出时）写 cover letter 解释资金来源和用途
+    phase: p-materials
+    requirements: [r-cover-letter]
+    depends_on: [s-bank]
+    evidence:
+      - {source: g1, quote: "附了cover letter解释资金来源和学费用途"}
+  - id: s-school-docs
+    title: 从学校系统开在读证明（Enrollment verification）、下载成绩单
+    phase: p-materials
+    requirements: [r-enrollment, r-transcript]
+    evidence:
+      - {source: g1, quote: "Enrollment verification"}
+      - {source: g3, quote: "成绩单"}
+  - id: s-scan-ids
+    title: 扫描护照、F1 签证页、I-20、I-94、学生卡、租房合同、身份证等现成证件
+    phase: p-materials
+    requirements: [r-passport, r-us-visa, r-i20, r-i94, r-student-card, r-lease, r-national-id, r-offer]
+    evidence:
+      - {source: g2, quote: "护照的每一页和美签页"}
+      - {source: g1, quote: "美国租房lease"}
+  - id: s-trip-docs
+    title: （可选）准备行程材料：travel plan、可退的英国酒店订单或房东邀请信、航班信息
+    phase: p-materials
+    requirements: [r-travel-plan, r-hotel, r-host-letter, r-flight]
+    evidence:
+      - {source: g2, quote: "英国酒店订单（在booking上订的可退的）"}
+      - {source: g3, quote: "房东邀请信（住朋友家）"}
+  - id: s-upload
+    title: 在 VFS 自己上传全部材料（录指纹前 24 小时内传完）
+    phase: p-materials
+    where: VFS 网站（self-upload，免费）
+    depends_on: [s-book-vfs, s-checklist, s-bank, s-school-docs, s-scan-ids]
+    requirements: [r-checklist, r-passport, r-us-visa, r-i20, r-i94, r-student-card, r-enrollment, r-transcript, r-lease, r-national-id, r-bank, r-offer, r-deposit, r-cover-letter, r-travel-plan, r-hotel, r-host-letter, r-flight]
+    evidence:
+      - {source: g2, quote: "Step4 self-uploaded all materials（免费）"}
+      - {source: g2, quote: "要在录指纹前24h上传完资料"}
+      - {source: g3, quote: "biometric前24h内提交完信息就行，按时去线下采集，可淡妆。"}
+  # ---- 去 VFS 录指纹 ----
+  - id: s-return-label
+    title: 准备回寄护照的快递面单
+    phase: p-biometrics
+    where: 快递公司官网（g3 买的是 UPS Letter 面单）；也可以现场选 FedEx 寄回（g1）
+    applies_if: [{fact: passport_return, in: [快递寄回]}]
+    requirements: [r-return-label]
+    evidence:
+      - {source: g3, quote: "提前买好的ups的return lable（如果你不打算之后回现场取护照）"}
+      - {source: g1, quote: "✔ 选FedEx next day寄回（$65）"}
+  - id: s-biometrics
+    title: 带护照和 appointment letter 按时去 VFS 录指纹、现场拍照
+    phase: p-biometrics
+    where: 纽约 VFS：1 楼 check in 后上 3 楼
+    estimate: g2 全程约 20 分钟，g3 约 5 分钟；g1 赶上节假日后一天排队约 1.5 小时。g1 现场交了护照；不在纽约这个地址录指纹的，g3 说还要把护照寄出去
+    depends_on: [s-upload]
+    requirements: [r-passport, r-appointment-letter, r-return-label]
+    evidence:
+      - {source: g2, quote: "在1层checkin，然后上3层"}
+      - {source: g2, quote: "全程大概20分钟就好（要现场拍照）"}
+      - {source: g1, quote: "✔ 现场交护照"}
+      - {source: g3, quote: "如果你不是在我这个地址做biometric，还需要寄出护照，可以买便宜的usps"}
+  # ---- 等结果、拿回护照 ----
+  - id: s-wait
+    title: 等 UKVI 审理，留意批准邮件
+    phase: p-after
+    estimate: 资料里录指纹后 2–5 个工作日收到批准邮件；g3 说 VFS 工作人员讲 15 个工作日
+    depends_on: [s-biometrics]
+    evidence:
+      - {source: g1, quote: "收到邮件：Your application was successful"}
+      - {source: g3, quote: "工作人员说15工作日可拿到签证"}
+  - id: s-pickup
+    title: 收到 VFS 取件邮件后，工作日 2–4pm 回 VFS 4 楼取护照
+    phase: p-after
+    where: 纽约 VFS 4 楼（和录指纹同一地址）
+    estimate: 护照最长保留 28 天
+    applies_if: [{fact: passport_return, in: [回 VFS 自取]}]
+    depends_on: [s-wait]
+    evidence:
+      - {source: g2, quote: "收到vfs邮件（p4）就可以去取护照啦，工作日的2-4pm可以"}
+      - {source: g2, quote: "在4th floor，最长可以保留28天"}
+  - id: s-delivery
+    title: 等快递寄回护照，收到后核对签证页
+    phase: p-after
+    estimate: g1 下签当天收到 dispatch 邮件，遇暴雪晚一天；g3 批准第二天收到
+    applies_if: [{fact: passport_return, in: [快递寄回]}]
+    depends_on: [s-wait]
+    evidence:
+      - {source: g1, quote: "签证页无误"}
+      - {source: g3, quote: "2026.1.13收到邮件签证受批准，快递发出"}
+
+checks:
+  - id: c-funds-explained
+    text: 银行流水里的大额支出或转入（例如学费）要在 cover letter 里解释清楚，和流水对得上
+    involves: [r-bank, r-cover-letter]
+    evidence:
+      - {source: g1, quote: "附了cover letter解释资金来源和学费用途"}
+      - {source: g1, quote: "材料逻辑清晰比金额多少更重要"}
+
+conflicts:
+  - id: k-passport-pages
+    about: r-passport.note
+    claims:
+      - {source: g2, quote: "护照的每一页和美签页"}
+      - {source: g3, quote: "Passport首页+美签"}
+      - {source: g4, quote: "必须提供正在使用的护照所有页面的彩色扫描件，包括所有空白页"}
+  - id: k-passport-kept
+    about: s-biometrics.estimate
+    claims:
+      - {source: g1, quote: "✔ 现场交护照"}
+      - {source: g3, quote: "提前买好的ups的return lable（如果你不打算之后回现场取护照）"}
+      - {source: g4, quote: "护照当场就能拿回，不需要上交"}
+  - id: k-trip-bookings
+    about: r-hotel.note
+    claims:
+      - {source: g2, quote: "英国酒店订单（在booking上订的可退的）"}
+      - {source: g3, quote: "航班信息"}
+      - {source: g4, quote: "不需要提供行程单、机票酒店订单和旅游保险"}
+  - id: k-vfs-floor
+    about: s-book-vfs.where
+    claims:
+      - {source: g2, quote: "地址：VFS Services (USA) Inc.128 East 32nd Street,Fl 3"}
+      - {source: g4, quote: "128 East 32nd Street, Fl 4, New York NY, 10016"}
+
+uncertain:
+  - r-passport.note
+  - s-biometrics.estimate
+  - r-hotel.note
+  - s-book-vfs.where
+  - s-book-vfs.estimate
+  - s-apply.estimate
+  - r-i20.note
+  - r-lease.note
+  - r-return-label
+  - s-wait.estimate

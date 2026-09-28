@@ -190,9 +190,13 @@
     var hash = location.hash.replace(/^#\/?/, "");
     var parts = hash.split("/");
     document.querySelectorAll("[data-nav]").forEach(function (a) {
-      a.classList.toggle("active", ["", "guide", "track", "tag", "form"].indexOf(parts[0]) !== -1);
+      a.classList.toggle("active", ["", "guide", "track", "tag", "form", "new", "draft"].indexOf(parts[0]) !== -1);
     });
+    if (workspaceChat) { workspaceChat.destroy(); workspaceChat = null; }
     setView(el("p", { class: "muted", text: "加载中…" }));
+    if (parts[0] === "new" && parts[1]) return renderNewWorkspace(decodeURIComponent(parts[1]), parts[2] ? decodeURIComponent(parts[2]) : null);
+    if (parts[0] === "new") return renderNewType();
+    if (parts[0] === "draft" && parts[1] && parts[2]) return renderDraft(decodeURIComponent(parts[1]), decodeURIComponent(parts[2]));
     if (parts[0] === "guide" && parts[1]) return renderGuide(decodeURIComponent(parts[1]));
     if (parts[0] === "track" && parts[1]) return renderTrack(decodeURIComponent(parts[1]));
     if (parts[0] === "tag" && parts[1]) return renderHome(decodeURIComponent(parts[1]));
@@ -378,20 +382,18 @@
           el(
             "section",
             { class: "panel library" },
-            el("div", { class: "panel-head" }, el("h2", null, "攻略库", libCount), el("small", { text: "community/guides/" })),
+            el("div", { class: "panel-head" }, el("h2", null, "攻略库", libCount),
+              el("button", { type: "button", class: "primary new-guide-btn", text: "+ 新建攻略", onclick: function () { location.hash = "#/new"; } })),
             el("div", { class: "lib-filter" }, search, tagBox),
             libList
           ),
           el(
             "p",
             { class: "notice" },
-            "想贡献一份攻略？把杂乱的图文攻略交给你本地的 Agent，按 ",
+            "想贡献一份攻略？点上面的「+ 新建攻略」，把小红书分享文字或帖子正文贴给 Agent，它会整理成草稿给你检查。",
+            "也可以在终端里让你的 Agent 按 ",
             el("code", { text: "specs/002-guide-to-track/prompt.md" }),
-            " 整理成 YAML 放进 ",
-            el("code", { text: "community/guides/" }),
-            "，跑一遍 ",
-            el("code", { text: "PYTHONPATH=src uv run python -m core.guides" }),
-            " 校验通过即可。详见 ",
+            " 整理，详见 ",
             el("code", { text: "community/README.md" }),
             "。"
           )
@@ -462,6 +464,200 @@
         setView(el("p", null, el("a", { href: "#/", text: "← 回到攻略库" })));
         showError(e.message);
       });
+  }
+
+  // ---------- 新建攻略（spec 004 第 2 步）----------
+  //
+  //   #/new                    选攻略类型（以后的旅游攻略等在这里加）+ 没保存的草稿
+  //   #/new/<类型>[/<草稿 id>]  左边和 Agent 对话，右边是草稿：校验结果、词表建议、保存 / 丢弃
+  //   #/draft/<类型>/<草稿 id>  草稿的完整预览（和正式攻略的预览页一样）
+
+  var workspaceChat = null;
+  var XHS_LINK = /https?:\/\/(?:xhslink\.(?:cn|com)|(?:www\.)?xiaohongshu\.com)\/\S+/g;
+
+  function renderNewType() {
+    Promise.all([request("GET", "/api/guide-types"), request("GET", "/api/guide-drafts")])
+      .then(function (results) {
+        var types = results[0], drafts = results[1];
+        var nameOf = {};
+        types.forEach(function (t) { nameOf[t.id] = t.name; });
+        setView(
+          el("div", { class: "heading" }, el("div", null,
+            el("div", { class: "crumb" }, el("a", { href: "#/", text: "攻略库" }), " / 新建攻略"),
+            el("h1", { text: "新建攻略" }),
+            el("p", { class: "muted", text: "先选要写哪一类攻略。不同类型的内容结构不一样，Agent 会按对应的规则整理。" }))),
+          el("div", { class: "cards type-cards" }, types.map(function (t) {
+            return t.available
+              ? el("a", { class: "card", href: "#/new/" + encodeURIComponent(t.id) },
+                  el("h3", { text: t.name }), el("p", { class: "meta", text: t.description }), el("div", { class: "next", text: "选这个 →" }))
+              : el("div", { class: "card disabled", "aria-disabled": "true" },
+                  el("span", { class: "meta" }, el("span", { class: "tag soft", text: "规划中" })),
+                  el("h3", { text: t.name }), el("p", { class: "meta", text: t.description }));
+          })),
+          drafts.length
+            ? el("section", { class: "panel" },
+                el("div", { class: "panel-head" }, el("h2", null, "还没保存的草稿", el("span", { class: "count", text: drafts.length }))),
+                el("div", { class: "cards" }, drafts.map(function (d) {
+                  return el("a", { class: "card", href: "#/new/" + encodeURIComponent(d.type) + "/" + encodeURIComponent(d.id) },
+                    el("span", { class: "meta" }, el("span", { class: "tag soft", text: nameOf[d.type] || d.type }), " " + d.id),
+                    el("h3", { text: d.title || d.id }),
+                    el("div", { class: "next", text: (d.valid ? "✓ 校验通过" : "✗ 校验未通过") + " · 继续编辑 →" }));
+                })))
+            : null
+        );
+      })
+      .catch(function (e) { setView(); showError(e.message); });
+  }
+
+  function renderNewWorkspace(typeId, initialDraft) {
+    request("GET", "/api/guide-types").then(function (types) {
+      var type = types.filter(function (t) { return t.id === typeId; })[0];
+      if (!type || !type.available) {
+        setView(el("p", null, el("a", { href: "#/new", text: "← 重新选攻略类型" })));
+        showError(type ? "「" + type.name + "」还不能新建。" : "没有这种攻略类型：" + typeId);
+        return;
+      }
+      var draftId = initialDraft;
+      var draftBox = el("div", { class: "draft-box" });
+
+      function drawEmpty() {
+        draftBox.replaceChildren(el("div", { class: "draft-empty" },
+          el("p", { text: "草稿会显示在这里。" }),
+          el("p", { class: "muted", text: "Agent 整理好之后，这里会出现草稿和「保存到攻略库」按钮。" })));
+      }
+
+      function loadDraft() {
+        if (!draftId) { drawEmpty(); return; }
+        request("GET", "/api/guide-drafts/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(draftId))
+          .then(function (d) { drawDraft(d.check); })
+          .catch(function (e) { draftBox.replaceChildren(el("p", { class: "banner", text: e.message })); });
+      }
+
+      // 草稿面板只放要紧的：能不能保存、看预览、需要留意的几件事。
+      // 词表建议收成一个勾选框（默认勾上，保存时一起加进词表）；没有建议的叫法不列出来。
+      function drawDraft(c) {
+        var base = "/api/guide-drafts/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(c.id);
+        var previewHref = "#/draft/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(c.id);
+        var suggestions = c.alias_suggestions.filter(function (s) {
+          return c.unresolved.some(function (u) { return u.raw_name === s.raw_name; });
+        });
+        var aliasAll = el("input", { type: "checkbox", checked: true });
+        var aliasBoxes = suggestions.map(function (s) { return { box: el("input", { type: "checkbox", checked: true }), s: s }; });
+        aliasAll.addEventListener("change", function () { aliasBoxes.forEach(function (b) { b.box.checked = aliasAll.checked; }); });
+        aliasBoxes.forEach(function (b) {
+          b.box.addEventListener("change", function () { aliasAll.checked = aliasBoxes.some(function (x) { return x.box.checked; }); });
+        });
+
+        var notes = [];
+        if (c.conflict_count) notes.push(el("li", null, c.conflict_count + " 处各篇说法不同，", el("a", { href: previewHref, target: "_blank", text: "在预览里看" })));
+        if (c.uncertain.length) notes.push(el("li", { text: c.uncertain.length + " 处只有一篇提到或来自二手总结，已标为待核实" }));
+
+        var publishBtn = el("button", { type: "button", class: "primary", text: "保存到攻略库", disabled: !c.valid });
+        publishBtn.addEventListener("click", function () {
+          publishBtn.disabled = true;
+          var picked = aliasBoxes.filter(function (b) { return b.box.checked; }).map(function (b) { return { key: b.s.key, alias: b.s.raw_name }; });
+          (picked.length ? request("POST", "/api/vocab/aliases", { aliases: picked }) : Promise.resolve())
+            .then(function () { return request("POST", base + "/publish"); })
+            .then(function (r) {
+              draftId = null;
+              history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId));
+              draftBox.replaceChildren(el("div", { class: "notice" },
+                el("p", null, "已保存到攻略库：", el("a", { href: "#/guide/" + encodeURIComponent(r.guide_id), text: c.title || r.guide_id }),
+                  picked.length ? "，词表加了 " + picked.length + " 个叫法" : ""),
+                el("p", { class: "muted", text: "还没提交到 git，提交前在终端里逐个文件检查。" })));
+            })
+            .catch(function (e) { publishBtn.disabled = !c.valid; showError(e.message); });
+        });
+        var discardBtn = el("button", { type: "button", class: "quiet", text: "丢弃" });
+        discardBtn.addEventListener("click", function () {
+          if (discardBtn.dataset.armed !== "1") { discardBtn.dataset.armed = "1"; discardBtn.textContent = "再点一次确认丢弃"; return; }
+          request("DELETE", base).then(function () {
+            draftId = null;
+            history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId));
+            drawEmpty();
+          }).catch(function (e) { showError(e.message); });
+        });
+
+        // 原生 replaceChildren 会把 null 显示成文字 "null"，所以包一层 el() 让它按规则跳过空值
+        draftBox.replaceChildren(el("div", { class: "draft-body" },
+          el("span", { class: "meta", text: "草稿" }),
+          el("h2", { class: "draft-title", text: c.title || c.id }),
+          el("div", { class: "draft-status " + (c.valid ? "ok" : "bad"),
+            text: (c.valid ? "✓ 可以保存 · " : "✗ 还有 " + c.errors.length + " 处要改 · ") + c.requirement_count + " 项材料 · " + c.step_count + " 个步骤" }),
+          el("a", { class: "draft-preview-link", href: previewHref, target: "_blank", text: "查看完整预览 ↗" }),
+          c.errors.length
+            ? el("div", { class: "draft-sec" },
+                el("ul", { class: "draft-errors" }, c.errors.slice(0, 5).map(function (e) { return el("li", { text: e }); })),
+                el("button", { type: "button", text: "让 Agent 改", onclick: function () { if (workspaceChat) workspaceChat.send("把草稿的校验错误改掉"); } }))
+            : null,
+          notes.length ? el("ul", { class: "draft-notes" }, notes) : null,
+          aliasBoxes.length
+            ? el("div", { class: "draft-alias" },
+                el("label", null, aliasAll, " 保存时把 " + aliasBoxes.length + " 个材料叫法加进词表"),
+                el("details", null, el("summary", { text: "是哪几个" }),
+                  el("p", { class: "muted", text: "加进去后，这些材料能和「我的资料」自动对上。取消勾选的不加。" }),
+                  el("ul", null, aliasBoxes.map(function (b) { return el("li", null, el("label", null, b.box, " " + b.s.raw_name + " → " + b.s.key_name)); }))))
+            : null,
+          el("div", { class: "draft-actions" }, discardBtn, publishBtn)
+        ));
+      }
+
+      workspaceChat = window.AgentChat.create({
+        kind: "create_guide",
+        rows: 7,
+        enterNewline: true,
+        placeholder: "把小红书分享文字（App 里「复制链接」得到的整段）、帖子正文，或别处的总结贴在这里。⌘ / Ctrl + 回车发送",
+        hint: "Agent 会在不登录的浏览器里读帖子（一次最多 6 条链接），按项目规则整理成草稿，显示在右边。之后可以继续跟它说要怎么改，比如「把第 3 步拆开」「冲突的地方再解释一下」。",
+        sendLabel: function (hasSession) { return hasSession || draftId ? "发送" : "开始整理"; },
+        validate: function (text) {
+          var n = (text.match(XHS_LINK) || []).length;
+          return n > 6 ? "一次最多 6 条小红书链接（现在 " + n + " 条），分几次发。" : null;
+        },
+        context: function () { return { page: "new", guide_type: typeId, draft_id: draftId }; },
+        onEvent: function (type, data) {
+          if (type === "draft" && data.draft_id) {
+            draftId = data.draft_id;
+            history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(draftId));
+            loadDraft();
+          }
+          if (type === "done" || type === "error") loadDraft();
+        },
+      });
+
+      setView(
+        el("div", { class: "heading" }, el("div", null,
+          el("div", { class: "crumb" }, el("a", { href: "#/", text: "攻略库" }), " / ", el("a", { href: "#/new", text: "新建攻略" }), " / " + type.name),
+          el("h1", { text: "新建" + type.name }),
+          el("p", { class: "muted", text: type.description }))),
+        el("div", { class: "new-ws" },
+          el("section", { class: "panel ws-chat" }, el("div", { class: "panel-head" }, el("h2", { text: "和 Agent 对话" })), workspaceChat.root),
+          el("section", { class: "panel ws-draft" }, draftBox))
+      );
+      loadDraft();
+      workspaceChat.input.focus();
+    }).catch(function (e) { setView(); showError(e.message); });
+  }
+
+  function renderDraft(typeId, id) {
+    request("GET", "/api/guide-drafts/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(id))
+      .then(function (d) {
+        var c = d.check;
+        var head = el("div", { class: "heading" }, el("div", null,
+          el("div", { class: "crumb" }, el("a", { href: "#/new", text: "新建攻略" }), " / 草稿 / " + id),
+          el("h1", { text: c.title || id })));
+        var back = el("a", { href: "#/new/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(id), text: "回到新建窗口 →" });
+        if (!c.valid) {
+          setView(head, el("div", { class: "banner" }, "草稿还没通过校验：", el("ul", null, c.errors.map(function (e) { return el("li", { text: e }); })), back));
+          return;
+        }
+        setView(
+          head,
+          el("div", { class: "notice preview-notice" }, el("span", { text: "这是草稿预览：还没保存进攻略库。已经用你材料库里现有的材料先对了一遍。" }), back),
+          trackBody(d.preview, { readonly: true, aside: el("section", { class: "panel" }, el("h2", { text: "草稿" }),
+            el("p", { class: "muted", text: "在新建窗口里继续修改、确认词表建议，然后保存到攻略库。" }), back) })
+        );
+      })
+      .catch(function (e) { setView(); showError(e.message); });
   }
 
   // ---------- 攻略预览 ----------

@@ -476,3 +476,67 @@ def get_profile_gaps(*, materials_root: Path | None = None) -> dict:
     不返回字段的值（只返回状态），可以放心整段展示给用户。missing 的要在开始填表前一次问完。
     """
     return profile_gaps(load_personal_profile(_materials_root(materials_root)))
+
+
+# ---------- 攻略草稿（spec 004：界面里"新建攻略"的 Agent 只能写草稿，不能直接写 community/） ----------
+
+
+def _form_ids(community_dir: Path) -> set[str] | None:
+    forms = community_dir / "forms"
+    return {p.stem for p in forms.glob("*.yaml")} if forms.is_dir() else None
+
+
+def _draft_call(fn, *args, **kwargs):
+    from core.drafts import DraftError
+
+    try:
+        return fn(*args, **kwargs)
+    except DraftError as e:
+        raise ValueError(str(e)) from e
+
+
+def save_guide_draft(
+    guide_id: str,
+    yaml_text: str,
+    alias_suggestions: list[dict] | None = None,
+    guide_type: str = "process",
+    *,
+    materials_root: Path | None = None,
+    community_dir: Path | None = None,
+) -> dict:
+    """写入 / 覆盖一份攻略草稿并返回校验结果（valid、errors、unresolved 等）。"""
+    from core.drafts import save_draft
+
+    cdir = _community_dir(community_dir)
+    return _draft_call(save_draft, _materials_root(materials_root), guide_type, guide_id, yaml_text,
+                       _vocabulary(cdir), alias_suggestions, _form_ids(cdir))
+
+
+def get_guide_draft(
+    guide_id: str,
+    guide_type: str = "process",
+    *,
+    materials_root: Path | None = None,
+    community_dir: Path | None = None,
+) -> dict:
+    """读一份草稿的全文和校验结果（修改草稿前先读）。"""
+    from core.drafts import check_draft, read_draft_text
+
+    root, cdir = _materials_root(materials_root), _community_dir(community_dir)
+    text = _draft_call(read_draft_text, root, guide_type, guide_id)
+    return {"yaml_text": text, "check": _draft_call(check_draft, root, guide_type, guide_id,
+                                                    _vocabulary(cdir), _form_ids(cdir))}
+
+
+def validate_guide_draft(
+    guide_id: str,
+    guide_type: str = "process",
+    *,
+    materials_root: Path | None = None,
+    community_dir: Path | None = None,
+) -> dict:
+    from core.drafts import check_draft
+
+    cdir = _community_dir(community_dir)
+    return _draft_call(check_draft, _materials_root(materials_root), guide_type, guide_id,
+                       _vocabulary(cdir), _form_ids(cdir))
