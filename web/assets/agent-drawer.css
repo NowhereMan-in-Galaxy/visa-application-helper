@@ -1,0 +1,30 @@
+/* 界面里的 Agent 抽屉（spec 004）。颜色沿用 guides.css 里的变量。 */
+.agent-fab { position: fixed; right: 24px; bottom: 24px; z-index: 40; background: var(--green); color: #fff; border-color: var(--green); box-shadow: 3px 3px 0 var(--ink); }
+.agent-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100vw; z-index: 50; display: flex; flex-direction: column; background: var(--paper-2); border-left: 1px solid var(--ink); box-shadow: -6px 0 0 rgba(48, 56, 46, .08); }
+.agent-drawer[hidden] { display: none; }
+body.agent-open main { padding-right: 420px; }
+.agent-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.agent-close { margin-left: auto; border: 0; padding: 2px 8px; font-size: 16px; }
+.agent-notice { margin: 12px 18px 0; padding: 10px 12px; font-size: 13px; border: 1px solid var(--line); }
+.agent-notice.warn { background: var(--amber-soft); border-color: #dccb9f; color: var(--amber); }
+.agent-notice button { margin-left: 6px; padding: 2px 8px; font-size: 12px; }
+.agent-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px 0; }
+.agent-quick:empty { display: none; }
+.agent-quick button { padding: 5px 10px; font-size: 13px; border-color: var(--line); background: #fff; }
+.agent-quick button:hover:not(:disabled) { border-color: var(--green); }
+.agent-log { flex: 1; overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.agent-msg { white-space: pre-wrap; word-break: break-word; font-size: 14px; }
+.agent-msg.user { align-self: flex-end; max-width: 85%; background: var(--green-soft); padding: 8px 12px; }
+.agent-msg.agent { background: #fff; border: 1px solid var(--line-soft); padding: 10px 12px; }
+.agent-msg.progress, .agent-msg.cost { font-size: 12px; color: var(--muted); }
+.agent-msg.progress::before { content: "● "; color: var(--green); animation: agent-pulse 1.2s infinite; }
+.agent-msg.error { font-size: 13px; color: var(--danger); background: var(--red-soft); padding: 8px 12px; }
+.agent-foot { border-top: 1px solid var(--line); padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
+.agent-input { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; padding: 8px 10px; border: 1px solid var(--line); background: #fff; }
+.agent-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.agent-drawer button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+@keyframes agent-pulse { 50% { opacity: .3; } }
+@media (max-width: 900px) {
+  body.agent-open main { padding-right: 0; }
+  .agent-drawer { width: 100vw; }
+}
