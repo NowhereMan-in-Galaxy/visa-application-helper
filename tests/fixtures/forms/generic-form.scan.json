@@ -1,0 +1,261 @@
+{
+ "host": "",
+ "title": "Sample Visa Application (fixture)",
+ "count": 25,
+ "fields": [
+  {
+   "i": 0,
+   "kind": "text",
+   "label": "Surname (as in passport)",
+   "name": "surname surname",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Personal Information",
+   "filled": false
+  },
+  {
+   "i": 1,
+   "kind": "text",
+   "label": "Given names",
+   "name": "givenNames given",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Personal Information",
+   "filled": false
+  },
+  {
+   "i": 2,
+   "kind": "text",
+   "label": "Date of birth",
+   "name": "dob",
+   "placeholder": "DD/MM/YYYY",
+   "autocomplete": "",
+   "section": "Personal Information",
+   "filled": false
+  },
+  {
+   "i": 3,
+   "kind": "radio",
+   "label": "Sex",
+   "name": "sex",
+   "placeholder": "",
+   "autocomplete": "",
+   "options": [
+    "Male",
+    "Female"
+   ],
+   "section": "Sex",
+   "filled": false
+  },
+  {
+   "i": 4,
+   "kind": "select",
+   "label": "Nationality",
+   "name": "nationality nat",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Personal Information",
+   "filled": false
+  },
+  {
+   "i": 5,
+   "kind": "select",
+   "label": "Marital status",
+   "name": "maritalStatus ms",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Personal Information",
+   "filled": false
+  },
+  {
+   "i": 6,
+   "kind": "text",
+   "label": "Passport number",
+   "name": "ctl00$SiteContentPlaceHolder$FormView1$tbxPPT_NUM ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Passport",
+   "filled": false
+  },
+  {
+   "i": 7,
+   "kind": "select",
+   "label": "Issuance date",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Passport",
+   "filled": false
+  },
+  {
+   "i": 8,
+   "kind": "select",
+   "label": "",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEMonth",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Passport",
+   "filled": false
+  },
+  {
+   "i": 9,
+   "kind": "text",
+   "label": "",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUEDYear",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Passport",
+   "filled": false
+  },
+  {
+   "i": 10,
+   "kind": "date",
+   "label": "Expiration date",
+   "name": "pptExpiry pptExpiry",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Passport",
+   "filled": false
+  },
+  {
+   "i": 11,
+   "kind": "text",
+   "label": "Street address",
+   "name": "homeStreet",
+   "placeholder": "",
+   "autocomplete": "address-line1",
+   "section": "Home Address",
+   "filled": false
+  },
+  {
+   "i": 12,
+   "kind": "text",
+   "label": "City",
+   "name": "homeCity",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Home Address",
+   "filled": false
+  },
+  {
+   "i": 13,
+   "kind": "text",
+   "label": "Postal code",
+   "name": "homeZip",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Home Address",
+   "filled": false
+  },
+  {
+   "i": 14,
+   "kind": "text",
+   "label": "Country",
+   "name": "homeCountry",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Home Address",
+   "filled": true
+  },
+  {
+   "i": 15,
+   "kind": "text",
+   "label": "Primary phone number",
+   "name": "phone",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Home Address",
+   "filled": false
+  },
+  {
+   "i": 16,
+   "kind": "text",
+   "label": "Email",
+   "name": "email",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Home Address",
+   "filled": false
+  },
+  {
+   "i": 17,
+   "kind": "text",
+   "label": "City",
+   "name": "birthCity",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Place of Birth",
+   "filled": false
+  },
+  {
+   "i": 18,
+   "kind": "text",
+   "label": "Father's surname",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Family",
+   "filled": false
+  },
+  {
+   "i": 19,
+   "kind": "text",
+   "label": "Father's given names",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Family",
+   "filled": false
+  },
+  {
+   "i": 20,
+   "kind": "text",
+   "label": "Mother's surname",
+   "name": "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Family",
+   "filled": false
+  },
+  {
+   "i": 21,
+   "kind": "text",
+   "label": "中文姓名",
+   "name": "cnName",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "中文信息",
+   "filled": false
+  },
+  {
+   "i": 22,
+   "kind": "text",
+   "label": "身份证号",
+   "name": "cnId",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "中文信息",
+   "filled": false
+  },
+  {
+   "i": 23,
+   "kind": "text",
+   "label": "Purpose of trip",
+   "name": "purpose",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Trip",
+   "filled": false
+  },
+  {
+   "i": 24,
+   "kind": "text",
+   "label": "Secondary phone",
+   "name": "phone2",
+   "placeholder": "",
+   "autocomplete": "",
+   "section": "Trip",
+   "filled": false
+  }
+ ]
+}

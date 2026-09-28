@@ -183,6 +183,29 @@ def validate_guide_draft(guide_id: str, guide_type: str = "process") -> dict:
 
 @mcp.tool(
     description=(
+        "只读：通用填表引擎第 1 步。返回一段扫描脚本，用浏览器工具（javascript_tool）在官网当前页运行，"
+        "得到这一页能填的格子列表（不含格子里的值）。然后把结果里的 fields 交给 plan_form_fill"
+    )
+)
+def get_form_scan_script() -> dict:
+    return tools.get_form_scan_script()
+
+
+@mcp.tool(
+    description=(
+        "只读：通用填表引擎第 2 步。fields = 扫描脚本返回的 fields。按同义词表认出格子、从「基本信息」取值，"
+        "返回 fill（会填的格子）、sensitive（敏感字段，默认不填，要用户同意后放进 allow_sensitive 重新调用）、"
+        "missing（基本信息里没有，要问用户）、needs_format（日期格式看不出，你来填）、already_filled、"
+        "unmatched（认不出，你来处理）和 script。把 script 原样用 javascript_tool 在同一页运行即可填写；"
+        "script 里含用户的个人信息，不要在对话里复述它。一页最多扫描+填写 2 轮"
+    )
+)
+def plan_form_fill(fields: list[dict], allow_sensitive: list[str] | None = None) -> dict:
+    return tools.plan_form_fill(fields, allow_sensitive)
+
+
+@mcp.tool(
+    description=(
         "网页里的 Agent 用：提议修改「基本信息」的一个分组（参数同 update_personal_profile）。不会直接写入——"
         "页面上会弹出确认卡片（旧值 → 新值），用户点确认后才写。只提议用户在对话里亲口说的内容。"
         "返回 proposal_id 和 changed；告诉用户\"请在下面的卡片里确认\""

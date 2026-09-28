@@ -1,0 +1,264 @@
+# 通用填表识别词表（specs/005-fill-engine）：网页上的格子 → 「基本信息」里的哪个字段。
+#
+# 共享区数据，任何人都可以补充；这里只放"格子旁边会写什么字"，绝不放任何人的真实信息。
+# 改完运行 `PYTHONPATH=src uv run python -m core.guides` 检查。
+#
+# 每条字段：
+#   match:        若干组词；每一组都要至少命中一个词才算认出（例如"父亲的姓"= 父亲 + 姓）。
+#                 英文按整词匹配（不分大小写，驼峰和下划线会先拆开：tbxAPP_SURNAME → tbx app surname），
+#                 中文按包含匹配。得分 = 每组命中的最长词的长度之和（词出现在格子自己的标签 / 名字里算两倍，
+#                 只出现在小节标题里算一倍），一个格子取得分最高的字段。
+#   exclude:      出现任一词就不算（例如申请人本人的"姓"要排除"父亲""配偶"）。
+#   autocomplete: 网页自带的 autocomplete 标记（HTML 标准写法），命中直接认定。
+#
+# 只写单个值的字段（嵌套对象用点号，例如 contact.home_address.city）；列表字段交给 Agent。
+
+# 出现这些词，说明问的是别人的信息，不是申请人本人
+others: &others [father, mother, parent, spouse, husband, wife, partner, former, child, children, son, daughter,
+  relative, sibling, brother, sister, contact person, emergency, supervisor, friend, companion,
+  父亲, 母亲, 父, 母, 配偶, 丈夫, 妻子, 子女, 亲属, 兄弟, 姐妹, 联系人, 紧急, 上司, 同行]
+# 出现这些词，说明问的不是住址
+not_home: &not_home [mailing, 邮寄, 通讯, birth, 出生, issue, issued, issuance, 签发, employer, company, school,
+  work, business, office, 单位, 公司, 学校, email, e mail, 邮箱, destination, hotel, 酒店, 目的地]
+
+fields:
+  # ---------- 基本身份 ----------
+  identity.surname:
+    match: [[surname, surnames, family name, last name, 姓]]
+    exclude: [*others, other, previous, alias, maiden, used, telecode, 电码, 曾用, 其他]
+    autocomplete: [family-name]
+  identity.given_names:
+    match: [[given name, given names, first name, forename, 名字, 名]]
+    exclude: [*others, other, previous, alias, used, telecode, 电码, 曾用, 其他, 名称, 签名, 署名, 名单, 用户名, user name, username]
+    autocomplete: [given-name]
+  identity.native_full_name:
+    match: [[native alphabet, native name, 中文姓名, 中文名, 汉字姓名, 姓名]]
+    exclude: [*others, 英文, 拼音, english, latin, 曾用, 其他]
+  identity.telecode_surname:
+    match: [[telecode, 电码], [surname, surnames, family name, 姓]]
+    exclude: *others
+  identity.telecode_given_names:
+    match: [[telecode, 电码], [given name, given names, 名]]
+    exclude: *others
+  identity.sex:
+    match: [[sex, gender, 性别]]
+    exclude: *others
+    autocomplete: [sex]
+  identity.date_of_birth:
+    match: [[date of birth, birth date, birthdate, birthday, dob, 出生日期, 生日]]
+    exclude: *others
+    autocomplete: [bday, bday-day, bday-month, bday-year]
+  identity.birth_city:
+    match: [[birth, 出生], [city, town, 城市]]
+    exclude: *others
+  identity.birth_province:
+    match: [[birth, 出生], [state, province, 省]]
+    exclude: *others
+  identity.birth_country:
+    match: [[birth, 出生], [country, 国家]]
+    exclude: *others
+  identity.nationality:
+    match: [[nationality, citizenship, 国籍]]
+    exclude: [*others, other, previous, 其他, 曾经]
+  identity.national_id_number:
+    match: [[national id, national identification, identity card, id card, citizen id, 身份证]]
+    exclude: *others
+  identity.us_ssn:
+    match: [[social security, ssn]]
+    exclude: *others
+  identity.us_taxpayer_id:
+    match: [[taxpayer, tin, 纳税人]]
+    exclude: *others
+
+  # ---------- 护照 ----------
+  passport.passport_number:
+    match: [[passport, ppt, 护照], [number, no, num, 号码, 号]]
+    exclude: [*others, book, 本号, lost, stolen, 遗失, 被盗, other, previous, 其他]
+  passport.passport_book_number:
+    match: [[passport, ppt, 护照], [book, 本号]]
+    exclude: *others
+  passport.passport_type:
+    match: [[passport, ppt, 护照], [type, 类型, 种类]]
+    exclude: *others
+  passport.issuing_authority:
+    match: [[issuing authority, authority, 签发机关]]
+    exclude: *others
+  passport.issue_date:
+    match: [[issue, issued, issuance, 签发], [date, dte, dt, day, month, year, 日期]]
+    exclude: [*others, visa, 签证, license, licence]
+  passport.expiry_date:
+    match: [[expiry, expiration, expires, expire, valid until, 有效期, 到期]]
+    exclude: [*others, visa, 签证, license, licence, card]
+  passport.issue_city:
+    match: [[issue, issued, issuance, 签发], [city, town, 城市]]
+    exclude: *others
+  passport.issue_province:
+    match: [[issue, issued, issuance, 签发], [state, province, 省]]
+    exclude: *others
+  passport.issue_country:
+    match: [[issue, issued, issuance, 签发], [country, 国家]]
+    exclude: [*others, authority, 机关]
+
+  # ---------- 住址和联系方式 ----------
+  contact.home_address.street:
+    match: [[street, address, addr, address line 1, 街道, 地址, 住址]]
+    exclude: [*others, *not_home, city, town, state, province, zip, postal, postcode, country, phone, tel,
+      城市, 省, 邮编, 国家, 电话, line 2, ln 2, address 2, street 2, 2]
+    autocomplete: [street-address, address-line1]
+  contact.home_address.city:
+    match: [[city, town, 城市]]
+    exclude: [*others, *not_home]
+    autocomplete: [address-level2]
+  contact.home_address.province:
+    match: [[state, province, 省, 州]]
+    exclude: [*others, *not_home]
+    autocomplete: [address-level1]
+  contact.home_address.postal_code:
+    match: [[postal code, zip, zip code, postcode, post code, 邮编, 邮政编码]]
+    exclude: [*others, *not_home]
+    autocomplete: [postal-code]
+  contact.home_address.country:
+    match: [[country, 国家]]
+    exclude: [*others, *not_home, nationality, citizenship, 国籍, authority, 机关]
+    autocomplete: [country, country-name]
+  contact.mailing_address.street:
+    match: [[mailing, 邮寄, 通讯], [street, address, addr, 街道, 地址]]
+    exclude: [*others, same, 相同, city, state, province, zip, postal, country, 城市, 省, 邮编, 国家, line 2, ln 2, 2]
+  contact.mailing_address.city:
+    match: [[mailing, 邮寄, 通讯], [city, town, 城市]]
+    exclude: *others
+  contact.mailing_address.province:
+    match: [[mailing, 邮寄, 通讯], [state, province, 省]]
+    exclude: *others
+  contact.mailing_address.postal_code:
+    match: [[mailing, 邮寄, 通讯], [postal code, zip, zip code, postcode, 邮编]]
+    exclude: *others
+  contact.mailing_address.country:
+    match: [[mailing, 邮寄, 通讯], [country, 国家]]
+    exclude: *others
+  contact.mailing_same_as_home:
+    match: [[mailing, 邮寄, 通讯], [same, 相同]]
+  contact.primary_phone:
+    match: [[phone, telephone, tel, mobile, cell, 电话, 手机]]
+    exclude: [*others, secondary, alternate, alternative, work, business, office, other, previous, fax,
+      employer, company, school, 备用, 工作, 单位, 公司, 学校, 其他, 传真]
+    autocomplete: [tel, tel-national]
+  contact.secondary_phone:
+    match: [[secondary, alternate, alternative, 备用], [phone, telephone, tel, 电话]]
+    exclude: *others
+  contact.work_phone:
+    match: [[work, business, office, 工作], [phone, telephone, tel, 电话]]
+    exclude: *others
+  contact.email:
+    match: [[email, e mail, 邮箱, 电子邮件]]
+    exclude: [*others, other, previous, additional, 其他]
+    autocomplete: [email]
+
+  # ---------- 家庭 ----------
+  family.marital_status:
+    match: [[marital, 婚姻]]
+  family.father.surname:
+    match: [[father, 父亲], [surname, surnames, family name, last name, 姓]]
+    exclude: [mother, 母亲]
+  family.father.given_names:
+    match: [[father, 父亲], [given name, given names, first name, 名字, 名]]
+    exclude: [mother, 母亲, 姓名]
+  family.father.date_of_birth:
+    match: [[father, 父亲], [date of birth, birth date, dob, 出生日期, 生日]]
+    exclude: [mother, 母亲]
+  family.mother.surname:
+    match: [[mother, 母亲], [surname, surnames, family name, last name, 姓]]
+    exclude: [father, 父亲]
+  family.mother.given_names:
+    match: [[mother, 母亲], [given name, given names, first name, 名字, 名]]
+    exclude: [father, 父亲, 姓名]
+  family.mother.date_of_birth:
+    match: [[mother, 母亲], [date of birth, birth date, dob, 出生日期, 生日]]
+    exclude: [father, 父亲]
+  family.spouse.surname:
+    match: [[spouse, husband, wife, 配偶, 丈夫, 妻子], [surname, surnames, family name, last name, 姓]]
+    exclude: [former, 前]
+  family.spouse.given_names:
+    match: [[spouse, husband, wife, 配偶, 丈夫, 妻子], [given name, given names, first name, 名字, 名]]
+    exclude: [former, 前, 姓名]
+  family.spouse.date_of_birth:
+    match: [[spouse, husband, wife, 配偶, 丈夫, 妻子], [date of birth, birth date, dob, 出生日期, 生日]]
+    exclude: [former, 前]
+  family.spouse.nationality:
+    match: [[spouse, husband, wife, 配偶, 丈夫, 妻子], [nationality, citizenship, 国籍]]
+    exclude: [former, 前]
+
+  # ---------- 工作 ----------
+  employment.primary_occupation:
+    match: [[occupation, 职业]]
+    exclude: [*others, previous, explain, specify, 说明, 以前]
+  employment.current.name:
+    match: [[employer, company, organization, organisation, 单位, 公司], [name, 名称]]
+    exclude: [*others, previous, former, 以前, address, phone, 地址, 电话]
+  employment.current.job_title:
+    match: [[job title, position, designation, 职位, 职务]]
+    exclude: [*others, previous, 以前]
+  employment.current.phone:
+    match: [[employer, company, organization, 单位, 公司], [phone, telephone, tel, 电话]]
+    exclude: [*others, previous, 以前]
+  employment.current.monthly_income:
+    match: [[monthly income, monthly salary, income, salary, 月收入, 收入]]
+    exclude: [*others, previous, 以前, annual, yearly, 年收入]
+  employment.current.address.street:
+    match: [[employer, company, organization, 单位, 公司], [street, address, addr, 地址]]
+    exclude: [*others, previous, 以前, city, state, province, zip, postal, country, 城市, 省, 邮编, 国家, line 2, ln 2, 2]
+  employment.current.address.city:
+    match: [[employer, company, organization, 单位, 公司], [city, town, 城市]]
+    exclude: [*others, previous, 以前]
+
+# 下拉框 / 单选框的候选写法：基本信息里存的值 → 网页选项上可能出现的写法。
+# 是非题用 yes / no；没写的值按"值本身、下划线换空格"去找。
+values:
+  yes: [yes, y, true, 是]
+  no: [no, n, false, 否]
+  male: [male, m, man, 男, 男性]
+  female: [female, f, woman, 女, 女性]
+  single: [single, never married, unmarried, 未婚, 单身]
+  married: [married, 已婚]
+  divorced: [divorced, 离异, 离婚]
+  widowed: [widowed, 丧偶]
+  separated: [separated, legally separated, 分居]
+  common_law: [common law marriage, common law, 事实婚姻]
+  civil_union: [civil union, domestic partnership, civil union domestic partnership, 民事结合]
+  regular: [regular, ordinary, 普通, 因私, 普通护照]
+  official: [official, 公务, 公务护照]
+  diplomatic: [diplomatic, 外交, 外交护照]
+  other: [other, 其他]
+  artist_performer: [artist performer, artist, 艺术]
+  computer_science: [computer science, 计算机]
+  culinary_food_services: [culinary food services, culinary, 餐饮]
+  legal_profession: [legal profession, legal, 法律]
+  medical_health: [medical health, medical, 医疗]
+  natural_science: [natural science, 自然科学]
+  not_employed: [not employed, unemployed, 待业, 无业]
+  physical_sciences: [physical sciences, 物理科学]
+  religious_vocation: [religious vocation, 宗教]
+  social_science: [social science, 社会科学]
+  homemaker: [homemaker, 家庭主妇]
+  student: [student, 学生]
+  retired: [retired, 退休]
+
+# 国家的不同写法：基本信息里写了其中任何一种，就用这一行的全部写法去找选项。
+# 第一个写法是填文本框时用的（英文）。
+countries:
+  - [China, 中国, 中华人民共和国, 中国大陆, chn, prc, chin, china mainland, peoples republic of china, people s republic of china]
+  - [United States, 美国, united states of america, usa, us, u s a, u s]
+  - [Hong Kong, 香港, hong kong sar, hkg, hokg]
+  - [Macau, 澳门, macao, mac, maca]
+  - [Taiwan, 台湾, twn]
+  - [United Kingdom, 英国, uk, great britain, britain, gbr, grbr]
+  - [Canada, 加拿大, can]
+  - [Japan, 日本, jpn, japn]
+  - [South Korea, 韩国, korea south, republic of korea, korea republic of, kor, ks]
+  - [Singapore, 新加坡, sgp, sing]
+  - [Australia, 澳大利亚, 澳洲, aus, asts]
+  - [France, 法国, fra, frnc]
+  - [Germany, 德国, deu, grmn]
+  - [Italy, 意大利, ita, italy]
+  - [Spain, 西班牙, esp, spn]
+  - [Argentina, 阿根廷, arg, argn]

@@ -483,6 +483,15 @@ def main() -> int:
             print(f"✗ {rel}：")
             for msg in f.errors:
                 print(f"    - {msg}")
+
+    from form_engine.match import FormFieldsError, load_dictionary
+
+    try:
+        d = load_dictionary(COMMUNITY_DIR / "form_fields.yaml")
+        print(f"✓ community/form_fields.yaml：{len(d.entries)} 个字段")
+    except FormFieldsError as e:
+        failed += 1
+        print(f"✗ community/form_fields.yaml：{e}")
     return 1 if failed else 0
 
 

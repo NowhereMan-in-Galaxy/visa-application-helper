@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- specs/005-fill-engine 验收用的虚构表单：几种常见官网写法混在一起。不对应任何真实网站。 -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Sample Visa Application (fixture)</title>
+<style>body{font:14px sans-serif;max-width:760px;margin:24px auto}label{display:block;margin:6px 0}td{padding:4px}</style>
+</head>
+<body>
+<h1>Sample Visa Application</h1>
+
+<h2>Personal Information</h2>
+<label for="surname">Surname (as in passport)</label><input id="surname" name="surname">
+<label for="given">Given names</label><input id="given" name="givenNames">
+<label>Date of birth <input name="dob" placeholder="DD/MM/YYYY"></label>
+<fieldset><legend>Sex</legend>
+  <label><input type="radio" name="sex" value="M"> Male</label>
+  <label><input type="radio" name="sex" value="F"> Female</label>
+</fieldset>
+<label for="nat">Nationality</label>
+<select id="nat" name="nationality"><option value="">-- select --</option><option value="CN">China</option><option value="HK">China - Hong Kong SAR</option><option value="US">United States</option></select>
+<label for="ms">Marital status</label>
+<select id="ms" name="maritalStatus"><option value=""></option><option value="S">Single</option><option value="M">Married</option><option value="D">Divorced</option></select>
+
+<h2>Passport</h2>
+<table>
+  <tr><td>Passport number</td><td><input name="ctl00$SiteContentPlaceHolder$FormView1$tbxPPT_NUM" id="ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM"></td></tr>
+  <tr><td>Issuance date</td><td>
+    <select id="ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay"><option value=""></option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option></select>
+    <select id="ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEMonth"><option value=""></option><option value="1">JAN</option><option value="2">FEB</option><option value="3">MAR</option><option value="4">APR</option><option value="5">MAY</option><option value="6">JUN</option></select>
+    <input id="ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUEDYear" size="4">
+  </td></tr>
+  <tr><td>Expiration date</td><td><input type="date" id="pptExpiry" name="pptExpiry"></td></tr>
+</table>
+
+<h2>Home Address</h2>
+<label>Street address <input name="homeStreet" autocomplete="address-line1"></label>
+<label>City <input name="homeCity"></label>
+<label>Postal code <input name="homeZip"></label>
+<label>Country <input name="homeCountry" value="already typed by the user"></label>
+<label>Primary phone number <input type="tel" name="phone"></label>
+<label>Email <input type="email" name="email"></label>
+
+<h2>Place of Birth</h2>
+<label>City <input name="birthCity"></label>
+
+<h2>Family</h2>
+<table>
+  <tr><td>Father's surname</td><td><input id="ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME"></td></tr>
+  <tr><td>Father's given names</td><td><input id="ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME"></td></tr>
+  <tr><td>Mother's surname</td><td><input id="ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME"></td></tr>
+</table>
+
+<h2>中文信息</h2>
+<label>中文姓名 <input name="cnName"></label>
+<label>身份证号 <input name="cnId"></label>
+
+<h2>Trip</h2>
+<label>Purpose of trip <input name="purpose"></label>
+<label>Secondary phone <input name="phone2"></label>
+
+<h2>Account</h2>
+<label>Password <input type="password" name="pw"></label>
+<label>Enter the captcha code <input name="captchaCode"></label>
+<input type="hidden" name="token" value="x">
+<label style="display:none">Hidden field <input name="ghost"></label>
+</body>
+</html>
