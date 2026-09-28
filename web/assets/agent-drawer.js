@@ -261,11 +261,6 @@
           sessionId = d.session_id || sessionId;
           finish();
           if (!answer) addLine("agent", "（没有回答）");
-          if (typeof d.cost_usd === "number") {
-            addLine("cost", paidByApi()
-              ? "本次用量约 $" + d.cost_usd.toFixed(2) + "（按 API 计费）"
-              : "本次折合约 $" + d.cost_usd.toFixed(2) + "（订阅用户计入额度，不另收费）");
-          }
           if (options.onEvent) options.onEvent("done", d);
         });
         src.addEventListener("error", function (e) {
