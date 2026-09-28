@@ -1,6 +1,6 @@
 # 004 界面里的 Agent：从帖子新建攻略 + 简单追问
 
-- **状态**：项目主已确认（2026-09-28）。第 1 步（地基 + 只读追问）、第 2 步（新建攻略）已完成，见文末"进展"
+- **状态**：项目主已确认（2026-09-28）。三步都已完成（2026-09-28），见文末"进展"
 - **对应**：路线图第 5 项；spec 002"Agent 接入方案"里的 B3
 - **前提（已具备）**：本地服务的防跨站请求校验（spec 002"B3 的安全前提"）；MCP 工具（`src/agent_tools/mcp_server.py`）；skill `xhs-reader`、`guide-author`
 
@@ -135,8 +135,8 @@
 - **草稿区**：`<材料根目录>/drafts/<攻略类型>/<id>.yaml`，旁边的 `<id>.meta.json` 存别名建议和更新时间。放在材料根目录（被 git 忽略），因为草稿还没经过用户检视，不能进仓库。
 - **发布**：`POST /api/guide-drafts/{type}/{id}/publish` 由本地服务（确定性代码，不是 Agent）完成：重新校验 → 通过则写到该类型对应的目录（办事流程攻略是 `community/guides/<id>.yaml`）→ 删除草稿。
 - **词表别名**：Agent 在草稿结果里给出建议 `[{raw_name, suggest_key}]`；用户勾选后由 `POST /api/vocab/aliases` 写进 `community/material_types.yaml`（确定性代码：只改对应 key 那一行 `aliases: [...]`，文件里的注释和排版不动；然后重新加载校验；撞名则整体拒绝）。**第一版只支持"加别名到已有 key"**，新增 key 仍在终端里做。
-- **② 类修改的撤销记录**：`<材料根目录>/agent/activity.jsonl`，每行一次写操作：时间、工具名、参数、修改前的值。`POST /api/agent/undo/{activity_id}` 按记录恢复。只保留最近 200 条。
-- **③ 类提议**：`<材料根目录>/agent/pending-profile.json`，`propose_profile_update` 只写这里；用户确认后由 `POST /api/agent/profile-proposals/{id}/confirm` 调用现有的基本信息写入逻辑。
+- **② 类修改的撤销记录**：`<材料根目录>/agent/activity.jsonl`，每行一次写操作：时间、工具名、一句话说明、这件办事**修改前的整份文件**、修改后文件的哈希。`POST /api/agent/undo/{activity_id}` 放回修改前的文件；如果当前文件和"修改后"对不上（之后又被改过），拒绝撤销（409），免得冲掉新的修改。只保留最近 200 条。只有网页调起时（环境变量 `PA_AGENT_UI=1`，由 `jobs.py` 设置）才记录，在终端里用 MCP 工具不记。
+- **③ 类提议**：`<材料根目录>/agent/profile-proposals.json`，`propose_profile_update` 先校验、算出旧值 → 新值，只写这里；用户确认后由 `POST /api/agent/profile-proposals/{id}/confirm` 调用现有的基本信息写入逻辑。
 
 ## 接口（新增）
 
@@ -217,4 +217,7 @@
   - 真机检查：在新建窗口贴了项目主的 3 条英签分享链接 + 一段 AI 搜索总结。Agent 在未登录浏览器读完 3 篇（配图是签证页 / 邮件截图，按规则跳过），AI 总结按二手来源处理；保存的草稿一次校验通过：20 项材料、15 个步骤、4 处说法冲突、10 条待核实；16 个认不出的叫法里给了 8 条别名建议。全程约 6 分钟，折合约 $1.69。中途它尝试用 Bash，被白名单自动拒绝。
   - 真机发现并已修：①写长草稿时一两分钟没有进度 → 一开始写就显示"正在写草稿"；②Agent 调工具前的旁白混进最终回答 → 收进「过程」；③草稿面板多显示了一个 "null"。
   - 这份英签草稿（`uk-visitor-from-us-f1`）留在材料根目录的草稿区，由项目主检视后决定是否保存进攻略库。
+- **第 3 步完成（2026-09-28）**：`src/agent_tools/activity.py`（撤销记录、基本信息提议）、MCP 工具 `propose_profile_update`、8 个改办事进度的工具在网页调起时记撤销信息、`jobs.side_events`（工具返回后把新的修改 / 提议推给页面）、撤销 / 确认 / 拒绝接口；抽屉里的"✓ 已勾上：… [撤销]"和确认卡片，页面随之刷新；没装 Claude Code 时的「复制给 Agent」。追问放行 ② 类写工具和 `propose_profile_update`，不放行直接写基本信息的 `update_personal_profile` / `confirm_personal_profile_none`。自动测试 7 条（`tests/unit/test_agent_writes.py`）覆盖验收 8、9、10。
+  - 真机检查：①在办事页让 Agent 记一条测试避坑点 → 抽屉显示"✓ 已记避坑点 [撤销]"、页面同时出现 → 点撤销后页面上消失；②在基本信息页让 Agent 记一个测试电话 → 弹出卡片"联系方式与住址 › 备用电话：旧 → 新" → 点「不改」，基本信息文件没有变化。两次各折合约 $0.3–0.4。
+  - 发现：`get_personal_profile` 结果较长时 CLI 会存成文件，Agent 想读这个文件但不在 Read 允许的路径里、又尝试用 Bash（被拒），绕了几步才找到字段名。不影响结果，以后可以考虑给 Agent 一个只返回字段说明的轻量工具。
 
