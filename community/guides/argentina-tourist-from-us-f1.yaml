@@ -1,0 +1,350 @@
+# 在美国持 F-1 签证（中国护照）向阿根廷驻美领馆申请旅游签证的流程攻略。
+# 整理自 5 篇小红书帖子（2026-09-28 用 xhs-reader 在未登录浏览器里读取，试验 #7）：
+#   g1 洛杉矶（2020-02，六步流程写得最全，但年代最早）
+#   g2 纽约（2023-10，材料清单 + 现场流程）
+#   g3 华盛顿（2025-11，只有几句：邮寄材料、线上付费）
+#   g4 芝加哥（2025-03，细节在配图 2–3，已读图）
+#   g5 未写哪个领馆（2025-10，材料清单）
+# 没有读取的配图：g1 图 2–6、g2 P2–P5 是领馆邮件截图和申请表，可能带申请人个人信息；正文已概括了其中的材料和流程。
+# evidence 只摘录不超过 60 字的原话；不含作者或任何人的个人信息。
+# 各领馆做法差别较大（现场递交 / 邮寄；现场面谈 / Zoom；money order / 刷卡），用"所属领馆"这个问题区分。
+
+id: argentina-tourist-from-us-f1
+title: 在美 F-1 学生申请阿根廷旅游签证
+category: 签证
+tags: [阿根廷, 美国, 留学生, 旅游, 面签]
+summary: 持 F-1 签证在美国的中国学生，发邮件联系所属阿根廷领馆预约 → 备齐护照、美签、I-20、流水、机酒订单、申请表和照片 → 递交材料并面谈（华盛顿可邮寄）→ 约一周后取回护照。
+maintainers: []
+updated: 2026-09-28
+timeline: 资料里的实际用时：纽约从发邮件咨询到取回护照约 6 周（9/5 咨询、10/11 面签、10/19 取回）；芝加哥从递交到取回约 10 天（中间还补了一次材料）。芝加哥作者提醒不要临近出发才办。
+
+sources:
+  - id: g1
+    title: 小红书 · 签证攻略 |美国F1办理阿根廷签证（洛杉矶）
+    url: https://www.xiaohongshu.com/explore/5e3409c30000000001000049
+    as_of: 2020-02-23
+  - id: g2
+    title: 小红书 · 美国纽约f1申请阿根廷旅游签
+    url: https://www.xiaohongshu.com/explore/652774560000000022028ca8
+    as_of: 2023-10-20
+  - id: g3
+    title: 小红书 · F1在美申请阿根廷签证（华盛顿）
+    url: https://www.xiaohongshu.com/explore/691c7ad4000000001f007e9f
+    as_of: 2025-11-18
+  - id: g4
+    title: 小红书 · F1美签在芝加哥申请阿根廷签证不丝滑攻略（细节在配图）
+    url: https://www.xiaohongshu.com/explore/67d4e9ba000000000e0069b7
+    as_of: 2025-03-30
+  - id: g5
+    title: 小红书 · 美国留学生申请阿根廷
+    url: https://www.xiaohongshu.com/explore/68ddfb680000000004017bf6
+    as_of: 2025-10-02
+
+phases:
+  - id: p-contact
+    title: 邮件联系领馆、预约
+    mode: online
+    summary: 给所属领馆发邮件，说明国籍、美签类型和出行目的；按回信补充个人信息，拿到递交材料 / 面谈的时间。
+    evidence:
+      - {source: g1, quote: "F1是不能办理ave电子签的，所以一定要直接约纸签"}
+      - {source: g2, quote: "先发邮件给纽约使馆"}
+  - id: p-materials
+    title: 准备材料
+    summary: 大部分是现成的证件（护照、美签、I-20），另外要下载银行流水、订可退的机酒、手填申请表、拍照片；全部单面打印、不要装订。
+    evidence: [{source: g1, quote: "注意要单面打印，且不要把纸订起来。"}]
+  - id: p-submit
+    title: 递交材料、面谈
+    mode: offline
+    summary: 到领馆递交材料并交签证费，当场或之后面谈；华盛顿可以直接邮寄材料。
+    evidence:
+      - {source: g2, quote: "工作人员的老板把我叫到办公室问了些简单的问题，面试就通过了。"}
+      - {source: g3, quote: "华盛顿使馆非常人性化，让材料准备好直接邮寄，线上支付签证费就行。"}
+  - id: p-after
+    title: 等结果、取护照
+    summary: 通常一周左右出签；期间勤看邮件，领馆可能要求补材料；凭小票取回护照或选择邮寄。
+    evidence:
+      - {source: g3, quote: "一周左右就下签了"}
+      - {source: g2, quote: "一周后就可以去领馆凭小票拿护照"}
+
+facts:
+  consulate:
+    question: 你按居住地归哪个阿根廷领馆管？（各领馆的服务地区可以在领馆回信或官网查到）
+    options: [洛杉矶, 纽约, 华盛顿, 芝加哥, 其他]
+
+requirements:
+  - id: r-passport
+    kind: obtain
+    material_type: passport_full_copy
+    raw_name: 护照（原件＋复印件）
+    note: 带原件，另附信息页（首页，g5 说彩色复印）和签证页 / 出入境页复印件；g1 说要照片页和签名页；入境阿根廷时至少还有 6 个月有效期、2 页空白页
+    evidence:
+      - {source: g4, quote: "护照（原件＋复印件）入境阿根廷时需至少有效6个月+2页空白页"}
+      - {source: g5, quote: "护照原件+出入境签证页复印件（护照首页彩色复印）"}
+      - {source: g1, quote: "在有效期内的护照（需要照片页和签名页）"}
+  - id: r-us-visa
+    kind: obtain
+    material_type: null
+    raw_name: 美签复印件
+    note: F-1 签证页复印件
+    evidence:
+      - {source: g2, quote: "美签 复印件"}
+      - {source: g1, quote: "美国合法身份证明（visa和I20）"}
+  - id: r-i20
+    kind: obtain
+    material_type: null
+    raw_name: I20
+    evidence:
+      - {source: g2, quote: "3. I20"}
+      - {source: g5, quote: "3.I20"}
+  - id: r-i94
+    kind: obtain
+    material_type: null
+    raw_name: I94
+    optional: true
+    note: 纽约作者带了但没用上
+    evidence: [{source: g2, quote: "4. I94（没用上）"}]
+  - id: r-bank
+    kind: obtain
+    material_type: null
+    raw_name: 三个月银行流水
+    note: 芝加哥说也可以用最近三张工资单；芝加哥作者交了 3 个月的，后来又被要求补最近 1 个月的
+    evidence:
+      - {source: g5, quote: "5.三个月银行流水"}
+      - {source: g4, quote: "收入证明最近三张工资单 or 银行 statement"}
+      - {source: g4, quote: "但最后被要求补最近1个月的"}
+  - id: r-hotel
+    kind: obtain
+    material_type: hotel_reservation
+    raw_name: 酒店订单
+    note: 订可以免费取消的；打印确认邮件即可；没有酒店预订的需要提供邀请函
+    evidence:
+      - {source: g1, quote: "酒店预订单（booking上找的可以退的）"}
+      - {source: g2, quote: "6. 酒店订单（打印了邮件）"}
+      - {source: g4, quote: "酒店预订单/行程安排（无酒店预订者需提供邀请函）"}
+  - id: r-flight
+    kind: obtain
+    material_type: null
+    raw_name: 往返机票行程单
+    note: 要有出入阿根廷的两段机票，覆盖全部行程；打印确认邮件即可
+    evidence:
+      - {source: g1, quote: "机票行程单（需要出入阿根廷两张机票）"}
+      - {source: g2, quote: "7. 往返机票行程单（打印了邮件）"}
+  - id: r-form
+    kind: generate
+    material_type: visa_application_form
+    raw_name: 申请表
+    note: 领馆邮件附带或官网下载；打印后手填，字母全大写，写错可以用修正带；需要贴照片
+    evidence:
+      - {source: g2, quote: "官网说要打印表格手填，字母全大写。"}
+      - {source: g1, quote: "填写邮件附带的申请表格（图5，需粘照片）"}
+      - {source: g5, quote: "8.申请表"}
+  - id: r-photo
+    kind: obtain
+    material_type: id_photo
+    raw_name: 照片（白底彩色）
+    note: 尺寸说法不同（见冲突）；芝加哥说要 2 张 4×4cm，和美签尺寸不一样
+    evidence:
+      - {source: g5, quote: "4.照片（白底彩色）"}
+      - {source: g4, quote: "和美签尺寸不一样，可提前自制去 Walgreens 打印"}
+      - {source: g1, quote: "还需要一张照片和一张150美金的money order。"}
+  - id: r-employment
+    kind: obtain
+    material_type: employment_letter
+    raw_name: 工作证明
+    optional: true
+    note: 只有纽约作者提交了（用的是官网上的模板请公司开）；有工作的可以准备
+    evidence: [{source: g2, quote: "10. 工作证明，给公司发了官网上的模版。"}]
+  - id: r-enrollment
+    kind: obtain
+    material_type: null
+    raw_name: 上学证明
+    optional: true
+    note: 纽约作者递交后被邮件要求补交；学校系统里可以开 enrollment verification
+    evidence: [{source: g2, quote: "10/13收到邮件要我补一个上学证明，我邮件了enrollment verification。"}]
+  - id: r-money-order
+    kind: obtain
+    material_type: null
+    raw_name: 150美金的money order
+    applies_if: [{fact: consulate, in: [洛杉矶]}]
+    note: 在 USPS 等地方开；纽约、芝加哥可以刷卡，华盛顿线上付
+    evidence:
+      - {source: g1, quote: "还需要一张照片和一张150美金的money order。"}
+      - {source: g1, quote: "moneyorder可以在usps等地方开。"}
+  - id: r-return-envelope
+    kind: obtain
+    material_type: null
+    raw_name: 预付好的usps信封
+    optional: true
+    note: 不方便去领馆取护照时，按领馆要求附上
+    evidence: [{source: g1, quote: "如果不方便取护照记得按要求带一个预付好的usps信封。"}]
+
+steps:
+  # ---- 邮件联系领馆、预约 ----
+  - id: s-email
+    title: 给所属领馆发邮件，说明国籍、美签类型和出行目的
+    phase: p-contact
+    where: 所属阿根廷领馆的签证邮箱（洛杉矶 visas_clang@mrecic.gov.ar；芝加哥 cchic@mrecic.gov.ar，工作日 9:00–14:00）
+    estimate: 纽约、洛杉矶都说一般当天或很快回复
+    evidence:
+      - {source: g2, quote: "说明自己的legal full name，国籍，在美国的visa，自己去阿根廷的目的（旅游）"}
+      - {source: g1, quote: "询问时要说明自己的国籍，拥有哪种美签"}
+      - {source: g1, quote: "邮件主题填写visa就可以。"}
+      - {source: g4, quote: "邮箱：cchic@mrecic.gov.ar（邮件预约）"}
+  - id: s-reply-info
+    title: 按领馆回信的序号补充申请人信息
+    phase: p-contact
+    depends_on: [s-email]
+    evidence:
+      - {source: g1, quote: "回复的内容大致是再次核实你的一些信息"}
+      - {source: g2, quote: "使馆很快就回复了，需要提供一些信息（P3）"}
+  - id: s-scan-review
+    title: 把材料扫描发邮件给领馆预审（文件名用英文标注）
+    phase: p-contact
+    applies_if: [{fact: consulate, in: [洛杉矶]}]
+    requirements: [r-passport, r-us-visa, r-i20, r-bank, r-hotel, r-flight, r-form]
+    depends_on: [s-reply-info, s-bank, s-bookings, s-form]
+    estimate: 审核有问题领馆会邮件让你改，第一次不用怕填错
+    evidence:
+      - {source: g1, quote: "要求我把材料扫描给他们让他们审核"}
+      - {source: g1, quote: "文件最好都用英文标注一下名称"}
+      - {source: g1, quote: "审核有问题会邮件联系你修改"}
+  - id: s-confirm-time
+    title: 收到递交 / 面谈时间，回邮件确认
+    phase: p-contact
+    depends_on: [s-reply-info]
+    evidence:
+      - {source: g1, quote: "都没有问题他们会回邮件告诉你预约的时间（图6）。时间可以的话记得回邮件确认。"}
+      - {source: g2, quote: "使馆会告诉你最早的可以去大使馆提交材料并且面试的时间"}
+
+  # ---- 准备材料 ----
+  - id: s-bank
+    title: 下载近三个月银行流水（或最近三张工资单）
+    phase: p-materials
+    requirements: [r-bank]
+    evidence: [{source: g4, quote: "收入证明最近三张工资单 or 银行 statement"}]
+  - id: s-bookings
+    title: 订可退的酒店和往返阿根廷的机票，打印确认邮件
+    phase: p-materials
+    requirements: [r-hotel, r-flight]
+    evidence:
+      - {source: g1, quote: "酒店预订单（booking上找的可以退的）"}
+      - {source: g4, quote: "务必涵盖全部行程"}
+  - id: s-photo
+    title: 拍白底彩色证件照并打印
+    phase: p-materials
+    where: 照相馆，或自己做好排版到 Walgreens / CVS 打印
+    requirements: [r-photo]
+    evidence: [{source: g4, quote: "和美签尺寸不一样，可提前自制去 Walgreens 打印"}]
+  - id: s-form
+    title: 打印申请表，手写全大写填好，贴照片
+    phase: p-materials
+    requirements: [r-form]
+    depends_on: [s-photo]
+    evidence: [{source: g2, quote: "官网说要打印表格手填，字母全大写。"}]
+  - id: s-employment
+    title: 请公司按领馆模板开工作证明（有工作的话）
+    phase: p-materials
+    requirements: [r-employment]
+    evidence: [{source: g2, quote: "10. 工作证明，给公司发了官网上的模版。"}]
+  - id: s-money-order
+    title: 在 USPS 开一张 150 美元的 money order
+    phase: p-materials
+    applies_if: [{fact: consulate, in: [洛杉矶]}]
+    where: USPS 邮局等
+    requirements: [r-money-order, r-return-envelope]
+    evidence: [{source: g1, quote: "moneyorder可以在usps等地方开。"}]
+  - id: s-print
+    title: 复印护照、美签页，连同 I-20 等原件按清单整理（单面打印、不装订）
+    phase: p-materials
+    requirements: [r-passport, r-us-visa, r-i20, r-i94]
+    evidence:
+      - {source: g1, quote: "注意要单面打印，且不要把纸订起来。"}
+      - {source: g4, quote: "不要用订书机订"}
+
+  # ---- 递交材料、面谈 ----
+  - id: s-submit
+    title: 按预约时间去领馆递交材料、交签证费、面谈
+    phase: p-submit
+    applies_if: [{fact: consulate, in: [洛杉矶, 纽约, 芝加哥, 其他]}]
+    requirements: [r-passport, r-us-visa, r-i20, r-i94, r-bank, r-hotel, r-flight, r-form, r-photo, r-employment, r-money-order, r-return-envelope]
+    depends_on: [s-confirm-time, s-print, s-bank, s-bookings, s-form]
+    where: 所属领馆（洛杉矶 5055 Wilshire Blvd, Suite 210，只工作到中午 12 点，到了先签到；芝加哥 205 N. Michigan Suite 4209，现场 drop-off 密封材料）
+    estimate: 签证费 150 美元（芝加哥加急另加 40）；纽约在领馆待了约 50 分钟；阿根廷假日领馆不开门，出发前确认
+    evidence:
+      - {source: g1, quote: "大使馆只工作到中午12点，不要迟到。"}
+      - {source: g2, quote: "付了$150（可以master卡，信用卡，储蓄卡，digital wallet）"}
+      - {source: g4, quote: "3.5 现场 drop-off 密封材料"}
+      - {source: g4, quote: "一定提前确认领馆是否开门"}
+  - id: s-mail
+    title: 把材料邮寄给领馆，线上支付签证费
+    phase: p-submit
+    applies_if: [{fact: consulate, in: [华盛顿]}]
+    requirements: [r-passport, r-us-visa, r-i20, r-bank, r-hotel, r-flight, r-form, r-photo]
+    depends_on: [s-confirm-time, s-print, s-bank, s-bookings, s-form]
+    evidence: [{source: g3, quote: "华盛顿使馆非常人性化，让材料准备好直接邮寄，线上支付签证费就行。"}]
+  - id: s-zoom
+    title: 收到面试通知后参加 Zoom 面谈（只核对信息）
+    phase: p-submit
+    applies_if: [{fact: consulate, in: [芝加哥]}]
+    depends_on: [s-submit]
+    estimate: 领馆常在早上 7 点发邮件约当天 11 点面试
+    evidence:
+      - {source: g4, quote: "3.13 收到面试通知+当天 Zoom 面签（仅核对信息，问题超简单）"}
+      - {source: g4, quote: "领馆超爱早上7点通知你补材料 or 约11点面试"}
+
+  # ---- 等结果、取护照 ----
+  - id: s-supplement
+    title: 勤看邮件，按领馆要求补交材料
+    phase: p-after
+    requirements: [r-enrollment]
+    depends_on: [s-submit]
+    estimate: 纽约被要求补上学证明；芝加哥被要求补银行流水和往返机票
+    evidence:
+      - {source: g4, quote: "领馆超爱早上7点通知你补材料 or 约11点面试"}
+      - {source: g2, quote: "10/13收到邮件要我补一个上学证明，我邮件了enrollment verification。"}
+  - id: s-pickup
+    title: 凭小票去领馆取回护照（或选择邮寄）
+    phase: p-after
+    depends_on: [s-submit]
+    where: 所属领馆；凭小票可以请别人代取，也可以加钱邮寄
+    estimate: 递交后一周左右
+    evidence:
+      - {source: g2, quote: "一周后就可以去领馆凭小票拿护照"}
+      - {source: g2, quote: "不用亲自去，可以把小票给他人代拿，但是一定要有小票"}
+      - {source: g4, quote: "3.14 现场 Pick-up 护照"}
+
+checks:
+  - id: c-no-staple
+    text: 所有材料单面打印，不要用订书机装订
+    involves: [r-passport, r-us-visa, r-bank, r-hotel, r-flight, r-form]
+    evidence:
+      - {source: g1, quote: "注意要单面打印，且不要把纸订起来。"}
+      - {source: g4, quote: "不要用订书机订"}
+  - id: c-flight-covers-trip
+    text: 机票预订覆盖全部行程（出入阿根廷两段），日期和酒店预订对得上
+    involves: [r-flight, r-hotel]
+    evidence:
+      - {source: g4, quote: "务必涵盖全部行程"}
+      - {source: g1, quote: "机票行程单（需要出入阿根廷两张机票）"}
+
+conflicts:
+  - id: k-photo-size
+    about: r-photo.note
+    claims:
+      - {source: g2, quote: "近六月白底2“x2”照片"}
+      - {source: g4, quote: "和美签尺寸不一样，可提前自制去 Walgreens 打印"}
+  - id: k-payment
+    about: s-submit.estimate
+    claims:
+      - {source: g1, quote: "还需要一张照片和一张150美金的money order。"}
+      - {source: g2, quote: "付了$150（可以master卡，信用卡，储蓄卡，digital wallet）"}
+      - {source: g3, quote: "华盛顿使馆非常人性化，让材料准备好直接邮寄，线上支付签证费就行。"}
+
+uncertain:
+  - r-photo.note          # 2"×2"（约 5×5cm）还是 4×4cm、要几张，各篇说法不同；以领馆回信为准
+  - r-money-order         # 只有 2020 年的洛杉矶帖子提到，现在是否还只收 money order 未核实
+  - s-scan-review         # 只有 2020 年的洛杉矶帖子提到先扫描预审，其他领馆没提
+  - s-submit.where        # 纽约领馆地址在 g2 配图里，未读取（配图含邮件截图）
+  - r-employment          # 只有纽约一篇提到
+  - r-enrollment          # 纽约是递交后被要求补交，不确定是否所有领馆都要
+  - s-zoom                # 只有芝加哥一篇写了 Zoom 面谈；g5 只说"需要面试"

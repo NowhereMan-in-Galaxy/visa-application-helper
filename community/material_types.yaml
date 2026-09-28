@@ -32,7 +32,7 @@ types:
   - key: passport_stamped_pages
     name: 护照签证页和盖章页
     category: passport_scan
-    aliases: [护照签证页, 签证页, visa page, 护照盖章页, 护照盖章页（现护照）, 出入境盖章页, 签证页和盖章页]
+    aliases: [护照签证页, 签证页, visa page, 护照盖章页, 护照盖章页（现护照）, 出入境盖章页, 签证页和盖章页, 美签]
   # 攻略里写"护照全部页复印件"，实际要的是个人信息页 + 有签证 / 出入境章的页，空白页不用复印。
   - key: passport_full_copy
     name: 护照复印件（信息页和签证页）
@@ -68,7 +68,7 @@ types:
   - key: enrollment_certificate
     name: 在读证明
     category: null
-    aliases: [在读证明, 在校证明]
+    aliases: [在读证明, 在校证明, 上学证明, enrollment verification]
   - key: student_card
     name: 学生证
     category: null
@@ -86,7 +86,7 @@ types:
   - key: bank_statement
     name: 银行流水
     category: financial_snapshot
-    aliases: [银行流水, 流水, 银行对账单, 银行月结单, 近半年银行流水, bank statement]
+    aliases: [银行流水, 流水, 银行对账单, 银行月结单, 近半年银行流水, 三个月银行流水, bank statement]
   - key: salary_statement
     name: 工资流水
     category: financial_snapshot
@@ -122,7 +122,7 @@ types:
   - key: flight_reservation
     name: 机票预订单
     category: null
-    aliases: [机票预订单, 机票订单, 往返机票]
+    aliases: [机票预订单, 机票订单, 往返机票, 往返机票行程单]
     reusable: false
   - key: hotel_reservation
     name: 酒店预订单
