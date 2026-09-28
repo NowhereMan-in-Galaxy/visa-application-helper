@@ -29,7 +29,6 @@
   // 页面状态：标签页记在 URL # 里，其余（筛选、搜索词、展开的编辑区）只存在这一次加载里
   var state = {
     tab: "materials", // "materials" | "travel" | "profile"
-    statusFilter: null, // 点概览格子时设置，null 表示不筛选
     categoryFilter: "all",
     search: "",
     newFormOpen: false,
@@ -196,7 +195,6 @@
   function filteredMaterials() {
     var list = data.materials;
     if (state.categoryFilter !== "all") list = list.filter(function (m) { return m.category === state.categoryFilter; });
-    if (state.statusFilter) list = list.filter(function (m) { return m.status === state.statusFilter; });
     var q = state.search.trim().toLowerCase();
     if (q) {
       list = list.filter(function (m) {
@@ -226,44 +224,14 @@
     );
   }
 
-  // ---------- 概览数字 ----------
+  // ---------- 概览：一行字 ----------
+  // （2026-09-28 简化：原来是四个数字格子，全是 0 的时候只是噪音；有要处理的材料时，下面的「需要处理」会列出来）
 
-  function overviewPanel() {
-    var counts = { total: data.materials.length, "已过期": 0, "即将过期": 0, "待补": 0 };
-    data.materials.forEach(function (m) { if (counts[m.status] !== undefined) counts[m.status]++; });
-
-    function cell(key, label, count, dangerWhenNonZero) {
-      var zero = count === 0;
-      var pressed = key !== null && state.statusFilter === key;
-      return el(
-        "button",
-        {
-          type: "button",
-          class: "stat" + (zero ? " zero" : "") + (dangerWhenNonZero && !zero ? " danger" : ""),
-          "aria-pressed": pressed ? "true" : "false",
-          onclick: function () {
-            state.statusFilter = key === null ? null : (state.statusFilter === key ? null : key);
-            switchTab("materials");
-          },
-        },
-        el("b", { text: String(count) }),
-        el("span", { text: label })
-      );
-    }
-
-    return el(
-      "section",
-      { class: "panel" },
-      el("div", { class: "panel-head" }, el("h2", { text: "概览" })),
-      el(
-        "div",
-        { class: "stats" },
-        cell(null, "材料总数", counts.total, false),
-        cell("已过期", "已过期", counts["已过期"], true),
-        cell("即将过期", "即将过期", counts["即将过期"], false),
-        cell("待补", "待补", counts["待补"], false)
-      )
-    );
+  function overviewLine() {
+    var total = data.materials.length;
+    var issues = data.materials.filter(function (m) { return m.status === "已过期" || m.status === "即将过期" || m.status === "待补"; }).length;
+    return el("p", { class: "overview-line" + (issues ? " has-issues" : "") },
+      issues ? total + " 份材料，其中 " + issues + " 份需要处理（见下方）。" : total + " 份材料，都在有效期内。");
   }
 
   // ---------- 需要处理 ----------
@@ -303,7 +271,6 @@
               onclick: function () {
                 state.categoryFilter = "all";
                 state.search = "";
-                state.statusFilter = null;
                 state.materialsExpanded = { id: m.id, mode: "edit" };
                 switchTab("materials");
               },
@@ -400,15 +367,8 @@
     return el(
       "div",
       { class: "mrow mrow-head", "aria-hidden": "true" },
-      el("div", { class: "mrow-line1" }, el("span", { text: "状态 / 材料" })),
-      el(
-        "div",
-        { class: "mrow-line2" },
-        el("span", { class: "col-date", text: "取得日期" }),
-        el("span", { class: "col-file", text: "文件" }),
-        el("span", { class: "col-usage", text: "用在" }),
-        el("span", { class: "col-actions", text: "操作" })
-      )
+      el("div", { class: "mrow-line1" }, el("span", { text: "材料" })),
+      el("div", { class: "mrow-line2" }, el("span", { class: "col-date", text: "取得日期" }))
     );
   }
 
@@ -445,7 +405,7 @@
     var line1 = el(
       "div",
       { class: "mrow-line1" },
-      statusChip(m.status),
+      m.status === "已备齐" ? null : statusChip(m.status),  // 备齐了是常态，不用每行都写
       el("span", { class: "mat-name", text: m.type }),
       m.sublabel ? el("span", { class: "mat-sub", text: m.sublabel }) : null,
       isExample ? el("span", { class: "badge", text: "示例" }) : null
@@ -454,11 +414,10 @@
       "div",
       { class: "mrow-line2" },
       el("span", { class: "col-date", text: m.obtained_date || "—" }),
-      el("span", { class: "sep", text: "·" }),
-      el("span", { class: "col-file", text: m.file_ref ? "✓" : "—" }),
-      el("span", { class: "sep", text: "·" }),
-      el("span", { class: "col-usage", text: usageTitles.length ? usageTitles.join("、") : "—" }),
-      el("span", { class: "col-actions" }, actions)
+      // 只写例外情况：没有文件、被哪件办事用到；平常的"有文件""没用到"不写
+      m.file_ref ? null : el("span", { class: "col-file warn", text: "还没有文件" }),
+      usageTitles.length ? el("span", { class: "col-usage", text: "用在：" + usageTitles.join("、") }) : null,
+      el("span", { class: "col-actions" + (isEditing || isAppending ? " active" : "") }, actions)
     );
 
     return el("div", { class: "mrow", id: "mat-row-" + m.id }, line1, line2);
@@ -1064,7 +1023,7 @@
     if (!data.materials) return;
     setView(
       headingSection(),
-      overviewPanel(),
+      state.tab === "materials" ? overviewLine() : null,
       attentionPanel(),
       newMaterialPanel(),
       tabsNav(),

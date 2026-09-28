@@ -9,23 +9,6 @@
 .mstate-soon { background: var(--amber-soft); color: var(--amber); }
 .mstate-expired { background: var(--red-soft); color: var(--danger); }
 
-/* ---- 概览数字：四个可点击的小格子，点一下按该状态筛选下方列表，再点一次取消 ---- */
-.stats .stat {
-  display: block;
-  text-align: left;
-  border: 1px solid var(--line);
-  background: var(--paper-2);
-  padding: 8px 16px;
-  min-width: 100px;
-  box-shadow: none;
-}
-.stats .stat:hover { background: #f1f0e6; }
-.stats .stat[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.stats .stat.zero b,
-.stats .stat.zero span { color: var(--muted); opacity: .65; }
-.stats .stat.danger b { color: var(--danger); }
-.stats .stat[aria-pressed="true"].danger b { color: inherit; }
-
 /* ---- 需要处理：紧凑、醒目的待办面板 ---- */
 .panel.attention { border-color: var(--danger); }
 .panel.attention .panel-head { background: var(--red-soft); border-bottom-color: var(--danger); }
@@ -177,3 +160,12 @@ button.pf-add { justify-self: start; padding: 4px 12px; font-size: 12px; border-
 }
 .pf-none { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--green); margin-top: 4px; }
 .pf-none-btn { font-size: 12px; margin-top: 4px; align-self: flex-start; }
+
+/* ---- 我的资料减法（2026-09-28）：概览一行字、只标例外状态、行内按钮悬停才出现 ---- */
+.overview-line { margin: 4px 0 18px; color: var(--muted); font-size: 13px; }
+.overview-line.has-issues { color: var(--amber); }
+.mrow-line2 .col-file.warn { color: var(--amber); }
+@media (hover: hover) {
+  .mrow .col-actions { opacity: 0; transition: opacity .12s; }
+  .mrow:hover .col-actions, .mrow:focus-within .col-actions, .mrow .col-actions.active { opacity: 1; }
+}
