@@ -523,7 +523,7 @@
       function drawEmpty() {
         draftBox.replaceChildren(el("div", { class: "draft-empty" },
           el("p", { text: "草稿会显示在这里。" }),
-          el("p", { class: "muted", text: "Agent 读完帖子、整理好之后，这里会出现校验结果、词表建议和「保存到攻略库」按钮。" })));
+          el("p", { class: "muted", text: "Agent 整理好之后，这里会出现草稿和「保存到攻略库」按钮。" })));
       }
 
       function loadDraft() {
@@ -533,48 +533,44 @@
           .catch(function (e) { draftBox.replaceChildren(el("p", { class: "banner", text: e.message })); });
       }
 
+      // 草稿面板只放要紧的：能不能保存、看预览、需要留意的几件事。
+      // 词表建议收成一个勾选框（默认勾上，保存时一起加进词表）；没有建议的叫法不列出来。
       function drawDraft(c) {
         var base = "/api/guide-drafts/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(c.id);
-        var suggestionFor = {};
-        c.alias_suggestions.forEach(function (s) { suggestionFor[s.raw_name] = s; });
-        var boxes = [];
-        var unresolved = c.unresolved.length
-          ? el("section", { class: "draft-sec" },
-              el("h3", { text: "词表认不出的叫法（" + c.unresolved.length + "）" }),
-              el("p", { class: "muted", text: "认不出的材料没法和「我的资料」自动匹配。勾选你同意的建议，加进共享词表；没把握的可以先不管。" }),
-              el("ul", { class: "alias-list" }, c.unresolved.map(function (u) {
-                var s = suggestionFor[u.raw_name];
-                if (!s) return el("li", { class: "muted", text: u.raw_name + "（没有建议，先不管）" });
-                var box = el("input", { type: "checkbox" });
-                boxes.push({ box: box, s: s });
-                return el("li", null, el("label", null, box, " " + u.raw_name + " → " + s.key_name));
-              })),
-              boxes.length
-                ? el("button", { type: "button", text: "把勾选的加进词表", onclick: function (ev) {
-                    var picked = boxes.filter(function (b) { return b.box.checked; }).map(function (b) { return { key: b.s.key, alias: b.s.raw_name }; });
-                    if (!picked.length) { showError("还没有勾选任何建议。"); return; }
-                    ev.target.disabled = true;
-                    request("POST", "/api/vocab/aliases", { aliases: picked })
-                      .then(function () { showError(""); loadDraft(); })
-                      .catch(function (e) { ev.target.disabled = false; showError(e.message); });
-                  } })
-                : null)
-          : null;
+        var previewHref = "#/draft/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(c.id);
+        var suggestions = c.alias_suggestions.filter(function (s) {
+          return c.unresolved.some(function (u) { return u.raw_name === s.raw_name; });
+        });
+        var aliasAll = el("input", { type: "checkbox", checked: true });
+        var aliasBoxes = suggestions.map(function (s) { return { box: el("input", { type: "checkbox", checked: true }), s: s }; });
+        aliasAll.addEventListener("change", function () { aliasBoxes.forEach(function (b) { b.box.checked = aliasAll.checked; }); });
+        aliasBoxes.forEach(function (b) {
+          b.box.addEventListener("change", function () { aliasAll.checked = aliasBoxes.some(function (x) { return x.box.checked; }); });
+        });
+
+        var notes = [];
+        if (c.conflict_count) notes.push(el("li", null, c.conflict_count + " 处各篇说法不同，", el("a", { href: previewHref, target: "_blank", text: "在预览里看" })));
+        if (c.uncertain.length) notes.push(el("li", { text: c.uncertain.length + " 处只有一篇提到或来自二手总结，已标为待核实" }));
 
         var publishBtn = el("button", { type: "button", class: "primary", text: "保存到攻略库", disabled: !c.valid });
         publishBtn.addEventListener("click", function () {
           publishBtn.disabled = true;
-          request("POST", base + "/publish").then(function (r) {
-            draftId = null;
-            history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId));
-            draftBox.replaceChildren(el("div", { class: "notice" },
-              el("p", null, "已保存到攻略库：", el("a", { href: "#/guide/" + encodeURIComponent(r.guide_id), text: c.title || r.guide_id })),
-              el("p", { class: "muted" }, "文件是 ", el("code", { text: r.file }), "。它还没提交到 git——提交前按项目规则逐个文件检查（在终端里做）。")));
-          }).catch(function (e) { publishBtn.disabled = !c.valid; showError(e.message); });
+          var picked = aliasBoxes.filter(function (b) { return b.box.checked; }).map(function (b) { return { key: b.s.key, alias: b.s.raw_name }; });
+          (picked.length ? request("POST", "/api/vocab/aliases", { aliases: picked }) : Promise.resolve())
+            .then(function () { return request("POST", base + "/publish"); })
+            .then(function (r) {
+              draftId = null;
+              history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId));
+              draftBox.replaceChildren(el("div", { class: "notice" },
+                el("p", null, "已保存到攻略库：", el("a", { href: "#/guide/" + encodeURIComponent(r.guide_id), text: c.title || r.guide_id }),
+                  picked.length ? "，词表加了 " + picked.length + " 个叫法" : ""),
+                el("p", { class: "muted", text: "还没提交到 git，提交前在终端里逐个文件检查。" })));
+            })
+            .catch(function (e) { publishBtn.disabled = !c.valid; showError(e.message); });
         });
-        var discardBtn = el("button", { type: "button", text: "丢弃草稿" });
+        var discardBtn = el("button", { type: "button", class: "quiet", text: "丢弃" });
         discardBtn.addEventListener("click", function () {
-          if (discardBtn.dataset.armed !== "1") { discardBtn.dataset.armed = "1"; discardBtn.textContent = "确定丢弃？再点一次"; return; }
+          if (discardBtn.dataset.armed !== "1") { discardBtn.dataset.armed = "1"; discardBtn.textContent = "再点一次确认丢弃"; return; }
           request("DELETE", base).then(function () {
             draftId = null;
             history.replaceState(null, "", "#/new/" + encodeURIComponent(typeId));
@@ -584,24 +580,25 @@
 
         // 原生 replaceChildren 会把 null 显示成文字 "null"，所以包一层 el() 让它按规则跳过空值
         draftBox.replaceChildren(el("div", { class: "draft-body" },
-          el("div", { class: "draft-head" },
-            el("span", { class: "meta" }, el("span", { class: "tag soft", text: "草稿" }), " " + c.id),
-            el("h2", { text: c.title || c.id }),
-            el("div", { class: "draft-status " + (c.valid ? "ok" : "bad"), text: c.valid ? "✓ 校验通过" : "✗ 校验未通过（" + c.errors.length + " 处）" }),
-            el("div", { class: "meta", text: c.requirement_count + " 项材料 · " + c.step_count + " 个步骤" + (c.conflict_count ? " · " + c.conflict_count + " 处各篇说法不同" : "") })),
+          el("span", { class: "meta", text: "草稿" }),
+          el("h2", { class: "draft-title", text: c.title || c.id }),
+          el("div", { class: "draft-status " + (c.valid ? "ok" : "bad"),
+            text: (c.valid ? "✓ 可以保存 · " : "✗ 还有 " + c.errors.length + " 处要改 · ") + c.requirement_count + " 项材料 · " + c.step_count + " 个步骤" }),
+          el("a", { class: "draft-preview-link", href: previewHref, target: "_blank", text: "查看完整预览 ↗" }),
           c.errors.length
-            ? el("section", { class: "draft-sec" }, el("h3", { text: "要改的地方" }),
-                el("ul", null, c.errors.slice(0, 12).map(function (e) { return el("li", { text: e }); })),
-                el("p", { class: "muted", text: "可以在左边直接说「把校验错误改掉」。" }))
+            ? el("div", { class: "draft-sec" },
+                el("ul", { class: "draft-errors" }, c.errors.slice(0, 5).map(function (e) { return el("li", { text: e }); })),
+                el("button", { type: "button", text: "让 Agent 改", onclick: function () { if (workspaceChat) workspaceChat.send("把草稿的校验错误改掉"); } }))
             : null,
-          unresolved,
-          c.uncertain.length
-            ? el("details", { class: "draft-sec" }, el("summary", { text: "还不确定、建议核实（" + c.uncertain.length + "）" }),
-                el("ul", null, c.uncertain.map(function (u) { return el("li", { text: u }); })))
+          notes.length ? el("ul", { class: "draft-notes" }, notes) : null,
+          aliasBoxes.length
+            ? el("div", { class: "draft-alias" },
+                el("label", null, aliasAll, " 保存时把 " + aliasBoxes.length + " 个材料叫法加进词表"),
+                el("details", null, el("summary", { text: "是哪几个" }),
+                  el("p", { class: "muted", text: "加进去后，这些材料能和「我的资料」自动对上。取消勾选的不加。" }),
+                  el("ul", null, aliasBoxes.map(function (b) { return el("li", null, el("label", null, b.box, " " + b.s.raw_name + " → " + b.s.key_name)); }))))
             : null,
-          el("div", { class: "draft-actions" },
-            el("a", { href: "#/draft/" + encodeURIComponent(typeId) + "/" + encodeURIComponent(c.id), target: "_blank", text: "查看完整预览 ↗" }),
-            discardBtn, publishBtn)
+          el("div", { class: "draft-actions" }, discardBtn, publishBtn)
         ));
       }
 
