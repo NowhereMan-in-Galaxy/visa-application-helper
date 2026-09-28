@@ -32,7 +32,8 @@
    | ③ 改基本信息 | 更新手机号 | 弹确认卡片（旧值 → 新值），点确认才写入 |
 
 6. **先做这件事，再公开仓库**（路线图第 7 项）。
-7. **实验已通过（2026-09-28）**：`claude -p --chrome` 在后台运行时能调用 Claude in Chrome 工具（17 秒返回）。注意：即使是很小的问题，一次调用也折合约 0.5 美元用量（每次都要加载项目上下文）；新建一份攻略预计是它的数倍。
+7. **实验已通过（2026-09-28）**：`claude -p --chrome` 在后台运行时能调用 Claude in Chrome 工具（17 秒返回）。一次很小的调用，CLI 报告的 `total_cost_usd` 约 0.5（每次都要加载项目上下文）；新建一份攻略预计是它的数倍。
+8. **计费**：用 claude.ai 账号登录（订阅）时，`total_cost_usd` 只是按 API 价格折算的参考数，**不另外收费**，计入订阅的用量额度；和在终端里用是同一个账号、同一份额度。区别只在于每次新任务都重新加载上下文，所以追问要接着同一个会话（`--resume`），不要每句都新开。**风险**：如果环境里设置了 `ANTHROPIC_API_KEY`，CLI 会改走 API 按量扣费——`/api/agent/status` 要报告登录方式，界面据此提示（见"没装 Claude Code 时"一节后的"登录方式提示"）。
 
 ## 界面
 
@@ -86,6 +87,13 @@
 
 `/api/agent/status` 返回不可用时，「问 Agent」按钮仍在，但抽屉里显示：①"没有检测到 Claude Code，装好并登录后刷新本页"及安装说明链接；②「复制给 Agent」按钮：把当前上下文（页面、攻略 / 办事 id、要做的事、应读的 skill）拼成一段提示词复制到剪贴板，用户粘贴到自己的 Agent 里。
 
+### 登录方式提示
+
+`/api/agent/status` 另外返回 `auth_method`（来自 `claude auth status`：`claude.ai` 订阅 / API key / 未登录）和 `api_key_env`（环境里是否设置了 `ANTHROPIC_API_KEY`，只报告有没有，**不读取、不返回它的值**）。
+- 订阅登录：抽屉里用量显示为"本次折合约 $X（订阅用户计入额度，不另收费）"。
+- 走 API key：抽屉顶部常驻黄色提示"当前按 API 用量计费，会产生实际费用"，第一次开始任务前要用户点一次「我知道了」。
+- 未登录：按"没装 Claude Code 时"处理，提示先在终端里运行 `claude` 登录。
+
 ## Agent 能动什么（权限）
 
 后台调起的 Agent **只能**使用下面的工具（`--allowedTools` 白名单，其余一律拒绝；`--permission-mode` 为不弹权限询问的模式，未列入白名单的直接拒绝）：
@@ -111,7 +119,7 @@
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
-| GET | `/api/agent/status` | `{available, cli_path, cli_version}`：检测 `claude` 是否在 PATH 里、能否运行 |
+| GET | `/api/agent/status` | `{available, cli_path, cli_version, auth_method, api_key_env}`：检测 `claude` 是否在 PATH 里、能否运行、用什么方式登录 |
 | POST | `/api/agent/jobs` | 开始一次任务：`{kind: "create_guide" \| "edit_draft" \| "ask", context: {page, guide_id?, track_id?, draft_id?}, input: 文本, session_id?}` → `{job_id}`。同一时间只允许 1 个任务在跑，否则 409 |
 | GET | `/api/agent/jobs/{job_id}/events` | SSE 事件流：`progress`（阶段、说明）、`text`（回答文字片段）、`activity`（② 类修改，含撤销 id）、`proposal`（③ 类提议）、`draft`（草稿 id + 校验结果 + 别名建议）、`done`（`session_id`、用量）、`error` |
 | POST | `/api/agent/jobs/{job_id}/cancel` | 结束子进程 |
@@ -148,7 +156,7 @@
 
 自动测试（用一个假的 `claude` 脚本代替真 CLI，按预设输出 stream-json；**测试里不调用真的 Claude**）：
 
-1. PATH 里没有 `claude` 时，`GET /api/agent/status` 返回 `available: false`；有假脚本时返回 `true`。
+1. PATH 里没有 `claude` 时，`GET /api/agent/status` 返回 `available: false`；有假脚本时返回 `true`。设置了 `ANTHROPIC_API_KEY` 时 `api_key_env` 为 `true`，且响应里任何地方都不出现这个变量的值。
 2. `cli.py` 生成的命令行：包含 `-p`、`--output-format stream-json`、`--max-budget-usd`；`--allowedTools` 里**不含** `Write`、`Edit`、`Bash`；`create_guide` 任务含 `--chrome`，`ask` 任务不含。
 3. 第一个任务没结束时再 `POST /api/agent/jobs` 返回 409；`cancel` 后子进程已退出，事件流以 `error`（原因"已取消"）结束。
 4. 假 CLI 输出的工具调用和文字，在 SSE 里按顺序变成 `progress` / `text` / `done` 事件；`done` 带 `session_id` 和用量。
