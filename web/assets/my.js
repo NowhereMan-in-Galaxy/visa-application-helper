@@ -1077,6 +1077,12 @@
     render();
   });
 
+  // 在抽屉里确认了 Agent 提议的基本信息修改：丢掉那个分组的本地草稿，重新读一遍（spec 004 第 3 步）
+  window.addEventListener("agent-data-changed", function (e) {
+    if (e.detail.profile_group && state.profileDrafts) delete state.profileDrafts[e.detail.profile_group];
+    load();
+  });
+
   document.getElementById("today").textContent = "今天 " + todayIso();
   syncTabFromHash();
   load();

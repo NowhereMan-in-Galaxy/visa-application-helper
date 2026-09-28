@@ -1908,6 +1908,14 @@
   document.addEventListener("click", closeAllMenus);
 
   document.getElementById("today").textContent = "今天 " + todayIso();
+  // 抽屉里的 Agent 改了办事进度、或者点了撤销：正在看的就是那件办事时，重新读一遍（spec 004 第 3 步）
+  window.addEventListener("agent-data-changed", function (e) {
+    var m = location.hash.match(/^#\/track\/([^/?#]+)/);
+    if (!m) return;
+    var id = decodeURIComponent(m[1]);
+    if (!e.detail.track_id || e.detail.track_id === id) renderTrack(id);
+  });
+
   window.addEventListener("hashchange", function () {
     // 页内锚点（#step-xxx、#mat-xxx）只是滚动，不切换视图
     if (/^#(step|mat)-/.test(location.hash)) return;
