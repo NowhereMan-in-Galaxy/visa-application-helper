@@ -22,9 +22,43 @@ body.agent-open main { padding-right: 420px; }
 .agent-foot { border-top: 1px solid var(--line); padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
 .agent-input { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; padding: 8px 10px; border: 1px solid var(--line); background: #fff; }
 .agent-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.agent-drawer button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.agent-drawer button:disabled, .agent-chat button:disabled, .draft-actions button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 @keyframes agent-pulse { 50% { opacity: .3; } }
 @media (max-width: 900px) {
   body.agent-open main { padding-right: 0; }
   .agent-drawer { width: 100vw; }
 }
+
+/* 对话窗口组件（抽屉和「新建攻略」共用） */
+.agent-chat { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.agent-input-error { color: var(--danger); font-size: 12px; }
+.agent-steps { font-size: 12px; color: var(--muted); }
+.agent-steps summary { cursor: pointer; }
+.agent-steps div { padding-left: 14px; }
+
+/* 「新建攻略」 */
+.new-guide-btn { margin-left: auto; padding: 6px 12px; font-size: 13px; }
+.type-cards .card.disabled { opacity: .55; cursor: not-allowed; }
+.new-ws { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.new-ws .panel { display: flex; flex-direction: column; min-height: 560px; max-height: calc(100vh - 180px); margin: 0; }
+.ws-chat .agent-log { min-height: 200px; }
+.ws-chat .agent-foot { padding-left: 0; padding-right: 0; }
+.ws-chat .agent-log { padding-left: 0; padding-right: 0; }
+.ws-draft { overflow-y: auto; }
+.draft-empty { margin: auto; text-align: center; max-width: 320px; }
+.draft-head h2 { margin: 6px 0; }
+.draft-status { font-weight: 600; margin: 4px 0; }
+.draft-status.ok { color: var(--green); }
+.draft-status.bad { color: var(--danger); }
+.draft-sec { border-top: 1px solid var(--line-soft); padding-top: 10px; margin-top: 12px; }
+.draft-sec h3 { font-size: 14px; margin: 0 0 6px; }
+.alias-list { list-style: none; padding: 0; margin: 8px 0; }
+.alias-list li { padding: 3px 0; }
+.draft-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.draft-actions a { margin-right: auto; }
+@media (max-width: 900px) {
+  .new-ws { grid-template-columns: 1fr; }
+  .new-ws .panel { max-height: none; }
+}
+.agent-steps .agent-step-note { color: var(--ink); opacity: .8; }
+.draft-body { display: flex; flex-direction: column; min-height: 100%; }
