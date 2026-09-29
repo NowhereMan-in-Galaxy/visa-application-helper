@@ -250,8 +250,12 @@ _FMT = re.compile(r"(dd|mmm|mm|yyyy)([/.\- ])(dd|mmm|mm|yyyy)\2(dd|mmm|mm|yyyy)"
 
 
 def date_format(f: dict) -> str | None:
-    raw = f"{f.get('placeholder') or ''} {f.get('label') or ''}".lower()
-    m = _FMT.search(raw)
+    return parse_date_format(f"{f.get('placeholder') or ''} {f.get('label') or ''}")
+
+
+def parse_date_format(raw: str | None) -> str | None:
+    """从一段文字里找出 dd/mm/yyyy、dd mmm yyyy 这类日期格式；找不到返回 None。"""
+    m = _FMT.search((raw or "").lower())
     if not m or {m.group(1), m.group(3), m.group(4)} not in ({"dd", "mm", "yyyy"}, {"dd", "mmm", "yyyy"}):
         return None
     return m.group(0)
@@ -291,7 +295,8 @@ def candidates(value: Any, leaf: Leaf, d: Dictionary, part: str | None = None) -
     return _country_row(s, d) or [s]
 
 
-def text_value(value: Any, leaf: Leaf, d: Dictionary, f: dict, part: str | None) -> str | None:
+def text_value(value: Any, leaf: Leaf, d: Dictionary, f: dict, part: str | None,
+               site_date_format: str | None = None) -> str | None:
     """文本框里要写的字；日期看不出格式、是非题写进文本框时返回 None（交给 Agent）。"""
     if isinstance(value, date):
         if part == "day":
@@ -302,7 +307,7 @@ def text_value(value: Any, leaf: Leaf, d: Dictionary, f: dict, part: str | None)
             return str(value.year)
         if f.get("kind") == "date":
             return value.isoformat()
-        fmt = date_format(f)
+        fmt = date_format(f) or site_date_format  # 格子旁边写了格式就用它；没写再用网站记录的格式
         return format_date(value, fmt) if fmt else None
     if isinstance(value, bool):
         return None
@@ -340,7 +345,7 @@ def expand_scan(scan: str | dict | list) -> list[dict]:
     for row in scan.get("f") or []:
         i, k, label, sec, name, placeholder, auto, filled = row[:8]
         out.append({
-            "i": i, "kind": _KINDS.get(k, k), "label": label,
+            "i": i, "kind": _KINDS.get(k, k), "label": label, "host": scan.get("host") or "",
             "section": sections[sec] if isinstance(sec, int) and 0 <= sec < len(sections) else "",
             "name": name, "placeholder": placeholder, "autocomplete": auto, "filled": bool(filled),
             # 第 9 项（可选）：改了会让页面刷新的下拉框（ASP.NET 的 __doPostBack）
@@ -356,7 +361,8 @@ def _brief(f: dict) -> str:
 
 
 def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
-         allow_sensitive: list[str] | None = None) -> dict:
+         allow_sensitive: list[str] | None = None, site_date_format: str | None = None) -> dict:
+    """site_date_format：这个网站日期框的写法（community/site_policies.yaml 的 date_format），格子旁边没写格式时用。"""
     leaves = profile_leaves()
     allowed = set(allow_sensitive or [])
     report: dict[str, list] = {k: [] for k in (
@@ -397,7 +403,7 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
                 continue
             ops.append({"i": i, "k": kind, "c": cands})
         else:
-            v = text_value(value, leaf, d, f, part)
+            v = text_value(value, leaf, d, f, part, site_date_format)
             if v is None:
                 report["needs_format"].append(item)
                 continue

@@ -63,10 +63,15 @@ sites:
     consequence: 违反条款可被暂停或终止账户（第 8.3 条）
     url: https://online.immi.gov.au/lusc/termsAndConditions
     checked: 2026-09-29
+    date_format: dd mmm yyyy         # 可选：日期框的写法，格子旁边没写格式时用（2026-09-29 加）
 ```
 
 校验（`python -m core.guides` 里输出一行）：`host`、`name`、`automation`、`checked` 必填；`automation` 只能是
-`forbidden` / `allowed`；`forbidden` 时 `clause` 必填；`host` 不重复。
+`forbidden` / `allowed`；`forbidden` 时 `clause` 必填；`host` 不重复；`date_format` 只能是 `dd/mm/yyyy`、`dd mmm yyyy`
+这类写法（日 / 月 / 年三段，分隔符一致）。
+
+**日期格式的优先顺序**：格子自己的占位符 / 标签里写了格式就用它；没写时用这个网站的 `date_format`；都没有才交给 Agent。
+扫描结果里带着网站域名（`host`），`/api/ext/plan` 和 MCP 的 `plan_form_fill` 都按它查。
 
 ## 插件界面（侧边栏）
 

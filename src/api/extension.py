@@ -41,12 +41,14 @@ def ext_site_policy(host: str) -> dict:
 @router.post("/plan")
 def ext_plan(body: PlanRequest) -> dict:
     from form_engine.match import ScanError, default_dictionary, expand_scan, plan, profile_leaves
+    from form_engine.sites import site_date_format
 
     try:
         fields = expand_scan(body.scan)
     except ScanError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     allow = [p for p, leaf in profile_leaves().items() if leaf.sensitive] if body.sensitive else []
-    result = plan(fields, load_personal_profile(config.get_materials_root()), default_dictionary(), allow)
+    result = plan(fields, load_personal_profile(config.get_materials_root()), default_dictionary(), allow,
+                  site_date_format(fields))
     result.pop("script")  # 插件自带填写脚本，只要计划
     return result

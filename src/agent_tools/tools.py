@@ -496,10 +496,11 @@ def plan_form_fill(scan, allow_sensitive: list[str] | None = None, *,
     拼接出错时抛 ValueError（ScanError）。
     """
     from form_engine.match import default_dictionary, expand_scan, plan
+    from form_engine.sites import site_date_format
     fields = expand_scan(scan)
     if profile is None:
         profile = load_personal_profile(_materials_root(materials_root))
-    result = plan(fields, profile, default_dictionary(), allow_sensitive)
+    result = plan(fields, profile, default_dictionary(), allow_sensitive, site_date_format(fields))
     result.pop("ops")  # Agent 只需要 script（ops 是给插件用的同一份计划，spec 006）
     return result
 

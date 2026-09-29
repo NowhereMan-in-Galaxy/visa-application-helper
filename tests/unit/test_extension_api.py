@@ -103,3 +103,20 @@ def test_mcp_plan_has_no_ops():
     from agent_tools import tools
     r = tools.plan_form_fill(SCAN, profile=PersonalProfile())
     assert "ops" not in r and "script" in r
+
+
+def test_site_date_format(client, tmp_path):
+    """2026-09-29 实测：ImmiAccount 的日期框旁边没写格式，框里是 "09 MAR 2002" 这种写法。"""
+    immi = policy_for("online.immi.gov.au", default_site_policies())
+    assert immi["date_format"] == "dd mmm yyyy"
+    scan = ('{"v":1,"host":"online.immi.gov.au","sections":["Passport details"],'
+            '"f":[[0,"t","Date of birth",0,"H_input","","off",0,0]]}')
+    body = client.post("/api/ext/plan", headers=EXT, json={"scan": scan, "sensitive": True}).json()
+    assert body["ops"] == [{"i": 0, "k": "text", "v": "15 JUN 1990"}] and not body["needs_format"]
+    other = scan.replace("online.immi.gov.au", "example.com")
+    assert client.post("/api/ext/plan", headers=EXT, json={"scan": other, "sensitive": True}).json()["needs_format"]
+    bad = tmp_path / "s.yaml"
+    bad.write_text("sites:\n  - {host: a.example, name: A, automation: allowed, checked: 2026-09-29, date_format: soon}\n",
+                   encoding="utf-8")
+    with pytest.raises(SitePoliciesError, match="date_format"):
+        load_site_policies(bad)

@@ -12,6 +12,8 @@
 #   consequence  违反的后果
 #   url          条款页面
 #   checked      哪天核实的
+#   date_format  可选：日期框里的写法（dd/mm/yyyy、dd mmm yyyy 等）。格子旁边没写格式时，插件按这个填日期，
+#                不用再叫 Agent（mmm 是英文月份缩写，填成大写，例如 09 MAR 2002）
 
 sites:
   - host: online.immi.gov.au
@@ -21,6 +23,7 @@ sites:
     consequence: 第 8.3 条：违反条款可被暂停或终止账户访问
     url: https://online.immi.gov.au/lusc/termsAndConditions
     checked: 2026-09-29
+    date_format: dd mmm yyyy   # 2026-09-29 实测：日期框里是 "09 MAR 2002" 这种写法，旁边没写格式
 
   - host: ceac.state.gov
     name: 美国 CEAC（DS-160 等）

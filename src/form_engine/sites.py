@@ -22,6 +22,7 @@ class SitePolicy:
     consequence: str | None
     url: str | None
     checked: str
+    date_format: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -53,12 +54,20 @@ def load_site_policies(path: Path) -> list[SitePolicy]:
         if host in seen:
             errors.append(f"{where}：host 重复")
             continue
+        fmt = item.get("date_format")
+        if fmt is not None:
+            from form_engine.match import parse_date_format
+            if parse_date_format(str(fmt)) != str(fmt).lower():
+                errors.append(f"{where}：date_format 只能是 dd/mm/yyyy、dd mmm yyyy 这类写法")
+                continue
+            fmt = str(fmt).lower()
         seen.add(host)
         checked = item["checked"]
         out.append(SitePolicy(
             host=host, name=str(item["name"]), automation=item["automation"],
             clause=item.get("clause"), consequence=item.get("consequence"), url=item.get("url"),
             checked=checked.isoformat() if isinstance(checked, date) else str(checked),
+            date_format=fmt,
         ))
     if errors:
         raise SitePoliciesError("；".join(errors))
@@ -72,7 +81,13 @@ def policy_for(host: str, policies: list[SitePolicy]) -> dict:
         if host == p.host or host.endswith("." + p.host):
             return p.to_dict()
     return {"host": host, "name": None, "automation": "unknown", "clause": None,
-            "consequence": None, "url": None, "checked": None}
+            "consequence": None, "url": None, "checked": None, "date_format": None}
+
+
+def site_date_format(fields: list[dict]) -> str | None:
+    """扫描结果里记着网站域名；查这个网站记录的日期写法。"""
+    host = next((f.get("host") for f in fields if f.get("host")), "")
+    return policy_for(host, default_site_policies()).get("date_format") if host else None
 
 
 def default_site_policies() -> list[SitePolicy]:
