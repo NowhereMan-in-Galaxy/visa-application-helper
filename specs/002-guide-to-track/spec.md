@@ -124,6 +124,8 @@ conflicts:                               # 原始资料之间说法不一致时�
       - {source: g2, quote: "要求 15 天内"}
 
 uncertain: [r-bank.note]                 # 整理者没把握的字段路径，界面提示核对
+
+trip: [purpose, dates, stay, funding]    # 可选（spec 007）：开始办时问"这次行程"的哪几组；不写时签证类问全部 6 组，其他分类不问
 ```
 
 校验规则（全部可机械检查，`src/core/guides.py` 实现，违反任一条即该攻略"无效"）：

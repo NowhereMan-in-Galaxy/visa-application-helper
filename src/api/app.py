@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -882,6 +883,21 @@ def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackVie
         set_fact_value(guide, track, fact, payload.value)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    return _save_track(track)
+
+
+@app.put("/api/tracks/{track_id}/trip", response_model=TrackView)
+def update_track_trip(track_id: str, payload: dict[str, Any]) -> TrackView:
+    """改这次行程的信息（specs/007-trip-info）：只放要改的字段；对象逐键合并，列表整体替换。"""
+    from core.trip import merge_trip
+
+    track = _load_track_or_404(track_id)
+    try:
+        track.trip = merge_trip(track.trip, payload)
+    except ValidationError as e:
+        err = e.errors()[0]
+        where = ".".join(str(x) for x in err.get("loc", ()))
+        raise HTTPException(status_code=422, detail=f"行程信息「{where}」不对：{err.get('msg')}") from e
     return _save_track(track)
 
 

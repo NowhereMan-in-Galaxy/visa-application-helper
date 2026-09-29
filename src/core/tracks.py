@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide, Requirement, Step
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
+from core.trip import TripInfo, describe_trip_groups, trip_group_keys
 from core.status import compute_status
 from core.windows import reminders as _reminders, window_view
 
@@ -87,6 +88,8 @@ class Track(BaseModel):
     requirement_notes: dict[str, str] = {}  # 给材料加的备注
     custom_steps: list[CustomStep] = []
     custom_materials: list[CustomMaterial] = []
+    # 这次行程的信息（specs/007-trip-info）：目的、日期、住处、邀请人……只属于这件办事，不写进基本信息
+    trip: TripInfo = TripInfo()
 
 
 def apply_adjustments(guide: Guide, track: Track) -> Guide:
@@ -313,6 +316,9 @@ class TrackView(BaseModel):
     export_pattern: str
     export_dir: str | None
     pitfalls: list[Pitfall]
+    # 这次行程的信息和要问哪几组（specs/007-trip-info）
+    trip: TripInfo = TripInfo()
+    trip_groups: list[dict] = []
     # 被隐藏的步骤和材料 [{kind: "step"|"requirement", id, title}]，界面上用来"恢复"
     hidden_items: list[dict] = []
     # 以后"开始可以办"或"截止"的日子 [{date, kind: opens|closes, step, title}]，按日期排序（spec §3c）
@@ -549,6 +555,8 @@ def compute_track_view(
         export_pattern=guide.export_pattern or DEFAULT_EXPORT_PATTERN,
         export_dir=track.export_dir,
         pitfalls=track.pitfalls,
+        trip=track.trip,
+        trip_groups=describe_trip_groups(trip_group_keys(guide.category, guide.trip)),
         hidden_items=[
             {"kind": "step", "id": s.id, "title": s.title} for s in guide.steps if s.id in hidden_steps
         ] + [

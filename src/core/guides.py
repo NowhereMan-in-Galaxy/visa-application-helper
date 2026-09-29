@@ -182,6 +182,8 @@ class Guide(_Strict):
     checks: list[Check] = []
     conflicts: list[Conflict] = []
     uncertain: list[str] = []
+    # 开始办时问"这次行程"的哪几组（specs/007-trip-info）；不写时签证类问全部，其他不问
+    trip: list[str] | None = None
 
 
 @dataclass
@@ -232,6 +234,13 @@ def validate_guide(
         errors.append(f"id {guide.id!r} 必须与文件名 {file_stem!r} 一致")
     if guide.category not in CATEGORIES:
         errors.append(f"category {guide.category!r} 必须是 {' / '.join(CATEGORIES)} 之一")
+    if guide.trip is not None:
+        from core.trip import TRIP_GROUPS
+        bad = [k for k in guide.trip if k not in TRIP_GROUPS]
+        if bad:
+            errors.append(f"trip 里有不认识的组：{', '.join(bad)}（可选：{' / '.join(TRIP_GROUPS)}）")
+        if len(set(guide.trip)) != len(guide.trip):
+            errors.append("trip 里有重复的组")
     for t in guide.tags:
         if not t.strip() or len(t) > 12 or t != t.strip():
             errors.append(f"标签 {t!r} 要是 1–12 个字、前后不带空格")
