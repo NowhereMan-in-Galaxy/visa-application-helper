@@ -104,12 +104,13 @@ function status(nodes) {
 function updateAssistButton() {
   const n = [...$('left-list').querySelectorAll('input')].filter((c) => c.checked).length;
   $('assist').disabled = !n;
-  $('assist').textContent = n ? `交给 Agent 填选中的 ${n} 格` : '勾选要交给 Agent 的格子';
+  $('assist').textContent = n === leftover.length ? '交给 Agent' : `交给 Agent（${n} 格）`;
 }
 
 function showResult(r) {
   leftover = (r && r.leftover) || [];
   $('left').hidden = true;
+  $('left-box').hidden = true;
   if (!r) { status([]); return; }
   if (r.error) { status([el('div', (ERRORS[r.error] || '出错了：') + (r.detail || ''), 'error')]); return; }
   const c = r.counts || {};
@@ -122,7 +123,8 @@ function showResult(r) {
 
   if (!leftover.length) return;
   $('left').hidden = false;
-  $('left-title').textContent = `没填上的 ${leftover.length} 格`;
+  $('left-title').textContent = `没填上 ${leftover.length} 格`;
+  $('left-toggle').textContent = '选择';
   const ul = $('left-list');
   ul.replaceChildren();
   leftover.forEach((f) => {
@@ -140,6 +142,12 @@ function showResult(r) {
   });
   updateAssistButton();
 }
+
+$('left-toggle').addEventListener('click', () => {
+  const box = $('left-box');
+  box.hidden = !box.hidden;
+  $('left-toggle').textContent = box.hidden ? '选择' : '收起';
+});
 
 $('left-all').addEventListener('click', () => {
   const boxes = [...$('left-list').querySelectorAll('input')];
@@ -270,6 +278,7 @@ $('fill').addEventListener('click', async () => {
 $('clear').addEventListener('click', async () => {
   const r = await chrome.runtime.sendMessage({ type: 'clear', tabId: tab.id });
   $('left').hidden = true;
+  $('left-box').hidden = true;
   status([el('div', r && !r.error ? `清空了 ${r.cleared} 格，可以再点"填本页"` : '清空失败', r && !r.error ? 'ok' : 'error')]);
 });
 

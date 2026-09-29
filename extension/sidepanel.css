@@ -34,7 +34,12 @@ label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
 .status .ok { color: var(--green); font-weight: 600; }
 .status .error { color: var(--red); }
 
-/* 没填上的格子 / 要存的内容：每行一个勾选框 */
+/* 没填上的格子：默认只占一行（数量 + 交给 Agent），点"选择"才展开逐格勾选 */
+.left { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.left #left-title { flex: 1; color: var(--muted); }
+button.small { padding: 3px 10px; font-size: 12px; }
+
+/* 逐格勾选 / 要存的内容：每行一个勾选框 */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
 .rows { list-style: none; margin: 0; padding: 0; max-height: 34vh; overflow: auto; }

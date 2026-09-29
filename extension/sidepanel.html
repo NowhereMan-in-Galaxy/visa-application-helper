@@ -34,13 +34,17 @@
 
   <div id="status" class="status" hidden></div>
 
-  <div id="left" class="card" hidden>
+  <div id="left" class="left" hidden>
+    <span id="left-title"></span>
+    <button id="left-toggle" class="link" type="button">选择</button>
+    <button id="assist" class="primary small" type="button"></button>
+  </div>
+  <div id="left-box" class="card" hidden>
     <div class="card-head">
-      <strong id="left-title"></strong>
+      <span></span>
       <button id="left-all" class="link" type="button">全选</button>
     </div>
     <ul id="left-list" class="rows"></ul>
-    <button id="assist" class="primary wide" type="button"></button>
   </div>
 
   <div id="save" class="card" hidden>
