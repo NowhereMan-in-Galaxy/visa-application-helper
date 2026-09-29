@@ -29,8 +29,13 @@
   </div>
 
   <div id="result" class="result" hidden></div>
+  <div class="actions more">
+    <button id="assist" type="button" hidden>让 Agent 补填</button>
+    <button id="clear" type="button">清空本页自动填的</button>
+  </div>
 </section>
 
+<iframe id="assist-frame" title="让 Agent 补填" hidden></iframe>
 <iframe id="helper" title="填表对照" allow="clipboard-write" hidden></iframe>
 
 <script src="sidepanel.js"></script>

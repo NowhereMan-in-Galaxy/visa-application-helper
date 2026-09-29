@@ -1238,6 +1238,10 @@ class AgentJobContext(BaseModel):
     track_id: str | None = None
     guide_type: str | None = None  # 新建攻略时选的攻略类型
     draft_id: str | None = None  # 新建攻略窗口里已经有的草稿
+    # 填表插件"让 Agent 补填"（spec 006 第二版）：官网域名、剩下的格子描述（不含页面上的值）、是否允许填敏感字段
+    host: str | None = None
+    fields: list[dict] | None = None
+    sensitive: bool = False
 
 
 class AgentJobRequest(BaseModel):
@@ -1269,6 +1273,13 @@ def agent_start_job(req: AgentJobRequest) -> dict:
             raise HTTPException(422, "草稿 id 不合法")
         prompt = agent_prompts.create_guide_prompt(
             text, gt.id, follow_up=bool(req.session_id), draft_id=req.context.draft_id)
+    elif req.kind == "fill_assist":
+        fields = req.context.fields or []
+        if not req.session_id and not (1 <= len(fields) <= agent_prompts.MAX_ASSIST_FIELDS):
+            raise HTTPException(422, f"要补填的格子应该是 1–{agent_prompts.MAX_ASSIST_FIELDS} 个")
+        if any(not isinstance(f, dict) or not isinstance(f.get("i"), int) or isinstance(f.get("i"), bool) for f in fields):
+            raise HTTPException(422, "每个格子要有整数编号 i")
+        prompt = agent_prompts.fill_assist_prompt(text, req.context.model_dump(), follow_up=bool(req.session_id))
     else:
         raise HTTPException(422, f"暂不支持的任务类型：{req.kind}")
     try:

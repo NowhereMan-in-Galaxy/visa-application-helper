@@ -97,8 +97,47 @@ sites:
 2. 在无界面 Chrome 里，用插件目录下的 engine 脚本 + 模拟的插件接口，对测试表单跑一遍"填本页"流程：填上的格子和 spec 005 一致，没填的格子标红。
 3. 项目主在自己的 Chrome 里"加载已解压的扩展程序"后：打开测试表单点"填本页"能填；打开 ImmiAccount 显示条款警告。（手动，结果记进试验记录）
 
+## 第二版：清空重填 + 让 Agent 补填（2026-09-29 项目主同意）
+
+项目主实测 DS-160"目前的工作"页后提出：①填错了要能一键清掉重填（引擎不覆盖已有内容）；②右边清单全是滚动不好找（已改：分类按钮、点"没认出"的格子自动定位）；③能不能联动 Agent。
+
+### 清空本页自动填的
+
+侧边栏按钮"清空本页自动填的"：把这一页上插件填过的格子（黄框，`title` 是"个人助手自动填写，请核对"）清空并去掉黄框；
+文本框清成空、下拉框选回第一项，单选不动（清不掉"已选"又不触发页面刷新）。只在当前页运行，不碰别的格子。
+
+### 让 Agent 补填
+
+```
+侧边栏「让 Agent 补填（N 格）」
+  → 嵌入 http://127.0.0.1:8000/assist.html，把剩下的格子描述发给它（postMessage，只收发本项目插件的消息）
+  → assist.html 启动一个 Agent 任务（POST /api/agent/jobs，kind = fill_assist）并显示对话
+  → Agent 查基本信息、有需要就在对话里问用户，然后调 MCP 工具 submit_form_fills 交出"哪一格填什么"
+  → 后台任务发现新交的结果，推给 assist.html（事件 fills）→ 转给侧边栏 → 插件后台用自带的 fill.js 填
+```
+
+- **Agent 碰不到官网**：`fill_assist` 任务没有浏览器权限，只能读基本信息（`get_personal_profile`、`get_profile_gaps`）、提议改基本信息（`propose_profile_update`）、交结果（`submit_form_fills`）。真正填写的是插件。
+- **发给 Agent 的只有格子的描述**，不含页面上已填的值：
+  `{"host", "sensitive": bool, "fields": [{"i", "kind", "label", "section", "name", "why", "options": [选项文字]}]}`；
+  `why` 是插件没填的原因（没认出 / 资料里没有 / 格式看不出 / 请手动选 / 敏感信息）；`options` 只给下拉框和单选组，最多 80 项、每项最多 60 字；最多 60 个格子。
+- **Agent 的规则**（写进 prompt）：只用基本信息里有的值或用户在对话里亲口说的；本次行程信息问用户，不写回基本信息；
+  Security / Background 类法律声明题不填、不建议；`sensitive` 为 false 时不填敏感字段；下拉框 / 单选的值必须是 `options` 里的原文。
+- **`submit_form_fills(fills, learn=[])`**：`fills` = `[{"i": 整数, "value": 文字}]`（每个值最多 2000 字）；
+  `learn` = `[{"phrase": 格子上的说法, "path": 基本信息字段路径}]`，是"以后引擎也能认"的建议，这一版只记录、在对话里告诉用户，采纳进同义词表放 BACKLOG。
+  记录写在材料根目录 `agent/form-fills.jsonl`（最多 50 条）。只有网页调起的任务（`PA_AGENT_UI=1`）能用。
+- 插件拿到 `fills` 后：文本框直接填；下拉框 / 单选按选项原文找（和 spec 005 同一个 `pick`）；填上的标黄框；已有内容的照旧不覆盖。
+- 用量上限 `fill_assist` = 2 美元折合（只处理剩下的几格）。
+
+### 验收（第二版）
+
+1. `uv run pytest` 通过，新增：`submit_form_fills` 写记录并能被 `side_events` 报成 `fills` 事件（只报新的）；
+   不合法的 `i` / 过长的值 / 不存在的 `learn.path` 报错；`fill_assist` 的命令行没有浏览器工具、没有 `--chrome`、有 `submit_form_fills`；
+   `/api/agent/jobs` 对 `fill_assist` 要求 `context.fields` 是 1–60 个带整数 `i` 的格子，否则 422；prompt 里有每一格的编号、标签和选项。
+2. 项目主实测：DS-160 某一页"填本页"后点"让 Agent 补填"，Agent 填上剩下的格子（结果记进试验记录）。
+
 ## 不做（这一版）
 
 - 不做 DS-160 的多行列表（Add Another）：等 DS-160 专用对照表（spec 005 第 2 层）。
+- `learn` 建议自动写进同义词表：先只记录，见 BACKLOG。
 - 不上架 Chrome 应用商店；只支持"加载已解压的扩展程序"。
 - 不支持 Chrome 以外的浏览器。

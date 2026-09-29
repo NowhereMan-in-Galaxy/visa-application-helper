@@ -256,6 +256,13 @@
         src.addEventListener("draft", function (e) { if (options.onEvent) options.onEvent("draft", JSON.parse(e.data)); });
         src.addEventListener("activity", function (e) { log.appendChild(activityLine(JSON.parse(e.data))); log.appendChild(progress); });
         src.addEventListener("proposal", function (e) { log.appendChild(proposalCard(JSON.parse(e.data))); log.appendChild(progress); });
+        // 填表插件"让 Agent 补填"：Agent 交出了"哪一格填什么"（spec 006 第二版）
+        src.addEventListener("fills", function (e) {
+          var d = JSON.parse(e.data);
+          log.appendChild(h("div", { class: "agent-msg activity", text: "✓ 已交给插件填 " + d.fills.length + " 格" }));
+          log.appendChild(progress);
+          if (options.onEvent) options.onEvent("fills", d);
+        });
         src.addEventListener("done", function (e) {
           var d = JSON.parse(e.data);
           sessionId = d.session_id || sessionId;
@@ -311,6 +318,9 @@
   }
 
   window.AgentChat = { create: create, loadStatus: loadStatus };
+
+  // 只要对话窗口、不要右下角按钮的页面（例如填表插件里的补填页）在 <body> 上加 data-no-drawer
+  if (document.body && document.body.hasAttribute("data-no-drawer")) return;
 
   // ---------- 2. 右下角按钮 + 抽屉（只读追问） ----------
 

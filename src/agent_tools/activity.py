@@ -205,3 +205,62 @@ def confirm_proposal(root: Path, proposal_id: str) -> dict:
 def reject_proposal(root: Path, proposal_id: str) -> dict:
     _pop_proposal(root, proposal_id)
     return {"id": proposal_id}
+
+
+# ---------- 填表插件的"让 Agent 补填"（spec 006 第二版） ----------
+
+MAX_FORM_FILLS = 50
+MAX_FILL_VALUE = 2000
+
+
+def form_fills_path(root: Path) -> Path:
+    return root / "agent" / "form-fills.jsonl"
+
+
+def read_form_fills(root: Path) -> list[dict]:
+    path = form_fills_path(root)
+    if not path.is_file():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def submit_form_fills(root: Path, fills: list[dict], learn: list[dict] | None = None) -> dict:
+    """记下 Agent 判断好的"哪一格填什么"，由后台任务推给插件去填。不碰官网，也不改基本信息。
+
+    fills：[{"i": 格子编号, "value": 文字}]；learn：[{"phrase": 格子上的说法, "path": 基本信息字段路径}]。
+    格式不对抛 ValueError（中文说明），什么都不记。
+    """
+    from form_engine.match import profile_leaves
+
+    clean: list[dict] = []
+    for f in fills or []:
+        i, value = (f or {}).get("i"), (f or {}).get("value")
+        if not isinstance(i, int) or isinstance(i, bool) or i < 0:
+            raise ValueError(f"格子编号要是非负整数：{i!r}")
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"第 {i} 格的值要是非空文字")
+        if len(value) > MAX_FILL_VALUE:
+            raise ValueError(f"第 {i} 格的值太长（最多 {MAX_FILL_VALUE} 字）")
+        clean.append({"i": i, "value": value.strip()})
+    if not clean:
+        raise ValueError("fills 不能为空")
+    leaves = profile_leaves()
+    lessons: list[dict] = []
+    for item in learn or []:
+        phrase, path = str((item or {}).get("phrase") or "").strip(), (item or {}).get("path")
+        if path not in leaves:
+            raise ValueError(f"learn 里的字段路径不存在：{path}")
+        if phrase:
+            lessons.append({"phrase": phrase[:100], "path": path})
+    entry = {"id": uuid4().hex[:12], "time": _now(), "fills": clean, "learn": lessons}
+    entries = (read_form_fills(root) + [entry])[-MAX_FORM_FILLS:]
+    path = form_fills_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
+    return {"fills_id": entry["id"], "count": len(clean), "learn": len(lessons)}

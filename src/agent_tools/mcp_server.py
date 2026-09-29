@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import os
+
 from mcp.server.mcpserver import MCPServer
 from pydantic import ValidationError
 
@@ -220,6 +222,20 @@ def propose_profile_update(group: str, changes: dict) -> dict:
         raise ValueError(f"没有这个分组：{group}")
     except ValidationError as e:
         raise ValueError(f"字段名或取值不对，没有记下提议：{e}") from e
+
+
+@mcp.tool(
+    description=(
+        "填表插件「让 Agent 补填」专用：把这一页剩下的格子要填什么交给插件，由插件去填（你碰不到官网）。"
+        "fills = [{\"i\": 格子编号, \"value\": 要填的文字}]；下拉框 / 单选的 value 必须是给你的 options 里的原文。"
+        "只填基本信息里有的值或用户在对话里亲口说的；法律声明题不填。"
+        "learn = [{\"phrase\": 格子上的说法, \"path\": 基本信息字段路径}]，是以后引擎也能自动认的建议（可省略）"
+    )
+)
+def submit_form_fills(fills: list[dict], learn: list[dict] | None = None) -> dict:
+    if os.environ.get(activity.UI_ENV) != "1":
+        raise ValueError("submit_form_fills 只在填表插件调起的任务里用")
+    return activity.submit_form_fills(config.get_materials_root(), fills, learn)
 
 
 def main() -> None:

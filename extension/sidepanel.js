@@ -41,10 +41,21 @@ function el(tag, text, cls) {
   return n;
 }
 
+// 点一项：让下面的对照清单找出相关的资料（"联系方式与住址 › 工作电话"只用最后一段）
+function find(text) {
+  const frame = $('helper');
+  if (frame.contentWindow) frame.contentWindow.postMessage({ type: 'pa-find', text: text.split(' › ').pop() }, API);
+}
+
 function list(title, items) {
   if (!items || !items.length) return [];
   const ul = el('ul');
-  items.forEach((t) => ul.append(el('li', t)));
+  items.forEach((t) => {
+    const li = el('li', t, 'findable');
+    li.title = '在下面的清单里找';
+    li.addEventListener('click', () => find(t));
+    ul.append(li);
+  });
   return [el('h3', `${title}（${items.length}）`), ul];
 }
 
@@ -57,9 +68,14 @@ const ERRORS = {
   failed: '填写出错：',
 };
 
+let leftover = []; // 上一次"填本页"剩下的格子描述，留给"让 Agent 补填"
+
 function showResult(r) {
   const box = $('result');
   box.replaceChildren();
+  leftover = (r && r.leftover) || [];
+  $('assist').hidden = !leftover.length;
+  $('assist').textContent = `让 Agent 补填（${leftover.length} 格）`;
   if (!r) { box.hidden = true; return; }
   box.hidden = false;
   if (r.error) {
@@ -130,6 +146,39 @@ $('fill').addEventListener('click', async () => {
   $('fill').textContent = '填本页';
   $('fill').disabled = false;
   showResult(r);
+});
+
+$('clear').addEventListener('click', async () => {
+  const r = await chrome.runtime.sendMessage({ type: 'clear', tabId: tab.id });
+  const box = $('result');
+  box.hidden = false;
+  box.replaceChildren(el('div', r && !r.error ? `清空了 ${r.cleared} 格，可以再点"填本页"` : '清空失败', r && !r.error ? 'ok' : 'error'));
+});
+
+// ---- 让 Agent 补填（spec 006 第二版）：嵌入本地服务的 assist.html，它启动 Agent、把结果发回来，由插件填 ----
+let pendingAssist = null;
+
+$('assist').addEventListener('click', async () => {
+  const settings = await getSettings();
+  pendingAssist = { type: 'pa-assist', host, sensitive: settings.sensitive, fields: leftover };
+  const frame = $('assist-frame');
+  frame.hidden = false;
+  frame.src = `${API}/assist.html`; // 每次重新打开，开始新的对话；页面准备好会发 pa-assist-ready
+});
+
+window.addEventListener('message', async (ev) => {
+  if (ev.origin !== API || !ev.data) return;
+  if (ev.data.type === 'pa-assist-ready' && pendingAssist) {
+    $('assist-frame').contentWindow.postMessage(pendingAssist, API);
+    pendingAssist = null;
+  } else if (ev.data.type === 'pa-fills') {
+    const counts = await chrome.runtime.sendMessage({ type: 'assist-fill', tabId: tab.id, fills: ev.data.fills || [] });
+    const box = $('result');
+    box.hidden = false;
+    box.prepend(el('div', counts && !counts.error
+      ? `Agent 补填了 ${counts.filled} 格${counts.skipped ? `，${counts.skipped} 格选项对不上` : ''}${counts.gone ? `，${counts.gone} 格找不到了（页面刷新过）` : ''}`
+      : '补填失败', counts && !counts.error ? 'ok' : 'error'));
+  }
 });
 
 $('auto').addEventListener('change', async (e) => {
