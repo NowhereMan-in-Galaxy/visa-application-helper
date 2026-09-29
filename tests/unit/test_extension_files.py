@@ -115,3 +115,12 @@ def test_watch_script_only_counts_fields():
     assert "files: ['engine/watch.js'], world: 'ISOLATED'" in bg and "MAX_WATCH_FILLS" in bg
     assert "data-pa-red" in (EXT / "engine" / "mark.js").read_text(encoding="utf-8")
 
+
+
+def test_side_panel_passes_the_chosen_track():
+    """spec 007：侧边栏选「这件事」，填写 / 存回 / 交给 Agent 都带上它。"""
+    assert 'id="track"' in (EXT / "sidepanel.html").read_text(encoding="utf-8")
+    bg = (EXT / "background.js").read_text(encoding="utf-8")
+    assert "track_id: trackId" in bg and "/api/ext/tracks?host=" in bg
+    panel = (EXT / "sidepanel.js").read_text(encoding="utf-8")
+    assert "track_id: trackId" in panel and "trackByHost" in panel

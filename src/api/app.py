@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -460,15 +462,17 @@ def get_personal_profile_fields() -> list[dict]:
 
 
 @app.get("/api/fill-helper")
-def get_fill_helper() -> dict:
+def get_fill_helper(track_id: str | None = None) -> dict:
     """填表对照清单：基本信息里有值的字段，每项给出可以直接复制的写法（日期几种格式、国家英文名）。
 
     给禁止自动化的官网用（例如 ImmiAccount）：用户开在官网旁边自己复制粘贴。见 specs/005-fill-engine。
+    带 track_id 时最前面多一组「这次行程」（spec 007）。
     """
     from form_engine.match import default_dictionary
     from form_engine.reference import reference
 
-    return reference(load_personal_profile(get_materials_root()), default_dictionary())
+    trip = _load_track_or_404(track_id).trip if track_id else None
+    return reference(load_personal_profile(get_materials_root()), default_dictionary(), trip)
 
 
 def _validation_message(error: ValidationError) -> str:
@@ -763,6 +767,9 @@ def _save_track(track: Track) -> TrackView:
 
 
 def _load_track_or_404(track_id: str) -> Track:
+    # 查询参数里的 id 可能带 "/"（例如 ?track_id=../x），先挡掉，不拼成别的路径
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", track_id or ""):
+        raise HTTPException(status_code=404, detail=f"没有找到这件办事：{track_id}")
     try:
         return load_track(get_materials_root(), track_id)
     except TrackNotFoundError as e:
@@ -882,6 +889,21 @@ def update_track_fact(track_id: str, fact: str, payload: FactUpdate) -> TrackVie
         set_fact_value(guide, track, fact, payload.value)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    return _save_track(track)
+
+
+@app.put("/api/tracks/{track_id}/trip", response_model=TrackView)
+def update_track_trip(track_id: str, payload: dict[str, Any]) -> TrackView:
+    """改这次行程的信息（specs/007-trip-info）：只放要改的字段；对象逐键合并，列表整体替换。"""
+    from core.trip import merge_trip
+
+    track = _load_track_or_404(track_id)
+    try:
+        track.trip = merge_trip(track.trip, payload)
+    except ValidationError as e:
+        err = e.errors()[0]
+        where = ".".join(str(x) for x in err.get("loc", ()))
+        raise HTTPException(status_code=422, detail=f"行程信息「{where}」不对：{err.get('msg')}") from e
     return _save_track(track)
 
 

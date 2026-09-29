@@ -383,3 +383,16 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .track-tools .quiet { padding: 3px 10px; font-size: 12px; border-color: var(--line); color: var(--muted); }
 .track-tools .quiet[data-armed="1"] { border-color: var(--danger); color: var(--danger); }
 .empty .link-btn { margin-left: 6px; vertical-align: baseline; }
+
+/* 这次行程（spec 007）：按组分块，每组两列输入框，窄屏一列 */
+.trip .trip-group { border: 0; border-top: 1px dashed var(--line); margin: 0; padding: 12px 20px 14px; }
+.trip .trip-group legend { float: left; width: 100%; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--ink); padding: 0; }
+.trip .trip-group legend + .trip-grid { clear: both; }
+.trip-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+.trip-cell { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.trip-cell.wide { grid-column: 1 / -1; }
+.trip-cell input, .trip-cell select, .trip-cell textarea, .trip-row input { font: inherit; font-size: 13px; color: var(--ink); padding: 5px 8px; border: 1px solid var(--line); background: #fffef9; width: 100%; box-sizing: border-box; }
+.trip-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+.trip-cell .linkish { justify-self: start; }
+@media (max-width: 640px) { .trip-grid { grid-template-columns: 1fr; } }
+

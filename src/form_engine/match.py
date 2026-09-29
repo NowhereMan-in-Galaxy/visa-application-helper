@@ -70,16 +70,28 @@ def _walk(model: type[BaseModel], prefix: str, labels: list[str], out: dict[str,
         out[path] = Leaf(path, " › ".join(lab), kind, bool(extra.get("sensitive")))
 
 
+TRIP = "trip"  # 这次行程的字段路径以 trip. 开头，值来自这件办事（specs/007-trip-info），不是基本信息
+
+
 @lru_cache(maxsize=1)
 def profile_leaves() -> dict[str, Leaf]:
+    from core.trip import TripInfo
+
     out: dict[str, Leaf] = {}
     for group, (label, model) in PROFILE_GROUPS.items():
         _walk(model, group, [label], out)
+    _walk(TripInfo, TRIP, ["这次行程"], out)
     return out
 
 
-def profile_value(profile: PersonalProfile, path: str) -> Any:
-    cur: Any = profile.model_dump(mode="python")
+def profile_value(profile: PersonalProfile, path: str, trip: Any = None) -> Any:
+    """字段的值：trip.* 从这件办事的行程信息里取（没给 trip 时为 None），其他从基本信息里取。"""
+    if path.split(".", 1)[0] == TRIP:
+        if trip is None:
+            return None
+        cur: Any = {TRIP: trip.model_dump(mode="python")}
+    else:
+        cur = profile.model_dump(mode="python")
     for part in path.split("."):
         cur = cur.get(part) if isinstance(cur, dict) else None
     return cur
@@ -361,8 +373,11 @@ def _brief(f: dict) -> str:
 
 
 def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
-         allow_sensitive: list[str] | None = None, site_date_format: str | None = None) -> dict:
-    """site_date_format：这个网站日期框的写法（community/site_policies.yaml 的 date_format），格子旁边没写格式时用。"""
+         allow_sensitive: list[str] | None = None, site_date_format: str | None = None, trip: Any = None) -> dict:
+    """site_date_format：这个网站日期框的写法（community/site_policies.yaml 的 date_format），格子旁边没写格式时用。
+
+    trip：这件办事的行程信息（core.trip.TripInfo，spec 007）；没给时 trip.* 的格子算"资料里没有"。
+    """
     leaves = profile_leaves()
     allowed = set(allow_sensitive or [])
     report: dict[str, list] = {k: [] for k in (
@@ -381,7 +396,7 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
             continue
         leaf = leaves[path]
         item = {"i": i, "path": path, "label": leaf.label}
-        value = profile_value(profile, path)
+        value = profile_value(profile, path, trip)
         if leaf.kind == "list":
             # "有没有……"：有记录 → 是；用户确认过没有 → 否；两样都没有 → 资料里没有（交给 Agent 问）
             value = True if value else (False if path in profile.confirmed_none else None)

@@ -172,7 +172,9 @@
   $("reveal").addEventListener("change", render);
   $("reset").addEventListener("click", function () { done.clear(); saveDone(); render(); });
 
-  fetch("/api/fill-helper")
+  // 插件选了"这件事"时带上 track_id，清单最前面多一组「这次行程」（spec 007）
+  var trackMatch = /[?&]track_id=([a-z0-9-]+)/.exec(location.search);
+  fetch("/api/fill-helper" + (trackMatch ? "?track_id=" + trackMatch[1] : ""))
     .then(function (r) {
       if (!r.ok) return r.json().then(function (b) { throw new Error(b.detail || r.status); }, function () { throw new Error(r.status); });
       return r.json();

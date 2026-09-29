@@ -212,6 +212,33 @@ def propose_profile_update(root: Path, group: str, changes: dict) -> dict:
     return {"proposal_id": item["id"], "changed": item["changed"]}
 
 
+def propose_trip_update(root: Path, track_id: str, changes: dict) -> dict:
+    """提议改一件办事的行程信息（spec 007），和 propose_profile_update 一样要用户在页面上确认。
+
+    group 记为 "trip"，另存 track_id；确认时写进这件办事，不写基本信息。
+    """
+    from core.tracks import load_track
+    from core.trip import merge_trip
+    from form_engine.match import profile_leaves
+
+    track = load_track(root, track_id)  # 不存在抛 TrackNotFoundError
+    before = track.trip.model_dump(mode="json")
+    after = merge_trip(track.trip, changes).model_dump(mode="json")  # 不合法抛 ValidationError
+    cells: list[dict] = []
+    for key in changes:
+        _leaf_changes(f"trip.{key}", before.get(key), after.get(key), cells)
+    if not cells:
+        return {"proposal_id": None, "changed": []}
+    leaves = profile_leaves()
+    for c in cells:
+        leaf = leaves.get(c["path"])
+        c["label"] = leaf.label if leaf else c["field"]
+    item = {"id": uuid4().hex[:12], "time": _now(), "group": "trip", "track_id": track_id,
+            "changes": changes, "changed": cells}
+    _write_proposals(root, read_proposals(root) + [item])
+    return {"proposal_id": item["id"], "changed": cells}
+
+
 def _pop_proposal(root: Path, proposal_id: str) -> dict:
     items = read_proposals(root)
     item = next((p for p in items if p.get("id") == proposal_id), None)
@@ -225,7 +252,16 @@ def confirm_proposal(root: Path, proposal_id: str) -> dict:
     item = next((p for p in read_proposals(root) if p.get("id") == proposal_id), None)
     if item is None:
         raise ActivityError("找不到这条提议（可能已经处理过了）", 404)
-    _, changed = update_profile_fields(root, item["group"], item["changes"])  # 校验不过会抛错，提议保留
+    if item.get("group") == "trip":
+        from core.tracks import load_track, save_track
+        from core.trip import merge_trip
+
+        track = load_track(root, item["track_id"])
+        track.trip = merge_trip(track.trip, item["changes"])  # 校验不过会抛错，提议保留
+        save_track(root, track)
+        changed = item["changed"]
+    else:
+        _, changed = update_profile_fields(root, item["group"], item["changes"])  # 校验不过会抛错，提议保留
     _pop_proposal(root, proposal_id)
     return {"id": proposal_id, "changed": changed}
 

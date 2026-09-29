@@ -81,12 +81,20 @@ def _walk(model: type[BaseModel], data: dict, path: str, labels: list[str], d: D
                         "terms": _terms(here, extra, d), "values": vals})
 
 
-def reference(profile: PersonalProfile, d: Dictionary) -> dict:
+def reference(profile: PersonalProfile, d: Dictionary, trip: Any = None) -> dict:
     """{"groups": [{"key", "label", "items": [{path, label, sensitive, terms, values: [{text, hint?}]}]}]}
 
-    只列有值的字段；分组内的 label 不再重复分组名。
+    只列有值的字段；分组内的 label 不再重复分组名。给了 trip（这件办事的行程信息，spec 007）时，
+    最前面多一组「这次行程」——填表时最常卡住的就是这些。
     """
     groups = []
+    if trip is not None:
+        from core.trip import TripInfo
+
+        items: list[dict] = []
+        _walk(TripInfo, trip.model_dump(mode="python"), "trip", [], d, items)
+        if items:
+            groups.append({"key": "trip", "label": "这次行程", "items": items})
     for key, (label, model) in PROFILE_GROUPS.items():
         items: list[dict] = []
         _walk(model, getattr(profile, key).model_dump(mode="python"), key, [], d, items)

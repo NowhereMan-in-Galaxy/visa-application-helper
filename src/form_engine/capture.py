@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from core.models import PROFILE_GROUPS, PersonalProfile, _strip_optional
 from form_engine.match import (
-    MONTHS, Dictionary, Leaf, date_format, match_field, normalize, profile_leaves, profile_value,
+    MONTHS, TRIP, Dictionary, Leaf, date_format, match_field, normalize, profile_leaves, profile_value,
 )
 
 MAX_VALUE = 500
@@ -25,8 +25,10 @@ MAX_VALUE = 500
 
 def enum_options(path: str) -> list[str]:
     """选择题字段允许的取值（模型里的 Literal）。"""
+    from core.trip import TripInfo
+
     group, *rest = path.split(".")
-    model: Any = PROFILE_GROUPS[group][1]
+    model: Any = TripInfo if group == TRIP else PROFILE_GROUPS[group][1]
     ann: Any = None
     for name in rest:
         if not (isinstance(model, type) and issubclass(model, BaseModel)) or name not in model.model_fields:
@@ -119,11 +121,12 @@ def _show(value: Any) -> str | None:
 
 
 def suggest(fields: list[dict], values: dict, profile: PersonalProfile, d: Dictionary,
-            site_date_format: str | None = None) -> list[dict]:
+            site_date_format: str | None = None, trip: Any = None) -> list[dict]:
     """页面上的值和基本信息不一样的格子 → 建议列表。
 
     每项：{i, path, label, sensitive, before, after, value, action}；action 为 "set"（写值）
     或 "none"（记为"没有"，来自"有没有……"题选了 No）。同一个字段在页面上出现多次时只留第一个。
+    trip.* 的格子（spec 007）只有给了 trip（选了"这件事"）时才建议，保存时写进这件办事。
     """
     leaves = profile_leaves()
     out: list[dict] = []
@@ -135,14 +138,17 @@ def suggest(fields: list[dict], values: dict, profile: PersonalProfile, d: Dicti
             continue
         raw = raw.strip()
         path = match_field(f, d)
-        if path is None or path in seen:
+        if path is None or path in seen or (trip is None and path.startswith(TRIP + ".")):
             continue
         leaf: Leaf = leaves[path]
-        current = profile_value(profile, path)
+        current = profile_value(profile, path, trip)
         item = {"i": i, "path": path, "label": leaf.label, "sensitive": leaf.sensitive, "before": _show(current)}
 
         if leaf.kind == "list":
             # "有没有……"：只把"没有"存下来；"有"的话具体内容页面上另有格子，这里不猜
+            # 行程里的列表（同行人）没有"确认过没有"的记法，选了 No 就是空的，不用存
+            if path.startswith(TRIP + "."):
+                continue
             if _yes_no(raw, d) is False and not current and path not in profile.confirmed_none:
                 out.append({**item, "after": "没有", "value": None, "action": "none"})
                 seen.add(path)
@@ -171,7 +177,10 @@ def suggest(fields: list[dict], values: dict, profile: PersonalProfile, d: Dicti
 # ---------------------------------------------------------------- 写入
 
 def to_changes(items: list[dict]) -> tuple[dict[str, dict], list[str]]:
-    """[{path, value, action}] → ({分组: 嵌套的改动}, [记为"没有"的路径])。路径不存在抛 KeyError。"""
+    """[{path, value, action}] → ({分组: 嵌套的改动}, [记为"没有"的路径])。路径不存在抛 KeyError。
+
+    行程信息在 "trip" 这一组里（调用方写进这件办事，不写基本信息）。
+    """
     leaves = profile_leaves()
     groups: dict[str, dict] = {}
     none: list[str] = []

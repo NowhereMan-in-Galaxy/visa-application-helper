@@ -44,13 +44,23 @@ def fill_assist_prompt(user_input: str, context: dict, *, follow_up: bool = Fals
         ])
     fields = context.get("fields") or []
     sensitive = bool(context.get("sensitive"))
+    track_id = context.get("track_id")
+    if track_id:
+        read = (f"1. 用 get_fill_reference(track_id=\"{track_id}\") 读用户的基本信息和这件办事的「这次行程」"
+                "（每个字段一行，已经整理好可以直接填的写法），判断每一格该填什么；需要时用 get_track 看这件事的进度。")
+        ask = ("2. 资料里有的直接用；缺的用简短的中文一次问完，等用户回答。用户说的是这次行程的信息（目的、日期、住处、邀请人、谁出钱、同行人），"
+               f"用 propose_trip_update(track_id=\"{track_id}\") 提议存进这件办事，页面上会让用户确认。")
+    else:
+        read = "1. 用 get_fill_reference 读用户的基本信息（每个字段一行，已经整理好可以直接填的写法），判断每一格该填什么。"
+        ask = ("2. 基本信息里有的直接用；这次行程专属的（旅行目的、日期、同行人、在美联系人……）和资料里没有的，用简短的中文一次问完，等用户回答。"
+               "（用户没在插件里选「这件事」，行程信息存不下来，只在这次对话里用。）")
     return "\n".join([
         f"你是本地填表插件的助手。用户正在 {context.get('host') or '某个官网'} 上填表，插件已经自动填了能认出的格子，下面是剩下的：",
         *[_field_line(f) for f in fields],
         "",
         "请你：",
-        "1. 用 get_fill_reference 读用户的基本信息（每个字段一行，已经整理好可以直接填的写法），判断每一格该填什么。",
-        "2. 基本信息里有的直接用；这次行程专属的（旅行目的、日期、同行人、在美联系人……）和资料里没有的，用简短的中文一次问完，等用户回答。",
+        read,
+        ask,
         "3. 确定之后调用 submit_form_fills 交给插件去填：下拉框 / 单选的 value 必须是上面\"选项\"里的原文；日期按格子旁边写的格式；拆成日 / 月 / 年的格子分开交。",
         "4. 你认出来、但插件没认出的说法，放进 learn（phrase 用格子上的英文说法，path 用基本信息字段路径），以后插件就能自己认。",
         "",
@@ -58,7 +68,7 @@ def fill_assist_prompt(user_input: str, context: dict, *, follow_up: bool = Fals
         "- 只填基本信息里有的值或用户在对话里亲口说的，不要猜。",
         "- Security / Background 这类法律声明题（犯罪、疾病、移民违规……）不填、不建议答案，告诉用户自己答。",
         "- 敏感字段（证件号、生日、收入等）：" + ("用户允许填。" if sensitive else "用户没有允许自动填，不要交，告诉用户自己填。"),
-        "- 用户说的是以后还会用的长期信息（例如新手机号）时，用 propose_profile_update 提议写回基本信息，页面上会让用户确认；本次行程信息不写回。",
+        "- 用户说的是以后还会用的长期信息（例如新手机号）时，用 propose_profile_update 提议写回基本信息，页面上会让用户确认；本次行程信息不写回基本信息。",
         "- 回答用中文，简短；不要在回复里复述证件号、手机号等个人信息原文。",
         "",
         f"用户：{user_input}",
