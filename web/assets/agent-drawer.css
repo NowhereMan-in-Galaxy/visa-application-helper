@@ -44,6 +44,9 @@ body.agent-open main { padding-right: 420px; }
 .ws-chat .agent-log { min-height: 200px; }
 .ws-draft { overflow-y: auto; }
 .draft-empty { margin: auto; text-align: center; max-width: 320px; }
+.draft-older { margin-top: 22px; padding-top: 14px; border-top: 1px dashed var(--line); text-align: left; }
+.draft-older h3 { font-size: 13px; margin: 0 0 6px; }
+.draft-older ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.9; }
 .draft-status { font-weight: 600; margin: 2px 0 8px; font-size: 13px; }
 .draft-status.ok { color: var(--green); }
 .draft-status.bad { color: var(--danger); }
