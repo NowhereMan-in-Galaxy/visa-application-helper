@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml
@@ -19,12 +20,20 @@ _EXAMPLE_CONFIG_FILE = REPO_ROOT / "config.example.yaml"
 _DEFAULT_MATERIALS_ROOT = "materials"
 
 
+# 临时换一个材料根目录（例如 `uv run youtiao --demo` 的虚构资料）：优先于 config.yaml。
+# 用环境变量是因为网页调起的 Agent 和它的 MCP 服务是子进程，会继承同一个值，看到的是同一套资料。
+MATERIALS_ROOT_ENV = "YOUTIAO_MATERIALS_ROOT"
+
+
 def get_materials_root() -> Path:
     """返回材料根目录的绝对路径。
 
-    优先读仓库根目录下的 config.yaml（已被 .gitignore 排除，每个人本地各自维护一份）；
-    如果还没创建，退回 config.example.yaml 里的默认值，方便第一次拉下项目就能直接跑起来看效果。
+    环境变量 YOUTIAO_MATERIALS_ROOT 有值时用它；否则读仓库根目录下的 config.yaml（已被 .gitignore 排除，
+    每个人本地各自维护一份）；还没创建时退回 config.example.yaml 里的默认值，方便第一次拉下项目就能直接跑起来看效果。
     """
+    override = os.environ.get(MATERIALS_ROOT_ENV)
+    if override:
+        return Path(override).expanduser().resolve()
     config_path = _CONFIG_FILE if _CONFIG_FILE.is_file() else _EXAMPLE_CONFIG_FILE
     materials_root_value = _DEFAULT_MATERIALS_ROOT
 
