@@ -74,3 +74,79 @@ def test_guide_trip_is_validated():
     assert not [e for e in validate_guide(Guide.model_validate({**base, "trip": ["purpose", "dates"]}), "x") if "trip" in e]
     errs = validate_guide(Guide.model_validate({**base, "trip": ["purpose", "nope", "purpose"]}), "x")
     assert any("nope" in e for e in errs) and any("重复" in e for e in errs)
+
+
+# ---- 插件、对照清单、Agent：选了"这件事"就用它的行程信息 ----
+
+from api.extension import EXTENSION_ORIGIN  # noqa: E402
+from agent_runner import cli, prompts  # noqa: E402
+from agent_tools import activity  # noqa: E402
+import config  # noqa: E402
+
+EXT = {**LOCAL, "Origin": EXTENSION_ORIGIN}
+SCAN = ('{"v":1,"host":"visas-fr.tlscontact.com","sections":["Address where you will stay"],'
+        '"f":[[0,"t","Purpose of your trip",0,"","","",0,0],[1,"t","City",0,"","","",0,0]]}')
+
+
+@pytest.fixture
+def filled(env, monkeypatch):
+    c, root, t = env
+    monkeypatch.setattr(config, "get_materials_root", lambda: root)
+    c.put(f"/api/tracks/{t['id']}/trip", headers=LOCAL,
+          json={"purpose": "Tourism", "stay_address": {"city": "Sampleville"}})
+    return c, root, t
+
+
+def test_extension_tracks_list_and_guess(filled):
+    c, _, t = filled
+    r = c.get("/api/ext/tracks", params={"host": "france-visas.gouv.fr"}, headers=EXT).json()
+    assert r["tracks"] == [{"id": t["id"], "title": "示例"}]
+    assert r["guess"] == t["id"]  # 申根攻略里有 france-visas.gouv.fr 的官网链接
+    assert c.get("/api/ext/tracks", params={"host": "example.com"}, headers=EXT).json()["guess"] is None
+
+
+def test_plan_uses_the_track(filled):
+    c, _, t = filled
+    without = c.post("/api/ext/plan", headers=EXT, json={"scan": SCAN}).json()
+    assert {x["path"] for x in without["missing"]} == {"trip.purpose", "trip.stay_address.city"}
+    with_track = c.post("/api/ext/plan", headers=EXT, json={"scan": SCAN, "track_id": t["id"]}).json()
+    assert {o["i"]: o["v"] for o in with_track["ops"]} == {0: "Tourism", 1: "Sampleville"}
+    assert c.post("/api/ext/plan", headers=EXT, json={"scan": SCAN, "track_id": "../x"}).status_code == 404
+
+
+def test_capture_writes_trip_into_the_track(filled):
+    c, root, t = filled
+    values = {"0": "Business", "1": "Sampleville"}
+    items = c.post("/api/ext/capture", headers=EXT, json={"scan": SCAN, "values": values, "track_id": t["id"]}).json()["items"]
+    assert [(x["path"], x["before"], x["after"]) for x in items] == [("trip.purpose", "Tourism", "Business")]
+    assert c.post("/api/ext/capture", headers=EXT, json={"scan": SCAN, "values": values}).json()["items"] == []
+    assert c.post("/api/ext/capture/apply", headers=EXT, json={"items": items}).status_code == 422  # 没选这件事
+    assert c.post("/api/ext/capture/apply", headers=EXT, json={"items": items, "track_id": t["id"]}).json() == {"saved": 1}
+    saved = c.get(f"/api/tracks/{t['id']}", headers=LOCAL).json()["trip"]
+    assert saved["purpose"] == "Business" and saved["stay_address"]["city"] == "Sampleville"
+
+
+def test_fill_helper_has_a_trip_group(filled):
+    c, _, t = filled
+    groups = c.get("/api/fill-helper", params={"track_id": t["id"]}, headers=LOCAL).json()["groups"]
+    assert groups[0]["key"] == "trip" and {i["path"] for i in groups[0]["items"]} == {"trip.purpose", "trip.stay_address.city"}
+    assert all(g["key"] != "trip" for g in c.get("/api/fill-helper", headers=LOCAL).json()["groups"])
+    assert c.get("/api/fill-helper", params={"track_id": "../x"}, headers=LOCAL).status_code == 404
+
+
+def test_agent_proposes_trip_changes(filled):
+    c, root, t = filled
+    res = activity.propose_trip_update(root, t["id"], {"arrival_date": "2026-10-01", "purpose": "Tourism"})
+    assert [(x["path"], x["after"]) for x in res["changed"]] == [("trip.arrival_date", "2026-10-01")]
+    r = c.post(f"/api/agent/profile-proposals/{res['proposal_id']}/confirm", headers=LOCAL)
+    assert r.status_code == 200
+    assert c.get(f"/api/tracks/{t['id']}", headers=LOCAL).json()["trip"]["arrival_date"] == "2026-10-01"
+
+
+def test_fill_assist_knows_the_track(fake_cli):
+    allowed = cli.build_command("fill_assist", "x")
+    allowed = allowed[allowed.index("--allowedTools") + 1].split(",")
+    assert cli.MCP_PREFIX + "propose_trip_update" in allowed and cli.MCP_PREFIX + "get_track" in allowed
+    p = prompts.fill_assist_prompt("x", {"fields": [], "track_id": "schengen-tourist-20260929"})
+    assert 'get_fill_reference(track_id="schengen-tourist-20260929")' in p and "propose_trip_update" in p
+    assert "没在插件里选" in prompts.fill_assist_prompt("x", {"fields": []})

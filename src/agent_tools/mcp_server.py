@@ -201,11 +201,12 @@ def get_form_scan_script() -> dict:
         "missing（基本信息里没有，要问用户）、needs_format（日期格式看不出，你来填）、"
         "manual（改了会让页面刷新的下拉框，不自动填，请用户手动选或你用真实点击选）、already_filled、"
         "unmatched（认不出，你来处理）和 script。把 script 原样用 javascript_tool 在同一页运行即可填写；"
-        "script 里含用户的个人信息，不要在对话里复述它。一页最多扫描+填写 2 轮"
+        "script 里含用户的个人信息，不要在对话里复述它。一页最多扫描+填写 2 轮。"
+        "给 track_id（这件办事）时，旅行目的、日期、住处、邀请人等 trip.* 格子用它的行程信息填"
     )
 )
-def plan_form_fill(scan: str, allow_sensitive: list[str] | None = None) -> dict:
-    return tools.plan_form_fill(scan, allow_sensitive)
+def plan_form_fill(scan: str, allow_sensitive: list[str] | None = None, track_id: str | None = None) -> dict:
+    return tools.plan_form_fill(scan, allow_sensitive, track_id=track_id)
 
 
 @mcp.tool(
@@ -222,6 +223,26 @@ def propose_profile_update(group: str, changes: dict) -> dict:
         raise ValueError(f"没有这个分组：{group}")
     except ValidationError as e:
         raise ValueError(f"字段名或取值不对，没有记下提议：{e}") from e
+
+
+@mcp.tool(
+    description=(
+        "网页里的 Agent 用：提议修改一件办事的「这次行程」（spec 007）：目的 purpose、purpose_detail、arrival_date、"
+        "departure_date、arrival_city、stay_name、stay_address{street,city,province,postal_code,country}、stay_phone、"
+        "host_name、host_relationship、host_address{...}、host_phone、host_email、payer（self/host/employer/family/other）、"
+        "payer_detail、companions[{name,relationship}]。只放要改的字段；日期写 YYYY-MM-DD。不会直接写入——页面上弹出确认卡片，"
+        "用户确认后才写进这件办事（不写基本信息）。只提议用户亲口说的内容"
+    )
+)
+def propose_trip_update(track_id: str, changes: dict) -> dict:
+    from core.tracks import TrackNotFoundError
+
+    try:
+        return activity.propose_trip_update(config.get_materials_root(), track_id, changes)
+    except (TrackNotFoundError, OSError):
+        return {"error": f"找不到这件办事：{track_id}"}
+    except ValidationError as e:
+        return {"error": f"字段名或取值不对，没有记下提议：{e}"}
 
 
 @mcp.tool(
@@ -245,15 +266,22 @@ def submit_form_fills(fills: list[dict], learn: list[dict] | None = None) -> dic
 @mcp.tool(
     description=(
         "只读：填表用的基本信息精简版——每个有值的字段一行：path、中文标签、可以直接填的写法（日期给几种格式、国家给英文名）。"
-        "比 get_personal_profile 短得多，填表时优先用它"
+        "比 get_personal_profile 短得多，填表时优先用它。给 track_id 时多出「这次行程」（目的、日期、住处、邀请人……，path 以 trip. 开头）"
     )
 )
-def get_fill_reference() -> dict:
+def get_fill_reference(track_id: str | None = None) -> dict:
     from form_engine.match import default_dictionary
     from form_engine.reference import reference
     from core.profile_storage import load_personal_profile
+    from core.tracks import TrackNotFoundError, load_track
 
-    ref = reference(load_personal_profile(config.get_materials_root()), default_dictionary())
+    trip = None
+    if track_id:
+        try:
+            trip = load_track(config.get_materials_root(), track_id).trip
+        except (TrackNotFoundError, ValueError, OSError):
+            return {"error": f"找不到这件办事：{track_id}"}
+    ref = reference(load_personal_profile(config.get_materials_root()), default_dictionary(), trip)
     return {"items": [
         {"path": it["path"], "label": f"{g['label']} › {it['label']}", "values": [v["text"] for v in it["values"]]}
         for g in ref["groups"] for it in g["items"]

@@ -488,7 +488,7 @@ def get_form_scan_script() -> dict:
 
 
 def plan_form_fill(scan, allow_sensitive: list[str] | None = None, *,
-                   materials_root: Path | None = None, profile=None) -> dict:
+                   materials_root: Path | None = None, profile=None, track_id: str | None = None) -> dict:
     """扫描结果 + 「基本信息」→ 填写计划。报告不含值；值只在 script 里（交给页面运行）。
 
     scan：扫描脚本的压缩结果（window.__paScanText 分段读回、原样拼起来的字符串）。
@@ -500,7 +500,8 @@ def plan_form_fill(scan, allow_sensitive: list[str] | None = None, *,
     fields = expand_scan(scan)
     if profile is None:
         profile = load_personal_profile(_materials_root(materials_root))
-    result = plan(fields, profile, default_dictionary(), allow_sensitive, site_date_format(fields))
+    trip = load_track(_materials_root(materials_root), track_id).trip if track_id else None
+    result = plan(fields, profile, default_dictionary(), allow_sensitive, site_date_format(fields), trip=trip)
     result.pop("ops")  # Agent 只需要 script（ops 是给插件用的同一份计划，spec 006）
     return result
 
