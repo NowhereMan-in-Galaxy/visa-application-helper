@@ -33,10 +33,10 @@
 ```bash
 git clone <仓库地址> && cd personal-assistant
 uv sync
-uv run uvicorn api.app:app --app-dir src
+uv run youtiao
 ```
 
-浏览器打开 <http://127.0.0.1:8000>。第一次打开是空的：先到「我的资料」加几份材料、填一下基本信息，再去攻略库挑一份"开始办"。
+会自动在浏览器里打开 <http://127.0.0.1:8000>。第一次打开是空的：先到「我的资料」加几份材料、填一下基本信息，再去攻略库挑一份"开始办"。
 
 材料默认存在仓库里的 `materials/`（已被 git 忽略）。想放到别处，把 `config.example.yaml` 复制成 `config.yaml`，改 `materials_root`。
 
@@ -46,7 +46,7 @@ uv run uvicorn api.app:app --app-dir src
 2. 点「加载已解压的扩展程序」，选仓库里的 `extension/` 文件夹。
 3. 点工具栏上的插件图标，右边会打开侧边栏。打开要填的官网，点「填本页」；第一次在某个网站上用，Chrome 会问要不要允许插件读写这个网站，选允许。
 
-插件只和你电脑上的本地服务通信（上面第三行命令要开着），不调用任何 AI。条款禁止自动化的网站（例如澳洲 ImmiAccount），侧边栏会先显示条款原文，你勾选"我知道风险"后才能用。
+插件只和你电脑上的本地服务通信（`uv run youtiao` 要开着），不调用任何 AI。条款禁止自动化的网站（例如澳洲 ImmiAccount），侧边栏会先显示条款原文，你勾选"我知道风险"后才能用。
 
 ### 可选：Agent 功能
 

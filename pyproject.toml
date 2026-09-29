@@ -23,3 +23,19 @@ dev = [
 # 源码在 src/ 下（不带 src. 前缀导入），这样测试文件和 uvicorn 启动时的
 # `--app-dir src` 用同一套 import 路径，import 语句不用因为"谁来跑"而写两套。
 pythonpath = ["src"]
+
+# `uv run youtiao`：启动本地服务并打开浏览器（src/api/launcher.py）
+[project.scripts]
+youtiao = "api.launcher:main"
+
+# 把 src/ 下的代码登记成可安装的包：uv sync 时以"开发模式"安装，直接读 src/ 里的文件（不复制），
+# 所以 config.py 算出来的仓库根目录不变，也不再需要 PYTHONPATH=src。
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/api", "src/core", "src/agent_tools", "src/agent_runner", "src/form_engine"]
+
+[tool.hatch.build]
+dev-mode-dirs = ["src"]
