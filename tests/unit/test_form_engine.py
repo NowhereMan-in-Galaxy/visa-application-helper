@@ -107,7 +107,8 @@ def test_sensitive_skipped_by_default(d):
 
 def test_report_contains_no_values(d):
     r = match.plan(SCAN["fields"], PROFILE, d, allow_sensitive=SENSITIVE)
-    report = json.dumps({k: v for k, v in r.items() if k != "script"}, ensure_ascii=False)
+    # script 和 ops 是同一份填写计划（本来就要带值）；其余的报告部分不能有值
+    report = json.dumps({k: v for k, v in r.items() if k not in ("script", "ops")}, ensure_ascii=False)
     for v in SECRET_VALUES:
         assert v not in report, v
 
