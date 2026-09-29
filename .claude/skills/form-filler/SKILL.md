@@ -10,7 +10,9 @@ description: 用户要 Agent 帮忙在真实官网上填签证 / 办事申请表
 
 ## 硬性红线（任何一步都适用）
 
-1. **只在允许的网站上操作**：开始前读网站使用条款。条款禁止自动化的（例如 USTravelDocs），只给用户说明，不代填。
+1. **只在允许的网站上操作**：开始前读网站使用条款。条款禁止自动化的，只给用户说明，不代填、也不运行填表引擎。已查过禁止的：
+   - USTravelDocs（美签缴费 / 预约）；
+   - 澳洲 ImmiAccount（online.immi.gov.au）：Terms and Conditions 第 4.5 条 "You must not use software automation techniques or solutions when using ImmiAccount."，第 8.3 条可暂停或终止账户（2026-09-29 核实）。
 2. **验证码、登录、安全问题、签名、付款、最终提交**：一律交给用户（浏览器工具的 `ask`），不代做、不绕过。
 3. **Security / Background 类法律声明题**（传染病、犯罪、移民违规……）：由用户本人逐题作答，Agent 不预填、不建议答案。
 4. **写回基本信息**：只写用户亲口回答的内容；写之前逐条复述并征得同意（`update_personal_profile`、`confirm_personal_profile_none`）。本次行程专属信息不写回。
@@ -33,6 +35,21 @@ description: 用户要 Agent 帮忙在真实官网上填签证 / 办事申请表
 - 字段含义：同一个概念在表格里可能拆成两题（例如护照"签发国"与"签发地所在国"）。
 
 ### 3. 逐页填
+
+**先用通用填表引擎（specs/005-fill-engine），再自己补。**每一页按这个顺序：
+
+1. `get_form_scan_script()` → 用 `javascript_tool` 在当前页原样运行 `script`，返回 `{count, chars, parts}`。
+   浏览器工具一次只回传约 1000 字：依次运行 `window.__paScanText.slice(900*k, 900*(k+1))`（k 从 0 到 parts-1），
+   把每段**原样**拼起来（不要改写、不要加空格）。
+2. `plan_form_fill(scan=拼好的字符串)` → 看报告：
+   - `sensitive`：列出这些字段的中文名（不说值），问用户"这些要不要也自动填"；同意的路径放进 `allow_sensitive` 再调一次。
+   - `missing`：基本信息里没有 → 问用户；长期信息确认后写回基本信息，本次行程信息不写回。
+3. 用 `javascript_tool` 原样运行计划里的 `script`（**不要在对话里复述 script，它含个人信息**）。返回 `gone` 大于 0 说明页面刷新了。
+4. 自己处理 `unmatched` 和 `needs_format` 的格子（行程信息、法律声明题按红线第 3 条交给用户）。
+5. 页面刷新后出现了新格子（例如选了"已婚"才出现配偶一栏）：再扫描 + 计划 + 填写**一次**。**一页最多 2 轮**，不再多试。
+6. 请用户核对黄色虚线框里的内容，由**用户自己点**"下一步 / 保存"。
+
+引擎认不出、但明显是常见字段的格子，记下格子旁边的文字，收尾时提醒用户可以把它补进 `community/form_fields.yaml`。
 
 - 有页面对照表的网站先读对照表（DS-160 见 [`ceac-ds160.md`](./ceac-ds160.md)），用页面标志判断当前是哪一页、该用哪组信息；**对照表是提示，以页面实际为准**，发现不符就更新对照表。
 - 浏览器工具先查站点经验（`learnings`），每页尽量一次批量填完。

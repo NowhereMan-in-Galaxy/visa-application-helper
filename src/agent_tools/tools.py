@@ -478,6 +478,30 @@ def get_profile_gaps(*, materials_root: Path | None = None) -> dict:
     return profile_gaps(load_personal_profile(_materials_root(materials_root)))
 
 
+# ---------- 通用填表引擎（spec 005）：扫描脚本 + 填写计划，只读 ----------
+
+
+def get_form_scan_script() -> dict:
+    """返回在官网页面里运行的扫描脚本（不读格子里的值，只列出格子）。"""
+    from form_engine.match import scan_script
+    return {"script": scan_script()}
+
+
+def plan_form_fill(scan, allow_sensitive: list[str] | None = None, *,
+                   materials_root: Path | None = None, profile=None) -> dict:
+    """扫描结果 + 「基本信息」→ 填写计划。报告不含值；值只在 script 里（交给页面运行）。
+
+    scan：扫描脚本的压缩结果（window.__paScanText 分段读回、原样拼起来的字符串）。
+    敏感字段默认不填，列在 sensitive 里；用户同意后把路径放进 allow_sensitive 重新调用。
+    拼接出错时抛 ValueError（ScanError）。
+    """
+    from form_engine.match import default_dictionary, expand_scan, plan
+    fields = expand_scan(scan)
+    if profile is None:
+        profile = load_personal_profile(_materials_root(materials_root))
+    return plan(fields, profile, default_dictionary(), allow_sensitive)
+
+
 # ---------- 攻略草稿（spec 004：界面里"新建攻略"的 Agent 只能写草稿，不能直接写 community/） ----------
 
 

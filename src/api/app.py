@@ -451,6 +451,18 @@ def get_personal_profile_fields() -> list[dict]:
     return describe_personal_profile()
 
 
+@app.get("/api/fill-helper")
+def get_fill_helper() -> dict:
+    """填表对照清单：基本信息里有值的字段，每项给出可以直接复制的写法（日期几种格式、国家英文名）。
+
+    给禁止自动化的官网用（例如 ImmiAccount）：用户开在官网旁边自己复制粘贴。见 specs/005-fill-engine。
+    """
+    from form_engine.match import default_dictionary
+    from form_engine.reference import reference
+
+    return reference(load_personal_profile(get_materials_root()), default_dictionary())
+
+
 def _validation_message(error: ValidationError) -> str:
     parts = []
     for err in error.errors(include_url=False):
