@@ -48,6 +48,8 @@ uv run uvicorn api.app:app --app-dir src
 
 装好后重启本地服务，页面会自动检测到。没有装也不影响其他功能。
 
+在终端里用 Claude Code 时（例如让它帮你填表），第一次在项目目录里打开，它会问要不要启用本项目的 MCP 服务 `personal-assistant`，**选启用**：填表、查进度这些工具都在里面。当时选了不启用的话，在 Claude Code 里输入 `/mcp` 重新打开。
+
 ## 现有攻略
 
 | 攻略 | 分类 |
