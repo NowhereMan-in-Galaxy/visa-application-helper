@@ -62,3 +62,8 @@ button.small { padding: 3px 10px; font-size: 12px; }
 .tabs button { flex: 1; border: 0; border-radius: 0; background: transparent; color: var(--muted); padding: 6px 0; border-bottom: 2px solid transparent; }
 .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
 .pane { flex: 1; width: 100%; min-height: 260px; border: 0; background: var(--paper); }
+
+/* 这件事（spec 007）：行程信息从这里来，存回也存到这里 */
+.track { display: flex; gap: 8px; font-size: 12px; color: var(--muted); }
+.track select { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); padding: 3px 4px; }
+

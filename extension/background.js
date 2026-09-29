@@ -3,7 +3,7 @@
 // 判断全在本地服务里（和 Agent 用的是同一套规则）；这里不调用任何 AI。
 
 const API = 'http://127.0.0.1:8000';
-const DEFAULT_SETTINGS = { autoHosts: [], ackHosts: [], sensitive: false };
+const DEFAULT_SETTINGS = { autoHosts: [], ackHosts: [], sensitive: false, trackByHost: {} };
 const MAX_AUTO_PER_URL = 2; // 同一个网址 60 秒内最多自动填 2 轮（页面刷新后出现新格子时补一轮）
 // 选了某个选项才冒出来的格子（"有没有……"选了 Yes、选了"已婚"才出现配偶一栏）：
 // 填完等一下再扫一遍，有新的能填就接着填，一次最多 3 轮；之后页面上再冒出新格子，由 engine/watch.js 通知再填。
@@ -44,6 +44,17 @@ async function sitePolicy(host) {
   return api('/api/ext/site-policy?host=' + encodeURIComponent(host));
 }
 
+// 这个网站关联的"这件事"（spec 007）：侧边栏选过就用选的（"" 表示不关联）；没选过按网址猜
+async function trackFor(host, settings) {
+  const chosen = (settings.trackByHost || {})[host];
+  if (chosen !== undefined) return chosen || null;
+  try {
+    return (await api('/api/ext/tracks?host=' + encodeURIComponent(host))).guess || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function run(tabId, options) {
   const [r] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', ...options });
   return r && r.result;
@@ -66,10 +77,11 @@ async function fillTab(tabId) {
 
   // filled 各轮相加；选项对不上 / 找不到的格子每一轮都会再数一次，只看最后一轮
   const total = { filled: 0, skipped: 0, gone: 0, already: 0 };
+  const trackId = await trackFor(host, settings);
   let last = null;
   for (let k = 0; k < MAX_ROUNDS; k++) {
     if (k) await sleep(SETTLE_MS);
-    const round = await fillOnce(tabId, settings);
+    const round = await fillOnce(tabId, settings, trackId);
     if (round.error) {
       if (!last) return round;
       break;
@@ -87,7 +99,7 @@ async function fillTab(tabId) {
 }
 
 // 扫描 → 计划 → 填写 → 标红，一轮
-async function fillOnce(tabId, settings) {
+async function fillOnce(tabId, settings, trackId) {
   let scanText;
   try {
     await run(tabId, { files: ['engine/scan.js'] });
@@ -98,7 +110,7 @@ async function fillOnce(tabId, settings) {
 
   let plan;
   try {
-    plan = await api('/api/ext/plan', { scan: scanText, sensitive: settings.sensitive });
+    plan = await api('/api/ext/plan', { scan: scanText, sensitive: settings.sensitive, track_id: trackId });
   } catch (e) {
     return { error: e.code === 'api' ? 'bad_scan' : 'offline', detail: e.message };
   }
@@ -242,15 +254,15 @@ async function captureTab(tabId) {
     return { error: 'no_permission' };
   }
   try {
-    return await api('/api/ext/capture', { scan: scanText, values });
+    return await api('/api/ext/capture', { scan: scanText, values, track_id: await trackFor(host, settings) });
   } catch (e) {
     return { error: e.code === 'api' ? 'bad_scan' : 'offline', detail: e.message };
   }
 }
 
-async function applyCapture(items) {
+async function applyCapture(items, trackId) {
   try {
-    return await api('/api/ext/capture/apply', { items });
+    return await api('/api/ext/capture/apply', { items, track_id: trackId || null });
   } catch (e) {
     return { error: 'failed', detail: e.message };
   }
@@ -263,7 +275,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'clear') return reply(clearFilled(msg.tabId).then((n) => ({ cleared: n })));
   if (msg && msg.type === 'capture') return reply(captureTab(msg.tabId));
   if (msg && msg.type === 'fields-appeared' && sender.tab) return reply(refillAppeared(sender.tab));
-  if (msg && msg.type === 'capture-apply') return reply(applyCapture(msg.items || []));
+  if (msg && msg.type === 'capture-apply') return reply(applyCapture(msg.items || [], msg.trackId));
   return false;
 });
 

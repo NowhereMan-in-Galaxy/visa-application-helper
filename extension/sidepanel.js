@@ -1,11 +1,43 @@
 // 有条有理 · 填表插件的侧边栏（specs/006-browser-extension）。
 const API = 'http://127.0.0.1:8000';
-const DEFAULT_SETTINGS = { autoHosts: [], ackHosts: [], sensitive: false };
+const DEFAULT_SETTINGS = { autoHosts: [], ackHosts: [], sensitive: false, trackByHost: {} };
 const $ = (id) => document.getElementById(id);
 
 let tab = null; // 当前标签页
 let host = '';
 let policy = null;
+let trackId = null; // 这个网站关联的"这件事"（spec 007）
+
+function helperUrl() {
+  return `${API}/fill-helper.html?embed=1${trackId ? '&track_id=' + encodeURIComponent(trackId) : ''}`;
+}
+
+// 下拉框：正在办的事；选过就用选过的，没选过用本地服务按网址猜的
+async function loadTracks(settings) {
+  let data = { tracks: [], guess: null };
+  try {
+    data = await (await fetch(`${API}/api/ext/tracks?host=${encodeURIComponent(host)}`)).json();
+  } catch (e) { /* 连不上时下拉框只有"不关联" */ }
+  const chosen = (settings.trackByHost || {})[host];
+  trackId = chosen !== undefined ? (chosen || null) : data.guess;
+  if (trackId && !data.tracks.some((t) => t.id === trackId)) trackId = null; // 办完或删掉了
+  const sel = $('track');
+  sel.replaceChildren(el('option', '不关联'));
+  sel.firstChild.value = '';
+  data.tracks.forEach((t) => {
+    const o = el('option', t.title);
+    o.value = t.id;
+    sel.append(o);
+  });
+  sel.value = trackId || '';
+}
+
+$('track').addEventListener('change', async (e) => {
+  const s = await getSettings();
+  trackId = e.target.value || null;
+  await saveSettings({ trackByHost: { ...(s.trackByHost || {}), [host]: e.target.value } });
+  $('helper').src = helperUrl(); // 对照清单跟着换「这次行程」
+});
 
 async function getSettings() {
   const { settings } = await chrome.storage.local.get('settings');
@@ -206,10 +238,10 @@ $('save-go').addEventListener('click', async () => {
   const items = [...$('save-list').querySelectorAll('input')].filter((c) => c.checked)
     .map((c) => suggestions[Number(c.dataset.k)]).map((s) => ({ path: s.path, value: s.value, action: s.action }));
   $('save-go').disabled = true;
-  const r = await chrome.runtime.sendMessage({ type: 'capture-apply', items });
+  const r = await chrome.runtime.sendMessage({ type: 'capture-apply', items, trackId });
   $('save').hidden = true;
   status([el('div', r && !r.error ? `已存进基本信息：${r.saved} 项` : '没存上：' + ((r && r.detail) || ''), r && !r.error ? 'ok' : 'error')]);
-  if (r && !r.error && $('helper').src) $('helper').src = `${API}/fill-helper.html?embed=1`; // 对照清单跟着更新
+  if (r && !r.error && $('helper').src) $('helper').src = helperUrl(); // 对照清单跟着更新
 });
 
 $('save-close').addEventListener('click', () => { $('save').hidden = true; });
@@ -236,6 +268,7 @@ async function render() {
   $('auto').parentElement.classList.toggle('disabled', blocked);
   $('auto').checked = settings.autoHosts.includes(host) && !blocked;
   $('sensitive').checked = settings.sensitive;
+  await loadTracks(settings);
   const key = 'result:' + tab.id;
   const saved = (await chrome.storage.session.get(key))[key];
   showResult(saved && saved.url === tab.url ? saved : null);
@@ -254,7 +287,6 @@ async function refresh() {
     $('offline').hidden = true;
     $('main').hidden = false;
     $('tabs').hidden = false;
-    if (!$('helper').src) { $('helper').src = `${API}/fill-helper.html?embed=1`; showTab('helper'); }
   } catch (e) {
     $('offline').hidden = false;
     $('main').hidden = true;
@@ -263,6 +295,8 @@ async function refresh() {
     return;
   }
   await render();
+  const url = helperUrl();
+  if ($('helper').getAttribute('src') !== url) { $('helper').src = url; if ($('assist-frame').hidden) showTab('helper'); }
 }
 
 $('fill').addEventListener('click', async () => {
@@ -290,7 +324,7 @@ $('assist').addEventListener('click', async () => {
   const fields = leftover.filter((f) => picked.has(f.i));
   if (!fields.length) return;
   const settings = await getSettings();
-  pendingAssist = { type: 'pa-assist', host, sensitive: settings.sensitive, fields };
+  pendingAssist = { type: 'pa-assist', host, sensitive: settings.sensitive, fields, track_id: trackId };
   showTab('assist-frame');
   $('assist-frame').src = `${API}/assist.html`; // 每次重新打开，开始新的对话；页面准备好会发 pa-assist-ready
 });
