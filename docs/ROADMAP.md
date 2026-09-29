@@ -68,6 +68,7 @@
   - **第一步（进行中）**：通用识别 + Agent 模式（MCP 工具 `get_form_scan_script` / `plan_form_fill`，同义词表 `community/form_fields.yaml`）。
   - **下一步**：网站专用对照表（DS-160、France-Visas、ImmiAccount…）+ "填完一页记下结构（不记值）→ 对照表草稿"的贡献流程。
   - **再下一步**：浏览器插件外壳（侧边栏 + "填本页"按钮 + 逐项复制），不装 Claude Code 也能用。
+  - **插件（2026-09-29 开始）**：试验 #10 证明引擎在 DS-160 上可用但 Agent 转发脚本太慢，项目主同意先做插件。规格见 [`specs/006-browser-extension/spec.md`](../specs/006-browser-extension/spec.md)。网站专用对照表和贡献流程排在插件之后。
 
 ### 5. 在界面里直接问 Agent（B3）✅ 已完成（2026-09-28）
 - **定方向**：主要用途改为"从小红书帖子新建攻略"，其次才是简单追问；右侧抽屉 + 快捷按钮；调起本机 Claude Code，不加 API key；三类写操作三种确认方式。规格见 [`specs/004-agent-in-ui/spec.md`](../specs/004-agent-in-ui/spec.md)。
