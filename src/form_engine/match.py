@@ -50,7 +50,7 @@ def _hit(phrase: str, text: str) -> bool:
 class Leaf:
     path: str
     label: str
-    kind: Literal["str", "date", "bool", "enum"]
+    kind: Literal["str", "date", "bool", "enum", "list"]
     sensitive: bool
 
 
@@ -60,7 +60,9 @@ def _walk(model: type[BaseModel], prefix: str, labels: list[str], out: dict[str,
         extra = f.json_schema_extra if isinstance(f.json_schema_extra, dict) else {}
         path, lab = f"{prefix}.{name}", [*labels, f.title or name]
         if get_origin(ann) is list:
-            continue  # 列表字段这一步不填，交给 Agent
+            # 列表本身只用来回答"有没有……"的是 / 否题（曾用名、其他国籍、遗失护照……）；列表里的内容不填，交给 Agent
+            out[path] = Leaf(path, " › ".join(lab), "list", bool(extra.get("sensitive")))
+            continue
         if isinstance(ann, type) and issubclass(ann, BaseModel):
             _walk(ann, path, lab, out)
             continue
@@ -105,10 +107,18 @@ class FormFieldsError(ValueError):
 
 
 def _flat(items: Any) -> list[str]:
-    """YAML 锚点（*others）会展开成嵌套列表，这里拍平成一层字符串。"""
+    """YAML 锚点（*others）会展开成嵌套列表，这里拍平成一层字符串。
+
+    没加引号的 yes / no / true / false 会被 YAML 读成真 / 假，这里转回 "yes" / "no"。
+    """
     out: list[str] = []
     for x in items or []:
-        out.extend(_flat(x) if isinstance(x, list) else [str(x)])
+        if isinstance(x, list):
+            out.extend(_flat(x))
+        elif isinstance(x, bool):
+            out.append("yes" if x else "no")
+        else:
+            out.append(str(x))
     return out
 
 
@@ -147,19 +157,28 @@ def load_dictionary(path: Path) -> Dictionary:
 
 # ---------------------------------------------------------------- 识别一个格子
 
+# ASP.NET 网站（例如 DS-160）每个格子名字里都有的固定前缀，不带任何含义；
+# 不去掉的话 "SiteContentPlaceHolder" 会拆出 "place"，把签发日期认成签发地（2026-09-29）
+_BOILERPLATE = re.compile(r"ctl\d+|site\s*content\s*place\s*holder|form\s*view\d*|content\s*place\s*holder", re.I)
+
+
+def _name(f: dict) -> str:
+    return _BOILERPLATE.sub(" ", f.get("name") or "")
+
+
 def field_text(f: dict) -> str:
-    parts = [f.get("label"), f.get("section"), f.get("name"), f.get("placeholder"), f.get("autocomplete")]
+    parts = [f.get("label"), f.get("section"), _name(f), f.get("placeholder"), f.get("autocomplete")]
     return normalize(" ".join(p for p in parts if p))
 
 
 def own_text(f: dict) -> str:
     """格子自己的文字（不含小节标题）：命中这里的词比只在小节标题里命中的分量重。"""
-    return normalize(" ".join(p for p in (f.get("label"), f.get("name"), f.get("placeholder")) if p))
+    return normalize(" ".join(p for p in (f.get("label"), _name(f), f.get("placeholder")) if p))
 
 
 # 每种格子能填哪类字段（试验 #10：CEAC 的单选题读不到题目文字，只靠小节标题 "Phone" 就被认成了"主要电话"）
 _COMPATIBLE = {
-    "radio": {"bool", "enum"},
+    "radio": {"bool", "enum", "list"},  # list：回答"有没有……"（有记录 → 是，确认过没有 → 否）
     "select": {"enum", "str", "date"},
     "text": {"str", "date", "enum"},
     "textarea": {"str"},
@@ -357,6 +376,9 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
         leaf = leaves[path]
         item = {"i": i, "path": path, "label": leaf.label}
         value = profile_value(profile, path)
+        if leaf.kind == "list":
+            # "有没有……"：有记录 → 是；用户确认过没有 → 否；两样都没有 → 资料里没有（交给 Agent 问）
+            value = True if value else (False if path in profile.confirmed_none else None)
         if value is None or value == "":
             report["missing"].append(item)
             continue

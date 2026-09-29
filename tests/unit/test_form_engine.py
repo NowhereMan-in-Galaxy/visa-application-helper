@@ -79,12 +79,12 @@ def test_dictionary_is_valid(d):
 
 def test_bad_dictionary_rejected(tmp_path):
     p = tmp_path / "f.yaml"
-    p.write_text("fields:\n  identity.no_such: {match: [[x]]}\n  identity.other_names: {match: [[x]]}\n"
+    p.write_text("fields:\n  identity.no_such: {match: [[x]]}\n  identity: {match: [[x]]}\n"
                  "  identity.surname: {match: []}\n", encoding="utf-8")
     with pytest.raises(match.FormFieldsError) as e:
         match.load_dictionary(p)
     msg = str(e.value)
-    assert "identity.no_such" in msg and "identity.other_names" in msg and "identity.surname" in msg
+    assert "identity.no_such" in msg and "identity：" in msg and "identity.surname" in msg
 
 
 def test_fixture_plan_matches_expected(d):
@@ -190,7 +190,7 @@ def test_ceac_passport_own_label_wins_and_postback_is_manual(d):
     assert by_i(r["fill"])[3] == "passport.passport_book_number"
     assert by_i(r["manual"]) == {1: "passport.passport_type"}          # 会刷新页面的下拉框不自动填
     assert 1 not in ops_of(r["script"])
-    assert 14 in {u["i"] for u in r["unmatched"]}                      # "护照是否遗失"单选不再被认成有效期
+    assert by_i(r["missing"])[14] == "passport.lost_passports"         # "护照是否遗失"：资料里没记录也没确认过没有
     assert {i for i, p in by_i(r["fill"]).items() if p == "passport.expiry_date"} == {11, 12, 13}
 
 
@@ -313,3 +313,29 @@ def test_section_alone_is_not_enough(d):
     """格子自己的标签 / 名字里一个关键词都没有时，不能只靠小节标题认。"""
     f = {"kind": "textarea", "label": "Anything else?", "section": "Home Address", "name": "tbxExtra"}
     assert match.match_field(f, d) is None
+
+
+# ---- 2026-09-29 项目主在 ImmiAccount 上实测：是 / 否题、婚姻状况、签发地 ----
+
+def test_yes_no_questions_answered_from_lists(d):
+    radio = {"i": 0, "kind": "radio", "label": "Is this applicant currently, or have they ever been known by any other names?",
+             "section": "Other names / spellings", "name": "otherNames"}
+    citizen = {"i": 1, "kind": "radio", "label": "Is this applicant a citizen of any other country?",
+               "section": "Citizenship", "name": "otherCitizen"}
+    assert match.match_field(radio, d) == "identity.other_names"
+    assert match.match_field(citizen, d) == "identity.other_nationalities"
+    confirmed = PersonalProfile.model_validate({"confirmed_none": ["identity.other_names"]})
+    has = PersonalProfile.model_validate({"identity": {"other_nationalities": [{"country": "Example"}]}})
+    r = match.plan([radio, citizen], confirmed, d)
+    assert ops_of(r["script"])[0]["c"][0] == "no" and by_i(r["missing"]) == {1: "identity.other_nationalities"}
+    r = match.plan([radio, citizen], has, d)
+    assert ops_of(r["script"])[1]["c"][0] == "yes" and by_i(r["missing"]) == {0: "identity.other_names"}
+
+
+def test_immiaccount_labels(d):
+    def one(**f):
+        return match.match_field({"section": "", "name": "", **f}, d)
+    assert one(kind="select", label="Relationship status") == "family.marital_status"
+    assert one(kind="select", label="Place of issue") == "passport.issue_country"
+    # ASP.NET 前缀里的 "PlaceHolder" 不能让签发日期变成签发地
+    assert one(kind="select", label="", name="ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay") == "passport.issue_date"

@@ -57,6 +57,19 @@ fields:
   identity.birth_country:
     match: [[birth, 出生], [country, 国家]]
     exclude: *others
+  # 下面四条是"有没有……"的是 / 否题（列表字段）：有记录选"是"，确认过没有选"否"
+  identity.other_names:
+    match: [[other names, other name, known by, alias, aliases, 曾用名]]
+    exclude: *others
+  identity.other_nationalities:
+    match: [[other country, other countries, other nationality, other nationalities, other citizenship, citizen of any other, 其他国籍]]
+    exclude: *others
+  passport.lost_passports:
+    match: [[lost, stolen, 遗失, 被盗]]
+    exclude: *others
+  travel.refusals:
+    match: [[refused, refusal, 拒签]]
+    exclude: *others
   identity.nationality:
     match: [[nationality, citizenship, 国籍]]
     exclude: [*others, other, previous, 其他, 曾经]
@@ -96,7 +109,7 @@ fields:
     match: [[issue, issued, issuance, 签发], [state, province, 省]]
     exclude: *others
   passport.issue_country:
-    match: [[issue, issued, issuance, 签发], [country, 国家]]
+    match: [[issue, issued, issuance, 签发], [country, 国家, place of issue]]
     exclude: [*others, authority, 机关]
 
   # ---------- 住址和联系方式 ----------
@@ -157,7 +170,7 @@ fields:
 
   # ---------- 家庭 ----------
   family.marital_status:
-    match: [[marital, 婚姻]]
+    match: [[marital, relationship status, 婚姻]]
   family.father.surname:
     match: [[father, 父亲], [surname, surnames, family name, last name, 姓]]
     exclude: [mother, 母亲]
@@ -230,8 +243,9 @@ fields:
 # 下拉框 / 单选框的候选写法：基本信息里存的值 → 网页选项上可能出现的写法。
 # 是非题用 yes / no；没写的值按"值本身、下划线换空格"去找。
 values:
-  yes: [yes, y, true, 是]
-  no: [no, n, false, 否]
+  # 加引号：不加的话 YAML 会把 yes / no / true / false 读成真 / 假，和网页上的 "Yes" / "No" 对不上
+  "yes": ["yes", "y", "true", 是]
+  "no": ["no", "n", "false", 否]
   male: [male, m, man, 男, 男性]
   female: [female, f, woman, 女, 女性]
   single: [single, never married, unmarried, 未婚, 单身]
