@@ -11,15 +11,25 @@
     el.style.outlineOffset = '1px';
     el.title = '个人助手自动填写，请核对';
   };
-  // 在若干选项里找候选写法：先找完全相同，再找"以候选开头"；只有唯一一项时才选
+  // 在若干选项里找候选写法：完全相同 → 以候选开头 → 词相同只是顺序不同（"CHINA, PEOPLES REPUBLIC OF"）
+  // → 选项包含候选的全部词（"Never married or de facto"）。每一步只有唯一一项时才选，有好几项就不选。
+  const words = (t) => new Set(t.split(' '));
+  const same = (a, b) => a.size === b.size && [...a].every((w) => b.has(w));
+  const within = (a, b) => [...a].every((w) => b.has(w));
+  const MODES = {
+    exact: (t, c) => t === c,
+    prefix: (t, c) => t.startsWith(c + ' '),
+    words: (t, c) => same(words(t), words(c)),
+    contains: (t, c) => within(words(c), words(t)),
+  };
   const pick = (options, cands) => {
     const cs = cands.map(norm).filter(Boolean);
-    for (const mode of ['exact', 'prefix']) {
+    for (const mode of Object.keys(MODES)) {
       const hits = new Set();
       options.forEach((o, idx) => {
         const texts = [norm(o.text), norm(o.value)];
         for (const c of cs) {
-          if (texts.some((t) => t && (mode === 'exact' ? t === c : t.startsWith(c + ' ')))) hits.add(idx);
+          if (texts.some((t) => t && MODES[mode](t, c))) hits.add(idx);
         }
       });
       if (hits.size === 1) return [...hits][0];
