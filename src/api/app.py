@@ -48,6 +48,7 @@ from core.tracks import (
     set_fact_value,
     set_step_done,
     create_track,
+    remove_track,
     load_track,
     load_tracks,
     record_type,
@@ -838,6 +839,16 @@ def create_track_endpoint(payload: TrackCreate) -> TrackView:
 @app.get("/api/tracks/{track_id}", response_model=TrackView)
 def get_track(track_id: str) -> TrackView:
     return _track_view(_load_track_or_404(track_id))
+
+
+@app.delete("/api/tracks/{track_id}")
+def delete_track(track_id: str) -> dict:
+    """删除一件办事（移到材料根目录的 tracks/.trash/，可以手动找回）。"""
+    try:
+        target = remove_track(get_materials_root(), track_id, datetime.now())
+    except TrackNotFoundError:
+        raise HTTPException(status_code=404, detail=f"没有这件办事：{track_id}")
+    return {"removed": track_id, "trash": target.name}
 
 
 @app.get("/api/tracks/{track_id}/calendar.ics")

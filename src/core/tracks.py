@@ -8,7 +8,8 @@ Track 属于个人区，只存在材料根目录下（<materials_root>/tracks/�
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -157,6 +158,23 @@ def save_track(materials_root: Path, track: Track) -> None:
     data = track.model_dump(mode="json", exclude_none=True)
     with (directory / f"{track.id}.yaml").open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
+
+
+def remove_track(materials_root: Path, track_id: str, now: datetime) -> Path:
+    """删除一件办事：不真的删文件，移到 tracks/.trash/<id>-<时间>.yaml，误删了还能手动移回来。
+
+    返回移到了哪里。id 不合法或不存在抛 TrackNotFoundError。
+    """
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", track_id or ""):
+        raise TrackNotFoundError(track_id)
+    path = tracks_dir(materials_root) / f"{track_id}.yaml"
+    if not path.is_file():
+        raise TrackNotFoundError(track_id)
+    trash = tracks_dir(materials_root) / ".trash"
+    trash.mkdir(parents=True, exist_ok=True)
+    target = trash / f"{track_id}-{now:%Y%m%d-%H%M%S}.yaml"
+    path.rename(target)
+    return target
 
 
 def create_track(
