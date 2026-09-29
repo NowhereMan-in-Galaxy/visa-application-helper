@@ -378,7 +378,7 @@
           el(
             "div",
             { class: "heading" },
-            el("div", null, el("h1", { text: "照着攻略，一件件办好。" }), el("p", { class: "muted", text: "攻略由大家共同维护；你的进度只保存在这台电脑上。" }))
+            el("div", null, el("h1", { text: "照着攻略，一件件办好。" }))
           ),
           el(
             "section",
@@ -396,16 +396,6 @@
               el("button", { type: "button", class: "primary new-guide-btn", text: "+ 新建攻略", onclick: function () { location.hash = "#/new"; } })),
             el("div", { class: "lib-filter" }, search, tagBox),
             libList
-          ),
-          el(
-            "p",
-            { class: "notice" },
-            "想贡献一份攻略？点上面的「+ 新建攻略」，把小红书分享文字或帖子正文贴给 Agent，它会整理成草稿给你检查。",
-            "也可以在终端里让你的 Agent 按 ",
-            el("code", { text: "specs/002-guide-to-track/prompt.md" }),
-            " 整理，详见 ",
-            el("code", { text: "community/README.md" }),
-            "。"
           )
         );
       })
