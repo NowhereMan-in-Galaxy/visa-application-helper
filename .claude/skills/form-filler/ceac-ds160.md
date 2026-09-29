@@ -74,7 +74,20 @@
 | Email / other emails | contact.email / other_emails | `tbxAPP_EMAIL_ADDR`；行 `dtlAddEmail_ctl0N_tbxAddEmailInfo` |
 | Social Media | social_media.accounts | `dtlSocial_ctl0N_ddlSocialMedia`（自带刷新，选完 Identifier 才解锁）+ `…_tbxSocialMediaIdent` |
 | Other websites/apps | social_media.other_platforms | `dtlAddSocial_ctl0N_tbxAddSocialPlat/Hand` |
+- 试验 #10：引擎一次填 8 格（地址、国家、两个电话、邮箱），无报错；单选题和多行列表由用户处理后保存成功。
 - ⚠️ **这一页的多行列表不稳定**：试验 #6 共 4 次 Application Error。"其他平台"填了值保存就报错（选 No 正常）；脚本触发加行也报错；真实点击 Add Another / Remove 常被悬停提示挡住。**多行部分请用户手动点，Agent 只填单行字段。**
 
-### Passport / U.S. Contact / Family / Work-Education-Training / Security and Background（未核实）
+### Passport — `Passport_Visa_Info.aspx?node=PptVisa`（试验 #10 核实，标志：`tbxPPT_NUM`）
+| 题目 | 基本信息 | 备注 |
+|---|---|---|
+| Passport/Travel Document Type | passport.passport_type | 下拉 `ddlPPT_TYPE`（REGULAR = `R`），**改了会刷新页面**，手动选 |
+| Passport/Travel Document Number | passport.passport_number | `tbxPPT_NUM` |
+| Passport Book Number | passport.passport_book_number | `tbxPPT_BOOK_NUM` |
+| Country/Authority that Issued | passport.issuing_authority | 下拉 `ddlPPT_ISSUED_CNTRY`（CHINA = `CHIN`），不刷新 |
+| Where Issued: City / State / Country | passport.issue_city / issue_province / issue_country | `tbxPPT_ISSUED_IN_CITY` / `_STATE`，下拉 `ddlPPT_ISSUED_IN_CNTRY` |
+| Issuance Date / Expiration Date | passport.issue_date / expiry_date | 日、月下拉（月份值 `01`–`12`，文字 `JAN`…），年文本框 |
+| Lost or stolen? | passport.lost_passports | 单选 `rblLOST_PPT`，有记录选 Yes 后填说明 |
+- 试验 #10：引擎一次填 11 格，无报错；护照类型手动选。
+
+### U.S. Contact / Family / Work-Education-Training / Security and Background（未核实）
 - 试验 #6 没走到。基本信息里对应分组：passport、family、employment、education、background。护照页注意"签发国（passport.issuing_authority）"和"签发地所在国（passport.issue_country）"是两题。Security and Background 由用户本人作答。

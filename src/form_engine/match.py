@@ -157,29 +157,49 @@ def own_text(f: dict) -> str:
     return normalize(" ".join(p for p in (f.get("label"), f.get("name"), f.get("placeholder")) if p))
 
 
+# 每种格子能填哪类字段（试验 #10：CEAC 的单选题读不到题目文字，只靠小节标题 "Phone" 就被认成了"主要电话"）
+_COMPATIBLE = {
+    "radio": {"bool", "enum"},
+    "select": {"enum", "str", "date"},
+    "text": {"str", "date", "enum"},
+    "textarea": {"str"},
+    "date": {"date"},
+}
+
+
 def match_field(f: dict, d: Dictionary) -> str | None:
-    """返回得分最高的字段路径；认不出或并列第一时返回 None。"""
+    """返回最匹配的字段路径；认不出或并列第一时返回 None。
+
+    排名先看"每组词都命中在格子自己的标签 / 名字里"（own），再看得分：
+    试验 #10 里 "Country/Authority that Issued" 被上方小节标题 "Passport Book Number" 带偏，认成了护照本号。
+    格子类型和字段类型对不上的（单选题 ↔ 文字字段）直接不考虑。
+    """
     text, own = field_text(f), own_text(f)
     auto = set((f.get("autocomplete") or "").lower().split())
-    scores: dict[str, int] = {}
+    allowed = _COMPATIBLE.get(f.get("kind") or "text", _COMPATIBLE["text"])
+    leaves = profile_leaves()
+    ranks: dict[str, tuple[bool, int]] = {}
     for e in d.entries:
+        if leaves[e.path].kind not in allowed:
+            continue
         if auto & set(e.autocomplete):
-            scores[e.path] = 100
+            ranks[e.path] = (True, 100)
             continue
         if any(_hit(w, text) for w in e.exclude):
             continue
-        total = 0
+        total, all_own = 0, True
         for group in e.match:
             hits = [len(w) * (2 if _hit(w, own) else 1) for w in group if _hit(w, text)]
             if not hits:
                 break
             total += max(hits)
+            all_own = all_own and any(_hit(w, own) for w in group)
         else:
-            scores[e.path] = total
-    if not scores:
+            ranks[e.path] = (all_own, total)
+    if not ranks:
         return None
-    best = max(scores.values())
-    top = [p for p, s in scores.items() if s == best]
+    best = max(ranks.values())
+    top = [p for p, r in ranks.items() if r == best]
     return top[0] if len(top) == 1 else None
 
 
@@ -294,11 +314,13 @@ def expand_scan(scan: str | dict | list) -> list[dict]:
     sections = scan.get("sections") or []
     out = []
     for row in scan.get("f") or []:
-        i, k, label, sec, name, placeholder, auto, filled = row
+        i, k, label, sec, name, placeholder, auto, filled = row[:8]
         out.append({
             "i": i, "kind": _KINDS.get(k, k), "label": label,
             "section": sections[sec] if isinstance(sec, int) and 0 <= sec < len(sections) else "",
             "name": name, "placeholder": placeholder, "autocomplete": auto, "filled": bool(filled),
+            # 第 9 项（可选）：改了会让页面刷新的下拉框（ASP.NET 的 __doPostBack）
+            "postback": bool(row[8]) if len(row) > 8 else False,
         })
     return out
 
@@ -313,7 +335,8 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
          allow_sensitive: list[str] | None = None) -> dict:
     leaves = profile_leaves()
     allowed = set(allow_sensitive or [])
-    report: dict[str, list] = {k: [] for k in ("fill", "sensitive", "missing", "needs_format", "already_filled", "unmatched")}
+    report: dict[str, list] = {k: [] for k in (
+        "fill", "sensitive", "missing", "needs_format", "manual", "already_filled", "unmatched")}
     ops: list[dict] = []
     for f in fields:
         i, kind = f.get("i"), f.get("kind")
@@ -336,6 +359,10 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
             report["sensitive"].append(item)
             continue
         part = date_part(f) if leaf.kind == "date" else None
+        if kind == "select" and f.get("postback"):
+            # 试验 #6：用脚本改这种下拉框，下一次保存容易 Application Error。交给用户（或 Agent 用真实点击）选
+            report["manual"].append(item)
+            continue
         if kind in ("select", "radio"):
             cands = candidates(value, leaf, d, part)
             if not cands:

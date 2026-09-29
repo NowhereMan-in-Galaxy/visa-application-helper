@@ -94,7 +94,9 @@
     const s = n.replace(/\$/g, '_') === id || !n ? id : !id ? n : `${n} ${id}`;
     return s.length > 50 ? s.slice(-50) : s;
   };
-  // 每个格子一行：[序号, 类型, 标签, 小节序号, 名字, 占位符, autocomplete, 已有内容]
+  // 改了会让页面刷新的下拉框（ASP.NET 的 __doPostBack）：计划里不自动填，交给用户手动选
+  const postsBack = (el) => /__doPostBack/.test(el.getAttribute('onchange') || '');
+  // 每个格子一行：[序号, 类型, 标签, 小节序号, 名字, 占位符, autocomplete, 已有内容, 会刷新页面]
   // 类型：t 文本 / d 日期 / a 多行文本 / s 下拉框 / r 单选组
   const fields = [];
   const seenRadio = new Set();
@@ -127,7 +129,8 @@
       ? el.selectedIndex > 0 && clip(el.options[el.selectedIndex].text, 40) !== ''
       : el.value.trim() !== '';
     el.setAttribute('data-pa-i', String(i));
-    fields.push([i++, kind, label, sid(el), ident, placeholder, clip(el.getAttribute('autocomplete'), 30), filled ? 1 : 0]);
+    fields.push([i++, kind, label, sid(el), ident, placeholder, clip(el.getAttribute('autocomplete'), 30), filled ? 1 : 0,
+      tag === 'select' && postsBack(el) ? 1 : 0]);
   }
   const text = JSON.stringify({ v: 1, host: location.host, sections: sections.map((x) => clip(x, 60)), f: fields });
   window.__paScanText = text;

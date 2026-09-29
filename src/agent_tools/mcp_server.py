@@ -196,7 +196,8 @@ def get_form_scan_script() -> dict:
     description=(
         "只读：通用填表引擎第 2 步。scan = 扫描结果分段读回后拼起来的字符串。按同义词表认出格子、从「基本信息」取值，"
         "返回 fill（会填的格子）、sensitive（敏感字段，默认不填，要用户同意后放进 allow_sensitive 重新调用）、"
-        "missing（基本信息里没有，要问用户）、needs_format（日期格式看不出，你来填）、already_filled、"
+        "missing（基本信息里没有，要问用户）、needs_format（日期格式看不出，你来填）、"
+        "manual（改了会让页面刷新的下拉框，不自动填，请用户手动选或你用真实点击选）、already_filled、"
         "unmatched（认不出，你来处理）和 script。把 script 原样用 javascript_tool 在同一页运行即可填写；"
         "script 里含用户的个人信息，不要在对话里复述它。一页最多扫描+填写 2 轮"
     )
