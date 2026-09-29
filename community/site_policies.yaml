@@ -1,0 +1,34 @@
+# 办事官网的使用条款里关于自动化的规定（specs/006-browser-extension）。
+#
+# 插件打开这些网站时，侧边栏会显示这里的记录。automation: forbidden 的网站，要用户勾选"我知道风险"
+# 才会自动填（docs/SPEC-mvp.md：禁止自动化的网站由用户知情后自己决定）。
+# 只写亲自读过条款原文的网站，clause 摘原话并注明第几条；改完运行 `PYTHONPATH=src uv run python -m core.guides` 检查。
+#
+# 字段：
+#   host         网址的域名，子域名也算（online.immi.gov.au 也匹配 xx.online.immi.gov.au）
+#   name         网站叫什么
+#   automation   forbidden（条款禁止自动化）/ allowed（读过条款，没有禁止）
+#   clause       条款原话（forbidden 必填）
+#   consequence  违反的后果
+#   url          条款页面
+#   checked      哪天核实的
+#   date_format  可选：日期框里的写法（dd/mm/yyyy、dd mmm yyyy 等）。格子旁边没写格式时，插件按这个填日期，
+#                不用再叫 Agent（mmm 是英文月份缩写，填成大写，例如 09 MAR 2002）
+
+sites:
+  - host: online.immi.gov.au
+    name: 澳洲 ImmiAccount
+    automation: forbidden
+    clause: "4.5 You must not use software automation techniques or solutions when using ImmiAccount."
+    consequence: 第 8.3 条：违反条款可被暂停或终止账户访问
+    url: https://online.immi.gov.au/lusc/termsAndConditions
+    checked: 2026-09-29
+    date_format: dd mmm yyyy   # 2026-09-29 实测：日期框里是 "09 MAR 2002" 这种写法，旁边没写格式
+
+  - host: ceac.state.gov
+    name: 美国 CEAC（DS-160 等）
+    automation: allowed
+    clause: "Unauthorized attempts to upload information and/or change information on these web sites are strictly prohibited"
+    consequence: 条款只禁止"未经授权"的修改，没有禁止申请人自己用自动化工具；但网站有防机器人检查，反复报错会被封 IP（试验 #6）
+    url: https://ceac.state.gov/ceac/Common/Disclaimer.aspx
+    checked: 2026-09-29

@@ -377,3 +377,9 @@ details.done-panel[open] > summary h2::after { content: " ▾"; }
 details.done-panel:not([open]) > summary { border-bottom: 0; }
 /* 攻略库卡片的简介最多两行（2026-09-28） */
 .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* 办事页标题区右侧：截止日期 + 删除这件事（2026-09-29） */
+.track-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.track-tools .quiet { padding: 3px 10px; font-size: 12px; border-color: var(--line); color: var(--muted); }
+.track-tools .quiet[data-armed="1"] { border-color: var(--danger); color: var(--danger); }
+.empty .link-btn { margin-left: 6px; vertical-align: baseline; }

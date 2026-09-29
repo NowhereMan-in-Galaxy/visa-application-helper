@@ -91,7 +91,15 @@
     var card = h("div", { class: "agent-card" }, [
       h("strong", { text: "Agent 想修改你的基本信息" }),
       h("ul", null, p.changed.map(function (c) {
-        return h("li", null, [h("span", { class: "muted", text: c.label + "：" }), h("span", { text: showValue(c.before) + " → " + showValue(c.after) })]);
+        // 名字只留最后两段（"目前的单位或学校 › 工作电话"），分组名在卡片里是多余的
+        var name = c.label.split(" › ").slice(-2).join(" › ");
+        var before = c.before === null || c.before === undefined || c.before === "" ? null : showValue(c.before);
+        return h("li", null, [
+          h("span", { class: "change-label", text: name }),
+          before ? h("del", { text: before }) : h("span", { class: "muted", text: "（空）" }),
+          " → ",
+          h("ins", { text: showValue(c.after) }),
+        ]);
       })),
       h("div", { class: "agent-card-actions" }, [no, ok]),
       status,
@@ -256,6 +264,13 @@
         src.addEventListener("draft", function (e) { if (options.onEvent) options.onEvent("draft", JSON.parse(e.data)); });
         src.addEventListener("activity", function (e) { log.appendChild(activityLine(JSON.parse(e.data))); log.appendChild(progress); });
         src.addEventListener("proposal", function (e) { log.appendChild(proposalCard(JSON.parse(e.data))); log.appendChild(progress); });
+        // 填表插件"让 Agent 补填"：Agent 交出了"哪一格填什么"（spec 006 第二版）
+        src.addEventListener("fills", function (e) {
+          var d = JSON.parse(e.data);
+          log.appendChild(h("div", { class: "agent-msg activity", text: "✓ 已交给插件填 " + d.fills.length + " 格" }));
+          log.appendChild(progress);
+          if (options.onEvent) options.onEvent("fills", d);
+        });
         src.addEventListener("done", function (e) {
           var d = JSON.parse(e.data);
           sessionId = d.session_id || sessionId;
@@ -312,14 +327,17 @@
 
   window.AgentChat = { create: create, loadStatus: loadStatus };
 
+  // 只要对话窗口、不要右下角按钮的页面（例如填表插件里的补填页）在 <body> 上加 data-no-drawer
+  if (document.body && document.body.hasAttribute("data-no-drawer")) return;
+
   // ---------- 2. 右下角按钮 + 抽屉（只读追问） ----------
 
   var QUICK = {
-    guides: ["我正在办的事进展怎么样？"],
+    guides: ["带我上手", "我正在办的事进展怎么样？"],
     guide: ["这份攻略说了什么？"],
     track: ["我还缺什么？", "下一步做什么？"],
     draft: ["这份草稿还有哪些不确定的地方？"],
-    profile: ["查查我的基本信息还缺什么"],
+    profile: ["带我上手", "查查我的基本信息还缺什么"],
     materials: ["我有哪些材料快过期了？"],
     travel: [],
   };

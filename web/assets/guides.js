@@ -386,7 +386,16 @@
             el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length })), trackChips),
             activeCards.length
               ? el("div", { class: "cards" }, activeCards)
-              : el("p", { class: "empty", text: homeState.trackCat ? "这个分类下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
+              : homeState.trackCat || tracks.length
+                ? el("p", { class: "empty", text: homeState.trackCat ? "这个分类下没有正在办的事。" : "还没有。从下面的攻略库里挑一份，点进去开始办。" })
+                // 第一次用、一件事都没有：可以先开一件示例看看办事页长什么样（看完在办事页里删掉）
+                : el("p", { class: "empty" }, "还没有。从下面的攻略库里挑一份，点进去开始办，或者",
+                    el("button", { type: "button", class: "link-btn", text: "先看一个示例", onclick: function (ev) {
+                      ev.currentTarget.disabled = true;
+                      request("POST", "/api/tracks", { guide: "schengen-tourist", title: "示例：申根短期旅游签证" })
+                        .then(function (t) { location.hash = "#/track/" + encodeURIComponent(t.id); })
+                        .catch(function (e) { showError(e.message); });
+                    } }))
           ),
           doneSection,
           el(
@@ -783,12 +792,25 @@
           v.deadline && !v.completed ? " · 截止 " + v.deadline + "（" + deadlineText(v.deadline) + "）" : ""
         )
       ),
-      v.completed ? null : deadlineEditor(v)
+      el("div", { class: "track-tools" }, v.completed ? null : deadlineEditor(v), deleteTrackButton(v))
     );
     // 重新渲染会替换整块内容，先记住滚动位置，避免每点一次就跳回顶部
     var y = window.scrollY;
     setView(head, trackBody(v, { readonly: false }));
     window.scrollTo(0, y);
+  }
+
+  // 删除这件办事：点两次才删；文件移到材料根目录的 tracks/.trash/，不是真的删掉（DELETE /api/tracks/{id}）
+  function deleteTrackButton(v) {
+    var btn = el("button", { type: "button", class: "quiet", text: "删除这件事" });
+    btn.addEventListener("click", function () {
+      if (btn.dataset.armed !== "1") { btn.dataset.armed = "1"; btn.textContent = "再点一次确认删除"; return; }
+      btn.disabled = true;
+      request("DELETE", "/api/tracks/" + encodeURIComponent(v.id))
+        .then(function () { location.hash = "#/"; })
+        .catch(function (e) { btn.disabled = false; showError(e.message); });
+    });
+    return btn;
   }
 
   // 办事页标题区：设置/修改/清除截止日期，用于倒排时间（PUT /api/tracks/{id}/deadline）

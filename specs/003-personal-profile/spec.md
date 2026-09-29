@@ -118,6 +118,9 @@ travel_history:
 | `other_nationalities` | 其他国籍（现有或曾有） | list[条目]（结构见 §other_nationalities） |  | Personal 2 · Do you hold or have you held any nationality other than ...? |
 | `permanent_resident_countries` | 在其他国家有永久居留权 | list[text] |  | Personal 2 · Are you a permanent resident of a country/region other than ...? |
 | `national_id_number` | 身份证号 | text | 是 | Personal 2 · National Identification Number |
+| `national_id_issue_date` | 身份证签发日期 | date |  | ImmiAccount · National identity card · Date of issue |
+| `national_id_expiry_date` | 身份证有效期至 | date |  | ImmiAccount · National identity card · Date of expiry |
+| `national_id_issuing_authority` | 身份证签发机关 | text |  | ImmiAccount · National identity card · Place of issue |
 | `us_ssn` | 美国社会安全号（SSN） | text | 是 | Personal 2 · U.S. Social Security Number |
 | `us_taxpayer_id` | 美国纳税人识别号（TIN） | text | 是 | Personal 2 · U.S. Taxpayer ID Number |
 

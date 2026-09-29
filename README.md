@@ -2,7 +2,19 @@
 
 **把小红书上零散的签证 / 办事攻略，整理成照着做就行的清单，并自动对上你手里已有的材料。**
 
-<!-- 截图（用虚构资料拍）：攻略库 → 开始办 → 办事页；新建攻略窗口。放在 docs/screenshots/ -->
+![攻略库和办理中的事](docs/screenshots/home.png)
+
+| 照着攻略办：问几个问题，只留和你有关的步骤和材料 | 材料库：过期、快过期的自动提醒 |
+|---|---|
+| ![办事页](docs/screenshots/track.png) | ![我的资料](docs/screenshots/materials.png) |
+
+<details><summary>贴帖子让 Agent 整理成攻略</summary>
+
+![新建攻略](docs/screenshots/new-guide.png)
+
+</details>
+
+<sub>截图里的资料都是虚构的（`uv run youtiao --demo`）。</sub>
 
 办签证、领补贴时，最难的往往不是"去办"，而是弄清楚**到底要办什么**：攻略散在十几篇帖子里，说法互相矛盾；材料有有效期，搞不清哪份还能用；同一份护照、同一份流水，下次办别的事还得重新翻。
 
@@ -16,7 +28,8 @@
 
 另外还有：
 
-- **填表辅助**：「填表对照」页把你的基本信息整理成一张表，日期给几种写法、国家给英文名，点一下复制，放在官网旁边自己粘贴。允许自动化的网站，Agent 也可以用填表引擎一次填完一页常见格子（签名、付款、提交永远由你自己来）。
+- **填表插件**：装上 Chrome 插件后，在官网上点"填本页"，姓名、生日、护照、地址、电话这些常见格子一两秒填完；填不了的标红框，侧边栏列出你的资料，点一下复制。也可以对某个网站打开"自动填"，翻到下一页就自动填好。签名、付款、提交永远由你自己来。
+- **填表对照**：不想装插件，也可以打开「填表对照」页，放在官网旁边自己复制粘贴。
 - **导出提醒**：有时间要求的步骤（例如"社保满 6 个月才能申请"）可以导出到日历。
 
 ## 你的资料只在你的电脑上
@@ -32,12 +45,20 @@
 ```bash
 git clone <仓库地址> && cd personal-assistant
 uv sync
-uv run uvicorn api.app:app --app-dir src
+uv run youtiao
 ```
 
-浏览器打开 <http://127.0.0.1:8000>。第一次打开是空的：先到「我的资料」加几份材料、填一下基本信息，再去攻略库挑一份"开始办"。
+会自动在浏览器里打开 <http://127.0.0.1:8000>。想先用一套虚构资料看看效果：`uv run youtiao --demo`（不会碰你的真实资料）。第一次打开是空的：先到「我的资料」加几份材料、填一下基本信息，再去攻略库挑一份"开始办"。
 
 材料默认存在仓库里的 `materials/`（已被 git 忽略）。想放到别处，把 `config.example.yaml` 复制成 `config.yaml`，改 `materials_root`。
+
+### 可选：填表插件（Chrome）
+
+1. Chrome 地址栏打开 `chrome://extensions`，打开右上角的「开发者模式」。
+2. 点「加载已解压的扩展程序」，选仓库里的 `extension/` 文件夹。
+3. 点工具栏上的插件图标，右边会打开侧边栏。打开要填的官网，点「填本页」；第一次在某个网站上用，Chrome 会问要不要允许插件读写这个网站，选允许。
+
+插件只和你电脑上的本地服务通信（`uv run youtiao` 要开着），不调用任何 AI。条款禁止自动化的网站（例如澳洲 ImmiAccount），侧边栏会先显示条款原文，你勾选"我知道风险"后才能用。
 
 ### 可选：Agent 功能
 
@@ -71,7 +92,7 @@ uv run uvicorn api.app:app --app-dir src
 也可以在终端里让你自己的 Agent 按 [`specs/002-guide-to-track/prompt.md`](./specs/002-guide-to-track/prompt.md) 整理。提交前运行一次校验：
 
 ```bash
-PYTHONPATH=src uv run python -m core.guides
+uv run python -m core.guides
 ```
 
 全部是 ✓ 才算通过。详细规则（尤其是"不能出现任何个人信息"）见 [`community/README.md`](./community/README.md)。
@@ -91,6 +112,7 @@ src/core/      核心逻辑：攻略校验、材料匹配、办事进度计算�
 src/api/       本地 Web 服务
 src/form_engine/  填表引擎和填表对照
 src/agent_tools/  给 Agent 用的 MCP 工具
+extension/     Chrome 插件（引擎脚本由 scripts/build_extension.py 从 src/form_engine/ 生成）
 web/           页面
 specs/  docs/  设计文档、路线图、试验记录
 ```

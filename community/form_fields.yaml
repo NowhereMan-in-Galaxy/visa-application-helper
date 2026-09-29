@@ -57,11 +57,34 @@ fields:
   identity.birth_country:
     match: [[birth, 出生], [country, 国家]]
     exclude: *others
+  # 下面四条是"有没有……"的是 / 否题（列表字段）：有记录选"是"，确认过没有选"否"
+  identity.other_names:
+    match: [[other names, other name, known by, alias, aliases, 曾用名]]
+    exclude: *others
+  identity.other_nationalities:
+    match: [[other country, other countries, other nationality, other nationalities, other citizenship, citizen of any other, 其他国籍]]
+    exclude: *others
+  passport.lost_passports:
+    match: [[lost, stolen, 遗失, 被盗]]
+    exclude: *others
+  travel.refusals:
+    match: [[refused, refusal, 拒签]]
+    exclude: *others
   identity.nationality:
-    match: [[nationality, citizenship, 国籍]]
+    match: [[nationality, citizenship, country of passport, passport country, 国籍]]
     exclude: [*others, other, previous, 其他, 曾经]
   identity.national_id_number:
-    match: [[national id, national identification, identity card, id card, citizen id, 身份证]]
+    match: [[national id, national identification, identity card, id card, citizen id, identification number, 身份证]]
+    exclude: [*others, taxpayer, tax, 纳税人]
+  # 身份证的签发 / 有效日期：小节标题是"身份证"，格子自己叫 Date of issue（ImmiAccount 的 National identity card 弹窗）
+  identity.national_id_issue_date:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [issue, issued, issuance, 签发], [date, dte, dt, day, month, year, 日期]]
+    exclude: *others
+  identity.national_id_expiry_date:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [expiry, expiration, expires, expire, valid until, 有效期, 到期]]
+    exclude: *others
+  identity.national_id_issuing_authority:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [issuing authority, authority, place of issue, 签发机关]]
     exclude: *others
   identity.us_ssn:
     match: [[social security, ssn]]
@@ -82,22 +105,22 @@ fields:
     exclude: *others
   passport.issuing_authority:
     match: [[issuing authority, authority, 签发机关]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_date:
     match: [[issue, issued, issuance, 签发], [date, dte, dt, day, month, year, 日期]]
-    exclude: [*others, visa, 签证, license, licence]
+    exclude: [*others, visa, 签证, license, licence, national identity, identity card, id card, identity document, 身份证]
   passport.expiry_date:
     match: [[expiry, expiration, expires, expire, valid until, 有效期, 到期]]
-    exclude: [*others, visa, 签证, license, licence, card]
+    exclude: [*others, visa, 签证, license, licence, card, national identity, identity card, id card, identity document, 身份证]
   passport.issue_city:
     match: [[issue, issued, issuance, 签发], [city, town, 城市]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_province:
     match: [[issue, issued, issuance, 签发], [state, province, 省]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_country:
-    match: [[issue, issued, issuance, 签发], [country, 国家]]
-    exclude: [*others, authority, 机关]
+    match: [[issue, issued, issuance, 签发], [country, 国家, place of issue]]
+    exclude: [*others, authority, 机关, national identity, identity card, id card, identity document, 身份证]
 
   # ---------- 住址和联系方式 ----------
   contact.home_address.street:
@@ -148,7 +171,8 @@ fields:
     exclude: *others
   contact.work_phone:
     match: [[work, business, office, 工作], [phone, telephone, tel, 电话]]
-    exclude: *others
+    # 单位信息那一节里的电话是"单位电话"（employment.current.phone），不是个人的工作电话
+    exclude: [*others, employer, company, organization, school, 单位, 公司, 学校]
   contact.email:
     match: [[email, e mail, 邮箱, 电子邮件]]
     exclude: [*others, other, previous, additional, 其他]
@@ -156,7 +180,7 @@ fields:
 
   # ---------- 家庭 ----------
   family.marital_status:
-    match: [[marital, 婚姻]]
+    match: [[marital, relationship status, 婚姻]]
   family.father.surname:
     match: [[father, 父亲], [surname, surnames, family name, last name, 姓]]
     exclude: [mother, 母亲]
@@ -199,23 +223,39 @@ fields:
     match: [[job title, position, designation, 职位, 职务]]
     exclude: [*others, previous, 以前]
   employment.current.phone:
-    match: [[employer, company, organization, 单位, 公司], [phone, telephone, tel, 电话]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [phone, telephone, tel, 电话]]
     exclude: [*others, previous, 以前]
   employment.current.monthly_income:
     match: [[monthly income, monthly salary, income, salary, 月收入, 收入]]
     exclude: [*others, previous, 以前, annual, yearly, 年收入]
   employment.current.address.street:
-    match: [[employer, company, organization, 单位, 公司], [street, address, addr, 地址]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [street, address, addr, 地址]]
     exclude: [*others, previous, 以前, city, state, province, zip, postal, country, 城市, 省, 邮编, 国家, line 2, ln 2, 2]
   employment.current.address.city:
-    match: [[employer, company, organization, 单位, 公司], [city, town, 城市]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [city, town, 城市]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.province:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [state, province, 省]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.postal_code:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [postal code, zip, zip code, postcode, 邮编]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.country:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [country, 国家]]
+    exclude: [*others, previous, 以前]
+  employment.current.start_date:
+    match: [[start date, date started, date from, employment date, 入职, 开始日期]]
+    exclude: [*others, previous, 以前, travel, arrival, trip, 行程, 入境]
+  employment.current.duties:
+    match: [[duties, describe your duties, responsibilities, 职责, 工作内容]]
     exclude: [*others, previous, 以前]
 
 # 下拉框 / 单选框的候选写法：基本信息里存的值 → 网页选项上可能出现的写法。
 # 是非题用 yes / no；没写的值按"值本身、下划线换空格"去找。
 values:
-  yes: [yes, y, true, 是]
-  no: [no, n, false, 否]
+  # 加引号：不加的话 YAML 会把 yes / no / true / false 读成真 / 假，和网页上的 "Yes" / "No" 对不上
+  "yes": ["yes", "y", "true", 是]
+  "no": ["no", "n", "false", 否]
   male: [male, m, man, 男, 男性]
   female: [female, f, woman, 女, 女性]
   single: [single, never married, unmarried, 未婚, 单身]

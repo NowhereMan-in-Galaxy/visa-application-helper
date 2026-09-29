@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -22,6 +23,8 @@ FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "forms"
 SCAN_TEXT = (FIXTURES / "generic-form.scan.json").read_text(encoding="utf-8").strip()
 SCAN = {"fields": match.expand_scan(SCAN_TEXT)}
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+# GitHub Actions 的 Linux 机器上，无界面 Chrome 要关掉沙盒才能启动
+LINUX_SANDBOX = ["--no-sandbox"] if sys.platform.startswith("linux") else []
 
 PROFILE = PersonalProfile.model_validate({
     "identity": {
@@ -76,12 +79,12 @@ def test_dictionary_is_valid(d):
 
 def test_bad_dictionary_rejected(tmp_path):
     p = tmp_path / "f.yaml"
-    p.write_text("fields:\n  identity.no_such: {match: [[x]]}\n  identity.other_names: {match: [[x]]}\n"
+    p.write_text("fields:\n  identity.no_such: {match: [[x]]}\n  identity: {match: [[x]]}\n"
                  "  identity.surname: {match: []}\n", encoding="utf-8")
     with pytest.raises(match.FormFieldsError) as e:
         match.load_dictionary(p)
     msg = str(e.value)
-    assert "identity.no_such" in msg and "identity.other_names" in msg and "identity.surname" in msg
+    assert "identity.no_such" in msg and "identity：" in msg and "identity.surname" in msg
 
 
 def test_fixture_plan_matches_expected(d):
@@ -107,7 +110,8 @@ def test_sensitive_skipped_by_default(d):
 
 def test_report_contains_no_values(d):
     r = match.plan(SCAN["fields"], PROFILE, d, allow_sensitive=SENSITIVE)
-    report = json.dumps({k: v for k, v in r.items() if k != "script"}, ensure_ascii=False)
+    # script 和 ops 是同一份填写计划（本来就要带值）；其余的报告部分不能有值
+    report = json.dumps({k: v for k, v in r.items() if k not in ("script", "ops")}, ensure_ascii=False)
     for v in SECRET_VALUES:
         assert v not in report, v
 
@@ -186,7 +190,7 @@ def test_ceac_passport_own_label_wins_and_postback_is_manual(d):
     assert by_i(r["fill"])[3] == "passport.passport_book_number"
     assert by_i(r["manual"]) == {1: "passport.passport_type"}          # 会刷新页面的下拉框不自动填
     assert 1 not in ops_of(r["script"])
-    assert 14 in {u["i"] for u in r["unmatched"]}                      # "护照是否遗失"单选不再被认成有效期
+    assert by_i(r["missing"])[14] == "passport.lost_passports"         # "护照是否遗失"：资料里没记录也没确认过没有
     assert {i for i, p in by_i(r["fill"]).items() if p == "passport.expiry_date"} == {11, 12, 13}
 
 
@@ -262,7 +266,7 @@ def test_fill_in_headless_chrome(d, tmp_path):
     src = (FIXTURES / "generic-form.html").read_text(encoding="utf-8")
     page.write_text(src.replace("</body>", f'<pre id="pa-out"></pre><script>{js}</script></body>'), encoding="utf-8")
     exe = CHROME if Path(CHROME).exists() else shutil.which("google-chrome")
-    dom = subprocess.run([exe, "--headless=new", "--disable-gpu", "--dump-dom", page.as_uri()],
+    dom = subprocess.run([exe, "--headless=new", "--disable-gpu", *LINUX_SANDBOX, "--dump-dom", page.as_uri()],
                          capture_output=True, text=True, timeout=60).stdout
     out = json.loads(html.unescape(re.search(r'<pre id="pa-out">(.*?)</pre>', dom, re.S).group(1)))
     v = out["values"]
@@ -277,3 +281,73 @@ def test_fill_in_headless_chrome(d, tmp_path):
     assert v["pptExpiry"] == "2030-03-04" and v["birthCity"] == "Sampletown" and v["homeCity"] == "Testville"
     assert v["homeCountry"] == "already typed by the user"            # 已有内容不覆盖
     assert v["pw"] == "" and v["captchaCode"] == "" and v["purpose"] == "" and v["phone2"] == ""
+
+
+# ---- 2026-09-29 项目主实测：DS-160 "Present Work/Education/Training" 页（标签、小节标题照截图） ----
+
+def test_present_work_page_not_fooled_by_section(d):
+    sec = "Present employer or school address:"
+    fields = [
+        {"i": 0, "kind": "text", "label": "Present Employer or School Name", "section": "", "name": "tbxEmpSchName"},
+        {"i": 1, "kind": "text", "label": "Street Address (Line 1)", "section": sec, "name": "tbxEmpSchAddr1"},
+        {"i": 2, "kind": "text", "label": "City", "section": sec, "name": "tbxEmpSchCity"},
+        {"i": 3, "kind": "text", "label": "State/Province", "section": sec, "name": "tbxWORK_EDUC_ADDR_STATE"},
+        {"i": 4, "kind": "text", "label": "Postal Zone/ZIP Code", "section": sec, "name": "tbxWORK_EDUC_ADDR_POSTAL_CD"},
+        {"i": 5, "kind": "text", "label": "Phone Number", "section": sec, "name": "tbxWORK_EDUC_TEL"},
+        {"i": 6, "kind": "select", "label": "Country/Region", "section": sec, "name": "ddlEmpSchCountry"},
+        {"i": 7, "kind": "select", "label": "Start Date", "section": sec, "name": "ddlEmpDateFromDay"},
+        {"i": 8, "kind": "text", "label": "", "section": sec, "name": "tbxEmpDateFromYear"},
+        {"i": 9, "kind": "textarea", "label": "Briefly describe your duties:", "section": sec, "name": "tbxDescribeDuties"},
+    ]
+    got = {i: match.match_field(f, d) for i, f in enumerate(fields)}
+    assert got == {
+        0: "employment.current.name", 1: "employment.current.address.street", 2: "employment.current.address.city",
+        3: "employment.current.address.province", 4: "employment.current.address.postal_code",
+        5: "employment.current.phone", 6: "employment.current.address.country",
+        7: "employment.current.start_date", 8: "employment.current.start_date", 9: "employment.current.duties",
+    }
+    assert match.date_part(fields[8]) == "year" and match.date_part(fields[7]) == "day"
+
+
+def test_section_alone_is_not_enough(d):
+    """格子自己的标签 / 名字里一个关键词都没有时，不能只靠小节标题认。"""
+    f = {"kind": "textarea", "label": "Anything else?", "section": "Home Address", "name": "tbxExtra"}
+    assert match.match_field(f, d) is None
+
+
+# ---- 2026-09-29 项目主在 ImmiAccount 上实测：是 / 否题、婚姻状况、签发地 ----
+
+def test_yes_no_questions_answered_from_lists(d):
+    radio = {"i": 0, "kind": "radio", "label": "Is this applicant currently, or have they ever been known by any other names?",
+             "section": "Other names / spellings", "name": "otherNames"}
+    citizen = {"i": 1, "kind": "radio", "label": "Is this applicant a citizen of any other country?",
+               "section": "Citizenship", "name": "otherCitizen"}
+    assert match.match_field(radio, d) == "identity.other_names"
+    assert match.match_field(citizen, d) == "identity.other_nationalities"
+    confirmed = PersonalProfile.model_validate({"confirmed_none": ["identity.other_names"]})
+    has = PersonalProfile.model_validate({"identity": {"other_nationalities": [{"country": "Example"}]}})
+    r = match.plan([radio, citizen], confirmed, d)
+    assert ops_of(r["script"])[0]["c"][0] == "no" and by_i(r["missing"]) == {1: "identity.other_nationalities"}
+    r = match.plan([radio, citizen], has, d)
+    assert ops_of(r["script"])[1]["c"][0] == "yes" and by_i(r["missing"]) == {0: "identity.other_names"}
+
+
+def test_immiaccount_labels(d):
+    def one(**f):
+        return match.match_field({"section": "", "name": "", **f}, d)
+    assert one(kind="select", label="Relationship status") == "family.marital_status"
+    assert one(kind="select", label="Place of issue") == "passport.issue_country"
+    # ASP.NET 前缀里的 "PlaceHolder" 不能让签发日期变成签发地
+    assert one(kind="select", label="", name="ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay") == "passport.issue_date"
+
+
+def test_identity_card_dialog_is_not_the_passport(d):
+    """2026-09-29 项目主实测：ImmiAccount「National identity card」弹窗里的签发国家 / 日期被填成了护照的。"""
+    def one(label, kind="text", section="National identity card"):
+        return match.match_field({"kind": kind, "label": label, "section": section, "name": "_2a0b0a0a_input"}, d)
+    assert one("Identification number") == "identity.national_id_number"
+    assert one("Date of issue") == "identity.national_id_issue_date"
+    assert one("Date of expiry") == "identity.national_id_expiry_date"
+    assert one("Country of issue", "select") is None                  # 不是护照签发国，交给 Agent / 用户
+    assert one("Date of issue", section="Passport details") == "passport.issue_date"
+    assert one("Country of passport", "select", "Passport details") == "identity.nationality"

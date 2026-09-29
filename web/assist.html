@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>让 Agent 补填</title>
+<link rel="stylesheet" href="/assets/guides.css" />
+<link rel="stylesheet" href="/assets/agent-drawer.css" />
+<style>
+  body { font-size: 13px; }
+  .agent-chat { height: 100vh; }
+</style>
+</head>
+<body data-no-drawer>
+<!-- 填表插件的"让 Agent 补填"（specs/006-browser-extension 第二版）：嵌在插件侧边栏里，
+     收到插件发来的剩下格子后启动 fill_assist 任务，把 Agent 交出的"哪一格填什么"转给插件去填。 -->
+<div id="chat"></div>
+<script src="/assets/agent-drawer.js"></script>
+<script src="/assets/assist.js"></script>
+</body>
+</html>

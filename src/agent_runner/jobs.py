@@ -50,6 +50,8 @@ TOOL_LABELS = {
     "add_custom_material": "加材料",
     "confirm_match": "确认材料",
     "propose_profile_update": "准备基本信息的修改提议",
+    "submit_form_fills": "把要填的内容交给插件",
+    "get_fill_reference": "读取基本信息（精简版）",
     "Bash": "尝试运行命令（没有权限，已被拒绝）",
     "Read": "阅读",
     "Skill": "阅读操作说明",
@@ -166,6 +168,13 @@ def side_events(root, state: dict) -> list[tuple[str, dict]]:
             seen_props.add(p.get("id"))
             if state.get("baseline_done"):
                 out.append(("proposal", {"proposal_id": p["id"], "group": p["group"], "changed": p["changed"]}))
+    # 填表插件"让 Agent 补填"：Agent 交出的"哪一格填什么"（spec 006 第二版）
+    seen_fills = state.setdefault("seen_fills", set())
+    for f in activity.read_form_fills(root):
+        if f.get("id") not in seen_fills:
+            seen_fills.add(f.get("id"))
+            if state.get("baseline_done"):
+                out.append(("fills", {"fills_id": f["id"], "fills": f["fills"], "learn": f.get("learn", [])}))
     state["baseline_done"] = True
     return out
 

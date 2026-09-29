@@ -17,6 +17,54 @@ PAGE_NAMES = {
 }
 
 
+MAX_ASSIST_FIELDS = 60
+MAX_OPTIONS = 80
+
+
+def _field_line(f: dict) -> str:
+    """一个格子写成一行：#编号 [类型] 标签 | 小节 | 插件没填的原因 | 选项。"""
+    parts = [f"#{f['i']} [{f.get('kind') or 'text'}] {f.get('label') or f.get('name') or '（没有标签）'}"]
+    if f.get("section"):
+        parts.append("小节：" + str(f["section"]))
+    if f.get("why"):
+        parts.append("插件没填：" + str(f["why"]))
+    opts = [str(o)[:60] for o in (f.get("options") or [])][:MAX_OPTIONS]
+    if opts:
+        parts.append("选项：" + " / ".join(opts))
+    return " | ".join(parts)
+
+
+def fill_assist_prompt(user_input: str, context: dict, *, follow_up: bool = False) -> str:
+    """填表插件「让 Agent 补填」（spec 006 第二版）。第一条消息给格子清单和规则；后续消息接着同一次对话。"""
+    if follow_up:
+        return "\n".join([
+            "（用户在补填窗口里继续说话。）按用户的话处理；确定了要填的内容就再调用一次 submit_form_fills（只交新的或改过的格子）。",
+            "",
+            f"用户：{user_input}",
+        ])
+    fields = context.get("fields") or []
+    sensitive = bool(context.get("sensitive"))
+    return "\n".join([
+        f"你是本地填表插件的助手。用户正在 {context.get('host') or '某个官网'} 上填表，插件已经自动填了能认出的格子，下面是剩下的：",
+        *[_field_line(f) for f in fields],
+        "",
+        "请你：",
+        "1. 用 get_fill_reference 读用户的基本信息（每个字段一行，已经整理好可以直接填的写法），判断每一格该填什么。",
+        "2. 基本信息里有的直接用；这次行程专属的（旅行目的、日期、同行人、在美联系人……）和资料里没有的，用简短的中文一次问完，等用户回答。",
+        "3. 确定之后调用 submit_form_fills 交给插件去填：下拉框 / 单选的 value 必须是上面\"选项\"里的原文；日期按格子旁边写的格式；拆成日 / 月 / 年的格子分开交。",
+        "4. 你认出来、但插件没认出的说法，放进 learn（phrase 用格子上的英文说法，path 用基本信息字段路径），以后插件就能自己认。",
+        "",
+        "规则：",
+        "- 只填基本信息里有的值或用户在对话里亲口说的，不要猜。",
+        "- Security / Background 这类法律声明题（犯罪、疾病、移民违规……）不填、不建议答案，告诉用户自己答。",
+        "- 敏感字段（证件号、生日、收入等）：" + ("用户允许填。" if sensitive else "用户没有允许自动填，不要交，告诉用户自己填。"),
+        "- 用户说的是以后还会用的长期信息（例如新手机号）时，用 propose_profile_update 提议写回基本信息，页面上会让用户确认；本次行程信息不写回。",
+        "- 回答用中文，简短；不要在回复里复述证件号、手机号等个人信息原文。",
+        "",
+        f"用户：{user_input}",
+    ])
+
+
 def create_guide_prompt(user_input: str, guide_type: str, *, follow_up: bool = False,
                         draft_id: str | None = None) -> str:
     """新建攻略（spec 004）。第一条消息给完整规则；后续消息接着同一次对话（--resume），只补充提醒。"""
@@ -73,6 +121,7 @@ def ask_prompt(question: str, context: dict) -> str:
         "- 要改「基本信息」（手机号、地址、工作等）只能用 propose_profile_update 提议，然后告诉用户\"请在下面的卡片里确认\"；"
         "只提议用户亲口说的内容。",
         "- 不能改共享攻略和词表；新建攻略请用攻略库的「+ 新建攻略」。",
+        "- 用户说\"带我上手\"（或刚装好、不知道从哪开始）时，先读 .claude/skills/onboarding/SKILL.md，按里面的步骤一步一步来，每次只问一件事。",
         "- 用中文，简短直接，先给结论；列清单时每项一行。不要输出 YAML 或代码。",
         "- 回答里不要复述证件号、手机号等个人信息原文。",
         "",

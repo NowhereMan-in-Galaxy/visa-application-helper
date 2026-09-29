@@ -48,6 +48,7 @@ from core.tracks import (
     set_fact_value,
     set_step_done,
     create_track,
+    remove_track,
     load_track,
     load_tracks,
     record_type,
@@ -86,6 +87,10 @@ from core.update_cadence import compute_update_reminder
 from core.uploads import UploadConflictError, save_uploaded_file
 
 app = FastAPI(title="材料资料库")
+
+from api.extension import EXT_PREFIX, EXTENSION_ORIGIN, router as extension_router  # noqa: E402
+
+app.include_router(extension_router)
 
 
 @app.middleware("http")
@@ -200,6 +205,9 @@ async def anti_csrf(request: Request, call_next):
 
     if request.method.upper() in _UNSAFE_METHODS:
         origin = request.headers.get("origin")
+        # 本项目自己的浏览器插件（固定 ID）只能调 /api/ext/ 下的接口（specs/006-browser-extension）
+        if origin == EXTENSION_ORIGIN and request.url.path.startswith(EXT_PREFIX):
+            return await call_next(request)
         if origin is not None:
             expected = _origin_tuple(request.url.scheme, host_header)
             got = _parse_origin_header(origin)
@@ -833,6 +841,16 @@ def get_track(track_id: str) -> TrackView:
     return _track_view(_load_track_or_404(track_id))
 
 
+@app.delete("/api/tracks/{track_id}")
+def delete_track(track_id: str) -> dict:
+    """删除一件办事（移到材料根目录的 tracks/.trash/，可以手动找回）。"""
+    try:
+        target = remove_track(get_materials_root(), track_id, datetime.now())
+    except TrackNotFoundError:
+        raise HTTPException(status_code=404, detail=f"没有这件办事：{track_id}")
+    return {"removed": track_id, "trash": target.name}
+
+
 @app.get("/api/tracks/{track_id}/calendar.ics")
 def track_calendar(track_id: str) -> Response:
     """把这件办事的时间提醒导出成日历文件（spec §3c），导入手机/电脑日历后到点会提醒。"""
@@ -1220,6 +1238,10 @@ class AgentJobContext(BaseModel):
     track_id: str | None = None
     guide_type: str | None = None  # 新建攻略时选的攻略类型
     draft_id: str | None = None  # 新建攻略窗口里已经有的草稿
+    # 填表插件"让 Agent 补填"（spec 006 第二版）：官网域名、剩下的格子描述（不含页面上的值）、是否允许填敏感字段
+    host: str | None = None
+    fields: list[dict] | None = None
+    sensitive: bool = False
 
 
 class AgentJobRequest(BaseModel):
@@ -1251,6 +1273,13 @@ def agent_start_job(req: AgentJobRequest) -> dict:
             raise HTTPException(422, "草稿 id 不合法")
         prompt = agent_prompts.create_guide_prompt(
             text, gt.id, follow_up=bool(req.session_id), draft_id=req.context.draft_id)
+    elif req.kind == "fill_assist":
+        fields = req.context.fields or []
+        if not req.session_id and not (1 <= len(fields) <= agent_prompts.MAX_ASSIST_FIELDS):
+            raise HTTPException(422, f"要补填的格子应该是 1–{agent_prompts.MAX_ASSIST_FIELDS} 个")
+        if any(not isinstance(f, dict) or not isinstance(f.get("i"), int) or isinstance(f.get("i"), bool) for f in fields):
+            raise HTTPException(422, "每个格子要有整数编号 i")
+        prompt = agent_prompts.fill_assist_prompt(text, req.context.model_dump(), follow_up=bool(req.session_id))
     else:
         raise HTTPException(422, f"暂不支持的任务类型：{req.kind}")
     try:

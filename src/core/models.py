@@ -222,6 +222,9 @@ class IdentityInfo(_ProfilePart):
     permanent_resident_countries: list[str] = _f(
         "在其他国家有永久居留权", "Personal 2 · Are you a permanent resident of a country/region other than ...?", default=[])
     national_id_number: str | None = _f("身份证号", "Personal 2 · National Identification Number", sensitive=True)
+    national_id_issue_date: date | None = _f("身份证签发日期", "ImmiAccount · National identity card · Date of issue")
+    national_id_expiry_date: date | None = _f("身份证有效期至", "ImmiAccount · National identity card · Date of expiry")
+    national_id_issuing_authority: str | None = _f("身份证签发机关", "ImmiAccount · National identity card · Place of issue")
     us_ssn: str | None = _f("美国社会安全号（SSN）", "Personal 2 · U.S. Social Security Number", sensitive=True)
     us_taxpayer_id: str | None = _f("美国纳税人识别号（TIN）", "Personal 2 · U.S. Taxpayer ID Number", sensitive=True)
 

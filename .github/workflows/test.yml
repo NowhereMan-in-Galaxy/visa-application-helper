@@ -1,0 +1,35 @@
+# 每次推送和 Pull Request 自动检查：测试、共享区校验、没有把个人材料目录提交进来。
+name: 检查
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 不能提交个人材料目录
+        run: |
+          if git ls-files | grep -E '^(materials|materials_index|data/raw)/' ; then
+            echo "::error::上面这些文件在个人材料目录里，不能提交（见 AGENTS.md 第 3 条）"
+            exit 1
+          fi
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: 安装依赖
+        run: uv sync
+
+      - name: 测试
+        run: uv run pytest -q
+
+      - name: 校验攻略、词表和网站条款
+        run: PYTHONPATH=src uv run python -m core.guides
+
+      - name: 插件里的引擎脚本是最新的
+        run: |
+          uv run python scripts/build_extension.py
+          git diff --exit-code extension/engine || (echo "::error::运行 uv run python scripts/build_extension.py 后提交" && exit 1)

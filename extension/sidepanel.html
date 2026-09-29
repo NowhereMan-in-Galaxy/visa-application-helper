@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>有条有理 · 填表</title>
+<link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+<header>
+  <strong>有条有理 · 填表</strong>
+  <span id="host" class="muted"></span>
+</header>
+
+<p id="offline" class="note warn" hidden>连不上本地服务。在项目目录运行 <code>uv run youtiao</code> 后重新打开侧边栏。</p>
+<p id="notweb" class="note muted" hidden>打开一个网页再用。</p>
+
+<section id="main" hidden>
+  <details id="policy" class="policy" hidden>
+    <summary><span id="policy-name"></span> 条款禁止自动化</summary>
+    <blockquote id="policy-clause"></blockquote>
+    <p id="policy-consequence"></p>
+  </details>
+  <label id="ack-row" class="ack" hidden><input id="ack" type="checkbox" /> 我知道风险，允许在这个网站自动填</label>
+
+  <div class="bar">
+    <button id="fill" class="primary" type="button">填本页</button>
+    <button id="capture" type="button">存进基本信息</button>
+    <button id="clear" class="quiet" type="button" title="清空这一页插件填过的格子（黄框）">清空</button>
+  </div>
+  <div class="opts">
+    <label><input id="auto" type="checkbox" /> 打开这个网站就自动填</label>
+    <label><input id="sensitive" type="checkbox" /> 证件号等敏感信息也填</label>
+  </div>
+
+  <div id="status" class="status" hidden></div>
+
+  <div id="left" class="left" hidden>
+    <span id="left-title"></span>
+    <button id="left-toggle" class="link" type="button">选择</button>
+    <button id="assist" class="primary small" type="button"></button>
+  </div>
+  <div id="left-box" class="card" hidden>
+    <div class="card-head">
+      <span></span>
+      <button id="left-all" class="link" type="button">全选</button>
+    </div>
+    <ul id="left-list" class="rows"></ul>
+  </div>
+
+  <div id="save" class="card" hidden>
+    <div class="card-head">
+      <strong id="save-title"></strong>
+      <button id="save-close" class="link" type="button">收起</button>
+    </div>
+    <ul id="save-list" class="rows"></ul>
+    <button id="save-go" class="primary wide" type="button"></button>
+  </div>
+</section>
+
+<nav id="tabs" class="tabs" hidden>
+  <button type="button" data-tab="helper" class="on">对照清单</button>
+  <button type="button" data-tab="assist-frame">Agent</button>
+</nav>
+<iframe id="helper" class="pane" title="填表对照" allow="clipboard-write" hidden></iframe>
+<iframe id="assist-frame" class="pane" title="让 Agent 补填" hidden></iframe>
+
+<script src="sidepanel.js"></script>
+</body>
+</html>

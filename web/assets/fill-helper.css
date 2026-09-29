@@ -23,3 +23,22 @@ body.fh main#list { max-width: 720px; margin: 0; padding: 4px 16px 40px; }
 .fh-empty { padding: 24px 0; color: var(--muted); }
 
 .fh-toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 6px 14px; font-size: 12px; }
+
+/* 分类按钮 + 列表条目的小标题（2026-09-29 项目主：全是滚动，不好找） */
+.fh-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fh-chip { padding: 1px 8px; font-size: 12px; border: 1px solid var(--line); background: transparent; }
+.fh-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.fh-sub { font-size: 12px; margin: 10px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+
+/* 嵌在插件侧边栏里（?embed=1）：窄，去掉标题；分类一行横向滑动；每项"名字 | 值"一行，少滚动 */
+body.fh.embed .fh-title { display: none; }
+body.fh.embed .fh-head { padding: 8px 12px 6px; gap: 6px; }
+body.fh.embed .fh-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+body.fh.embed .fh-chip { flex: none; }
+body.fh.embed main#list { padding: 0 12px 30px; }
+body.fh.embed .fh-group h2 { margin: 12px 0 2px; }
+body.fh.embed .fh-row { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); align-items: center; gap: 8px; padding: 4px 0; }
+body.fh.embed .fh-label { font-size: 12px; line-height: 1.3; }
+body.fh.embed .fh-vals { gap: 4px; }
+body.fh.embed .fh-val { padding: 2px 6px; font-size: 12px; }
+body.fh.embed .fh-sub { margin-top: 6px; }

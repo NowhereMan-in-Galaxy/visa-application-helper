@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import os
+
 from mcp.server.mcpserver import MCPServer
 from pydantic import ValidationError
 
@@ -220,6 +222,42 @@ def propose_profile_update(group: str, changes: dict) -> dict:
         raise ValueError(f"没有这个分组：{group}")
     except ValidationError as e:
         raise ValueError(f"字段名或取值不对，没有记下提议：{e}") from e
+
+
+@mcp.tool(
+    description=(
+        "填表插件「让 Agent 补填」专用：把这一页剩下的格子要填什么交给插件，由插件去填（你碰不到官网）。"
+        "fills = [{\"i\": 格子编号, \"value\": 要填的文字}]；下拉框 / 单选的 value 必须是给你的 options 里的原文。"
+        "只填基本信息里有的值或用户在对话里亲口说的；法律声明题不填。"
+        "learn = [{\"phrase\": 格子上的说法, \"path\": 基本信息字段路径}]，是以后引擎也能自动认的建议（可省略）"
+    )
+)
+def submit_form_fills(fills: list[dict], learn: list[dict] | None = None) -> dict:
+    if os.environ.get(activity.UI_ENV) != "1":
+        raise ValueError("submit_form_fills 只在填表插件调起的任务里用")
+    try:
+        return activity.submit_form_fills(config.get_materials_root(), fills, learn)
+    except ValueError as e:
+        # 抛出的异常在 Agent 那头只显示成"Error executing tool"，看不到原因；改成把原因作为结果返回
+        return {"error": str(e)}
+
+
+@mcp.tool(
+    description=(
+        "只读：填表用的基本信息精简版——每个有值的字段一行：path、中文标签、可以直接填的写法（日期给几种格式、国家给英文名）。"
+        "比 get_personal_profile 短得多，填表时优先用它"
+    )
+)
+def get_fill_reference() -> dict:
+    from form_engine.match import default_dictionary
+    from form_engine.reference import reference
+    from core.profile_storage import load_personal_profile
+
+    ref = reference(load_personal_profile(config.get_materials_root()), default_dictionary())
+    return {"items": [
+        {"path": it["path"], "label": f"{g['label']} › {it['label']}", "values": [v["text"] for v in it["values"]]}
+        for g in ref["groups"] for it in g["items"]
+    ]}
 
 
 def main() -> None:

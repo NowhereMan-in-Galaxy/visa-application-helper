@@ -61,10 +61,18 @@ CREATE_GUIDE_TOOLS = READ_RULES + ["Skill"] + [
     )
 ]
 
-TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS}
+# 填表插件"让 Agent 补填"（kind="fill_assist"，spec 006 第二版）：只读基本信息、提议改基本信息、把"哪一格填什么"交给插件。
+# 没有浏览器工具：Agent 碰不到官网，真正填写的是插件。
+FILL_ASSIST_TOOLS = READ_RULES + [
+    MCP_PREFIX + name
+    # 读基本信息只给精简版 get_fill_reference：完整的 get_personal_profile 太长，Agent 读不完（2026-09-29 实测）
+    for name in ("get_fill_reference", "get_profile_gaps", "propose_profile_update", "submit_form_fills")
+]
+
+TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS, "fill_assist": FILL_ASSIST_TOOLS}
 
 # 用量上限（CLI 报告的折合美元；订阅用户不另收费，只是防止跑飞）。读帖子 + 看图 + 整理一份攻略比问答耗得多。
-MAX_BUDGET_USD_BY_KIND = {"ask": 2.0, "create_guide": 20.0}
+MAX_BUDGET_USD_BY_KIND = {"ask": 2.0, "create_guide": 20.0, "fill_assist": 2.0}
 DEFAULT_MAX_BUDGET_USD = 5.0
 
 
