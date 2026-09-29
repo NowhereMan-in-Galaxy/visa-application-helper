@@ -88,7 +88,7 @@
   - [x] 提交作者邮箱是 GitHub 的 noreply 地址；已跟踪文件里没有本机路径、真实邮箱、图片。
   - [x] 全新克隆能跑：`uv sync` → 322 个测试通过 → 所有页面 200 → 能新建一件办事（2026-09-29）。
   - [x] README 改写成给访客看的版本；协作 Agent 的阅读顺序挪进 `AGENTS.md`。
-  - [ ] **许可证**（项目主决定）：建议代码 MIT、`community/` 内容 CC BY-SA 4.0。
+  - [x] **许可证**（2026-09-29 项目主决定）：整个仓库 MIT，包括 `community/` 的攻略（攻略不是重点，一个许可证最简单）。摘录的帖子原话版权归原作者。
   - [ ] **截图**：用虚构资料拍攻略库、办事页、新建攻略窗口，放 `docs/screenshots/`（`.gitignore` 已放行 `docs/**/*.png`）。
   - [ ] **CI**：GitHub Actions 跑 `uv run pytest` 和 `python -m core.guides`，PR 自动校验攻略。
   - [ ] **贡献模板**：`.github/` 下的 PR 模板（勾选"没有个人信息""校验全绿""写了资料截至日期"）和"攻略过时了"的 issue 模板。
