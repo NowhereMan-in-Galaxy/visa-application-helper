@@ -1,0 +1,25 @@
+/* 颜色和主站（web/assets/guides.css）一致：米白纸张 + 黑色细线 */
+:root { --paper: #f6f3eb; --ink: #30382e; --muted: #76796d; --line: #cecec1; --green: #526543; --amber: #7a5a14; --amber-soft: #f2e8cf; --red: #7a2b23; --red-soft: #f3dcd8; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+header { display: flex; align-items: baseline; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header strong { font-size: 14px; letter-spacing: 1px; }
+.muted { color: var(--muted); }
+p, section { margin: 0; padding: 10px 14px; }
+code { font: 11px ui-monospace, Menlo, monospace; background: #e6e5db; padding: 1px 4px; }
+.warn { color: var(--red); }
+.policy { background: var(--amber-soft); border: 1px solid var(--amber); padding: 8px 10px; margin-bottom: 10px; color: var(--amber); }
+.policy blockquote { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--amber); font-style: italic; }
+.policy p { padding: 0 0 6px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+button { font: inherit; cursor: pointer; background: transparent; border: 1px solid var(--ink); padding: 5px 14px; }
+button.primary { background: var(--green); color: #fff; border-color: var(--green); }
+button:disabled, label.disabled { opacity: .45; cursor: default; }
+label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.result { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.result h3 { margin: 8px 0 2px; font-size: 12px; }
+.result ul { margin: 0; padding-left: 18px; }
+.result .ok { color: var(--green); font-weight: 600; }
+.result .error { color: var(--red); }
+iframe { flex: 1; width: 100%; min-height: 320px; border: 0; border-top: 1px solid var(--line); }

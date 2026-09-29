@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>有条有理 · 填表</title>
+<link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+<header>
+  <strong>有条有理 · 填表</strong>
+  <span id="host" class="muted"></span>
+</header>
+
+<p id="offline" class="warn" hidden>连不上本地服务。在项目目录运行 <code>uv run uvicorn api.app:app --app-dir src</code> 后重新打开侧边栏。</p>
+<p id="notweb" class="muted" hidden>打开一个网页再用。</p>
+
+<section id="main" hidden>
+  <div id="policy" class="policy" hidden>
+    <strong id="policy-name"></strong> 的使用条款禁止自动化：
+    <blockquote id="policy-clause"></blockquote>
+    <p id="policy-consequence"></p>
+    <label><input id="ack" type="checkbox" /> 我知道风险，允许在这个网站自动填</label>
+  </div>
+
+  <div class="actions">
+    <button id="fill" class="primary" type="button">填本页</button>
+    <label><input id="auto" type="checkbox" /> 自动填这个网站</label>
+    <label><input id="sensitive" type="checkbox" /> 敏感信息也填</label>
+  </div>
+
+  <div id="result" class="result" hidden></div>
+</section>
+
+<iframe id="helper" title="填表对照" allow="clipboard-write" hidden></iframe>
+
+<script src="sidepanel.js"></script>
+</body>
+</html>
