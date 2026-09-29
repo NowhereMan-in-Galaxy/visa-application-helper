@@ -149,6 +149,52 @@ def test_scan_text_split_and_joined():
         match.expand_scan('{"fields": []}')
 
 
+# ---- 试验 #10：真实 CEAC（DS-160）两页的扫描结构（只有格子名字和标签，没有值） ----
+
+CEAC_PROFILE = PersonalProfile.model_validate({
+    "passport": {"passport_type": "regular", "passport_number": "E00000000", "passport_book_number": "0000000000",
+                 "issuing_authority": "中国", "issue_city": "Sampletown", "issue_province": "Sample",
+                 "issue_country": "中国", "issue_date": "2020-03-05", "expiry_date": "2030-03-04"},
+    "contact": {"home_address": {"street": "1 Example Road", "city": "Testville", "province": "Sample",
+                                 "postal_code": "100000", "country": "中国"},
+                "mailing_same_as_home": True, "primary_phone": "13800000000", "secondary_phone": "13900000000",
+                "email": "sample@example.com"},
+})
+
+
+def ceac(name):
+    return match.expand_scan((FIXTURES / f"ceac-{name}.scan.json").read_text(encoding="utf-8"))
+
+
+def test_ceac_radios_never_take_text_fields(d):
+    """单选题读不到题目文字时，不能因为小节标题叫 Phone / Email 就认成电话、邮箱。"""
+    r = match.plan(ceac("address"), CEAC_PROFILE, d)
+    assert by_i(r["fill"]) == {
+        1: "contact.home_address.street", 3: "contact.home_address.city", 4: "contact.home_address.province",
+        5: "contact.home_address.postal_code", 6: "contact.home_address.country",
+        8: "contact.primary_phone", 9: "contact.secondary_phone", 12: "contact.email",
+    }
+    assert {u["i"] for u in r["unmatched"]} >= {7, 11, 13, 15}
+    assert all(op["k"] != "radio" for op in ops_of(r["script"]).values())
+
+
+def test_ceac_passport_own_label_wins_and_postback_is_manual(d):
+    fields = ceac("passport")
+    assert fields[1]["postback"] is True and fields[4]["postback"] is False
+    r = match.plan(fields, CEAC_PROFILE, d, allow_sensitive=["passport.passport_number", "passport.passport_book_number"])
+    assert by_i(r["fill"])[4] == "passport.issuing_authority"      # 不再被小节标题 "Passport Book Number" 带偏
+    assert by_i(r["fill"])[3] == "passport.passport_book_number"
+    assert by_i(r["manual"]) == {1: "passport.passport_type"}          # 会刷新页面的下拉框不自动填
+    assert 1 not in ops_of(r["script"])
+    assert 14 in {u["i"] for u in r["unmatched"]}                      # "护照是否遗失"单选不再被认成有效期
+    assert {i for i, p in by_i(r["fill"]).items() if p == "passport.expiry_date"} == {11, 12, 13}
+
+
+def test_old_scan_rows_without_postback_flag(d):
+    """旧版扫描脚本的结果（每行 8 项）照样能展开，postback 默认为否。"""
+    assert all(f["postback"] is False for f in SCAN["fields"])
+
+
 def test_confusable_fields(d):
     def one(**f):
         return match.match_field({"kind": "text", **f}, d)
