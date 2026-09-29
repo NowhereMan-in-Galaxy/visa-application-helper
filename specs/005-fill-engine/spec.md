@@ -1,6 +1,6 @@
 # Spec 005：通用填表引擎（第一步：Agent 模式 + 通用识别）
 
-- 状态：第一步实现中（2026-09-28）
+- 状态：第一步完成（2026-09-29，测试表单上通过；还没在真实官网上试）
 - 依据：项目主 2026-09-28 的决定——"网站专用对照表放到下一步，这一步先做 Agent 用的通用引擎"。
 - 相关：`docs/SPEC-mvp.md` 第 1 条第 2 项（基本信息驱动的 Agent 填表）、specs/003（基本信息）、
   `.claude/skills/form-filler/`、`specs/002-guide-to-track/trials/README.md` 试验 #6（DS-160 被封 IP）。
@@ -43,23 +43,31 @@
 
 ## 数据格式
 
-### scan.js 的返回值
+### scan.js 的返回值（压缩 + 分段读回）
+
+**浏览器工具一次只回传约 1000 字**（2026-09-29 在项目主的 Chrome 里实测：直接返回的 JSON 被截断）。所以：
+
+1. scan.js 把压缩后的结果放在 `window.__paScanText`，只返回 `{"count": 25, "chars": 1553, "parts": 2}`。
+2. Agent 依次运行 `window.__paScanText.slice(900*k, 900*(k+1))`（k = 0..parts-1），原样拼起来交给 `plan_form_fill(scan=...)`。
+3. 拼错（少读 / 重复读一段）时 `plan_form_fill` 报错，不会按半截结果去填。
+
+压缩格式：
 
 ```json
-{"host": "example.gov", "title": "页面标题", "count": 2, "fields": [
-  {"i": 0, "kind": "text", "label": "Surname", "name": "ctl00 tbx app surname", "placeholder": "",
-   "autocomplete": "family-name", "section": "Personal Information", "filled": false},
-  {"i": 1, "kind": "radio", "label": "Sex", "name": "rbl sex", "options": ["Male", "Female"],
-   "section": "", "filled": false}
-]}
+{"v": 1, "host": "example.gov", "sections": ["Personal Information", "Passport"],
+ "f": [[0, "t", "Surname", 0, "tbxAPP_SURNAME", "", "family-name", 0],
+       [1, "r", "Sex", 0, "rblSex", "", "", 0]]}
 ```
 
-- `kind`：`text`（含 email / tel / 没写 type 的 input）、`date`（`type=date`）、`textarea`、`select`、`radio`（一组一条）。
+- 每个格子一行：`[序号, 类型, 标签, 小节序号, 名字, 占位符, autocomplete, 已有内容 0/1]`；小节标题只在 `sections` 里写一次。
+- 类型：`t` 文本（含 email / tel / 没写 type 的 input）、`d` 日期（`type=date`）、`a` 多行文本、`s` 下拉框、`r` 单选组（一组一条）。
 - **不扫**：`hidden`、`password`、`file`、`checkbox`、`submit/button`、不可见、`disabled`、`readonly`、
   名字或标签含 `captcha` / `验证码` 的格子、iframe 里的格子。
-- `name`：`name` 和 `id` 原样拼起来，最多 120 字；拆词（`tbxAPP_SURNAME` → `tbx app surname`）在 Python 里做。
-- `label`、`section` 各最多 100 字；`options` 只给单选组，每项最多 40 字、最多 12 项。
-- `filled`：文本框有内容 / 下拉框选的不是第一项 / 单选组已有选中项。
+- 名字：`name` 和 `id` 一样时只留一个，超过 50 字只留末尾（控件编号有意义的部分在最后，例如 `..._tbxPPT_NUM`）；
+  拆词（`tbxAPP_SURNAME` → `tbx app surname`）在 Python 里做。
+- 标签最多 80 字，小节标题最多 60 字；单选组的选项文字不回传（填写时 fill.js 在页面里自己读）。
+- 已有内容：文本框有内容 / 下拉框选的不是第一项 / 单选组已有选中项。
+- 实测：25 个格子压缩前约 6000 字，压缩后 1553 字、2 段。
 - 只返回域名，不返回完整网址（网址里可能带申请号或令牌）。
 - 每个格子加 `data-pa-i` 属性，fill.js 用它找回格子；页面刷新后属性消失，要重新扫。
 
@@ -122,7 +130,7 @@
 | 工具 | 输入 | 输出 |
 |---|---|---|
 | `get_form_scan_script()` | 无 | `{"script": "..."}`，用浏览器工具在页面里运行 |
-| `plan_form_fill(fields, allow_sensitive=[])` | scan.js 返回的 `fields` | 上面的计划；`allow_sensitive` 里不在 `sensitive` 候选中的路径忽略 |
+| `plan_form_fill(scan, allow_sensitive=[])` | 分段读回、拼好的扫描结果字符串 | 上面的计划；`allow_sensitive` 里不在 `sensitive` 候选中的路径忽略 |
 
 两者都只读，不写任何文件。界面里的 Agent（spec 004）暂不开放这两个工具。
 
@@ -141,10 +149,16 @@
    - 敏感字段默认进 `sensitive` 不进 `fill`，放进 `allow_sensitive` 后进 `fill`；
    - 报告部分（去掉 `script`）序列化后不包含虚构基本信息里的任何值；
    - 拆开的生日（日 / 月 / 年三格）三格都认出，分别得到正确的部分；
-   - 同义词表里每个路径都存在于基本信息、且是单值字段；`exclude` / `match` 不为空。
+   - 同义词表里每个路径都存在于基本信息、且是单值字段；`exclude` / `match` 不为空；
+   - 扫描结果按 900 字切开再拼回，展开结果不变；少读一段时报错；
+   - 生成的脚本里填写计划只出现一次（注释里不能再复制一份个人信息）。
 2. `PYTHONPATH=src uv run python -m core.guides` 输出一行 `✓ community/form_fields.yaml：N 个字段`，退出码 0。
 3. 在真实 Chrome 里打开 `generic-form.html`，按 skill 流程扫描、计划、填写：`fill` 里的格子都被填上、
    标黄框；`already_filled` 的格子内容不变；密码框和验证码框没被扫到。结果记进试验记录（只记结构，不记值）。
+   - **结果（2026-09-29）**：通过。项目主的 Chrome（Claude in Chrome）里 25 个格子，扫描 → 分 2 段读回 → 计划
+     （虚构资料）→ 填写：`{"filled": 22, "skipped": 0, "gone": 0, "already": 0}`；国籍选中 "China" 而不是
+     "China - Hong Kong SAR"；已有内容的 Country 没动；"Purpose of trip" 认不出、"Secondary phone" 基本信息里没有，
+     都按规定交给 Agent。见试验 #9。
 
 ## 不做
 
