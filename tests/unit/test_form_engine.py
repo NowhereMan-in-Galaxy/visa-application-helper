@@ -281,3 +281,35 @@ def test_fill_in_headless_chrome(d, tmp_path):
     assert v["pptExpiry"] == "2030-03-04" and v["birthCity"] == "Sampletown" and v["homeCity"] == "Testville"
     assert v["homeCountry"] == "already typed by the user"            # 已有内容不覆盖
     assert v["pw"] == "" and v["captchaCode"] == "" and v["purpose"] == "" and v["phone2"] == ""
+
+
+# ---- 2026-09-29 项目主实测：DS-160 "Present Work/Education/Training" 页（标签、小节标题照截图） ----
+
+def test_present_work_page_not_fooled_by_section(d):
+    sec = "Present employer or school address:"
+    fields = [
+        {"i": 0, "kind": "text", "label": "Present Employer or School Name", "section": "", "name": "tbxEmpSchName"},
+        {"i": 1, "kind": "text", "label": "Street Address (Line 1)", "section": sec, "name": "tbxEmpSchAddr1"},
+        {"i": 2, "kind": "text", "label": "City", "section": sec, "name": "tbxEmpSchCity"},
+        {"i": 3, "kind": "text", "label": "State/Province", "section": sec, "name": "tbxWORK_EDUC_ADDR_STATE"},
+        {"i": 4, "kind": "text", "label": "Postal Zone/ZIP Code", "section": sec, "name": "tbxWORK_EDUC_ADDR_POSTAL_CD"},
+        {"i": 5, "kind": "text", "label": "Phone Number", "section": sec, "name": "tbxWORK_EDUC_TEL"},
+        {"i": 6, "kind": "select", "label": "Country/Region", "section": sec, "name": "ddlEmpSchCountry"},
+        {"i": 7, "kind": "select", "label": "Start Date", "section": sec, "name": "ddlEmpDateFromDay"},
+        {"i": 8, "kind": "text", "label": "", "section": sec, "name": "tbxEmpDateFromYear"},
+        {"i": 9, "kind": "textarea", "label": "Briefly describe your duties:", "section": sec, "name": "tbxDescribeDuties"},
+    ]
+    got = {i: match.match_field(f, d) for i, f in enumerate(fields)}
+    assert got == {
+        0: "employment.current.name", 1: "employment.current.address.street", 2: "employment.current.address.city",
+        3: "employment.current.address.province", 4: "employment.current.address.postal_code",
+        5: "employment.current.phone", 6: "employment.current.address.country",
+        7: "employment.current.start_date", 8: "employment.current.start_date", 9: "employment.current.duties",
+    }
+    assert match.date_part(fields[8]) == "year" and match.date_part(fields[7]) == "day"
+
+
+def test_section_alone_is_not_enough(d):
+    """格子自己的标签 / 名字里一个关键词都没有时，不能只靠小节标题认。"""
+    f = {"kind": "textarea", "label": "Anything else?", "section": "Home Address", "name": "tbxExtra"}
+    assert match.match_field(f, d) is None

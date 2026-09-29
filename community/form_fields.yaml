@@ -148,7 +148,8 @@ fields:
     exclude: *others
   contact.work_phone:
     match: [[work, business, office, 工作], [phone, telephone, tel, 电话]]
-    exclude: *others
+    # 单位信息那一节里的电话是"单位电话"（employment.current.phone），不是个人的工作电话
+    exclude: [*others, employer, company, organization, school, 单位, 公司, 学校]
   contact.email:
     match: [[email, e mail, 邮箱, 电子邮件]]
     exclude: [*others, other, previous, additional, 其他]
@@ -199,16 +200,31 @@ fields:
     match: [[job title, position, designation, 职位, 职务]]
     exclude: [*others, previous, 以前]
   employment.current.phone:
-    match: [[employer, company, organization, 单位, 公司], [phone, telephone, tel, 电话]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [phone, telephone, tel, 电话]]
     exclude: [*others, previous, 以前]
   employment.current.monthly_income:
     match: [[monthly income, monthly salary, income, salary, 月收入, 收入]]
     exclude: [*others, previous, 以前, annual, yearly, 年收入]
   employment.current.address.street:
-    match: [[employer, company, organization, 单位, 公司], [street, address, addr, 地址]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [street, address, addr, 地址]]
     exclude: [*others, previous, 以前, city, state, province, zip, postal, country, 城市, 省, 邮编, 国家, line 2, ln 2, 2]
   employment.current.address.city:
-    match: [[employer, company, organization, 单位, 公司], [city, town, 城市]]
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [city, town, 城市]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.province:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [state, province, 省]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.postal_code:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [postal code, zip, zip code, postcode, 邮编]]
+    exclude: [*others, previous, 以前]
+  employment.current.address.country:
+    match: [[employer, company, organization, school, 单位, 公司, 学校], [country, 国家]]
+    exclude: [*others, previous, 以前]
+  employment.current.start_date:
+    match: [[start date, date started, date from, employment date, 入职, 开始日期]]
+    exclude: [*others, previous, 以前, travel, arrival, trip, 行程, 入境]
+  employment.current.duties:
+    match: [[duties, describe your duties, responsibilities, 职责, 工作内容]]
     exclude: [*others, previous, 以前]
 
 # 下拉框 / 单选框的候选写法：基本信息里存的值 → 网页选项上可能出现的写法。

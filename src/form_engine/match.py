@@ -187,14 +187,19 @@ def match_field(f: dict, d: Dictionary) -> str | None:
             continue
         if any(_hit(w, text) for w in e.exclude):
             continue
-        total, all_own = 0, True
+        total, all_own, any_own = 0, True, False
         for group in e.match:
             hits = [len(w) * (2 if _hit(w, own) else 1) for w in group if _hit(w, text)]
             if not hits:
                 break
             total += max(hits)
-            all_own = all_own and any(_hit(w, own) for w in group)
+            in_own = any(_hit(w, own) for w in group)
+            all_own, any_own = all_own and in_own, any_own or in_own
         else:
+            # 至少要有一组词命中在格子自己的标签 / 名字里；只靠小节标题不算（2026-09-29 项目主实测：
+            # "Present employer or school address" 下面的职责描述框、入职年份框被当成了单位地址）
+            if own and not any_own:
+                continue
             ranks[e.path] = (all_own, total)
     if not ranks:
         return None
