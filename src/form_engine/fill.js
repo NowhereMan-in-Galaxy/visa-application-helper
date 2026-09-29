@@ -1,5 +1,5 @@
 // 通用填表引擎·填写（specs/005-fill-engine）：按计划填值、标黄框，只返回计数，不返回任何值。
-// __PLAN__ 由 plan_form_fill 换成具体的计划。先填文本框，再填下拉框和单选（它们可能触发页面刷新）。
+// 文件最后一行的占位词由 plan_form_fill 换成具体的计划。先填文本框，再填下拉框和单选（它们可能触发页面刷新）。
 ((plan) => {
   const norm = (s) => (s || '').toLowerCase().replace(/[^0-9a-z一-鿿]+/g, ' ').trim();
   const clip = (s) => (s || '').replace(/\s+/g, ' ').trim();

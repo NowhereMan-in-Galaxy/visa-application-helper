@@ -1,5 +1,7 @@
 // 通用填表引擎·扫描（specs/005-fill-engine）：列出页面上能填的格子，不读格子里的值。
-// 用浏览器工具在官网页面里运行；返回 JSON 字符串，完整结果也放在 window.__paScan。
+// 用浏览器工具在官网页面里运行。浏览器工具一次只回传约 1000 字，所以结果压缩后放在
+// window.__paScanText，这里只返回 {"chars", "parts"}；再用 window.__paScanText.slice(900*k, 900*(k+1))
+// 逐段读回（k = 0..parts-1），原样拼起来交给 plan_form_fill。
 (() => {
   const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
   const SKIP_TYPES = new Set(['hidden', 'password', 'file', 'checkbox', 'submit', 'button', 'reset', 'image', 'range', 'color']);
@@ -53,18 +55,6 @@
     return precedingText(el);
   };
 
-  // 单选项自己的文字（"Male" / "Yes"）
-  const optionLabel = (r) => {
-    const f = byFor(r);
-    if (f && textOf(f)) return textOf(f);
-    const wrap = r.closest('label');
-    if (wrap && textOf(wrap)) return textOf(wrap);
-    const next = r.nextSibling;
-    if (next && next.nodeType === 3 && clip(next.textContent, 40)) return clip(next.textContent, 40);
-    if (next && next.nodeType === 1) return textOf(next);
-    return r.value || '';
-  };
-
   // 单选组的问题：fieldset 的 legend，或者包住整组的容器前面的文字
   const groupQuestion = (radios) => {
     const fs = radios[0].closest('fieldset');
@@ -90,6 +80,22 @@
     return last ? textOf(last) : '';
   };
 
+  const PART = 900;
+  const sections = [];
+  const sid = (el) => {
+    const s = sectionOf(el);
+    let k = sections.indexOf(s);
+    if (k < 0) { sections.push(s); k = sections.length - 1; }
+    return k;
+  };
+  // name 和 id 一样时只留一个；很长的控件编号只留末尾（有意义的部分在最后，例如 ..._tbxPPT_NUM）
+  const identOf = (el) => {
+    const n = el.name || '', id = el.id || '';
+    const s = n.replace(/\$/g, '_') === id || !n ? id : !id ? n : `${n} ${id}`;
+    return s.length > 50 ? s.slice(-50) : s;
+  };
+  // 每个格子一行：[序号, 类型, 标签, 小节序号, 名字, 占位符, autocomplete, 已有内容]
+  // 类型：t 文本 / d 日期 / a 多行文本 / s 下拉框 / r 单选组
   const fields = [];
   const seenRadio = new Set();
   let i = 0;
@@ -98,39 +104,32 @@
     const type = (el.getAttribute('type') || 'text').toLowerCase();
     if (tag === 'input' && SKIP_TYPES.has(type)) continue;
     if (el.disabled || el.readOnly) continue;
-    const ident = `${el.name || ''} ${el.id || ''}`;
+    const ident = identOf(el);
 
     if (tag === 'input' && type === 'radio') {
       if (!el.name || seenRadio.has(el.name)) continue;
       seenRadio.add(el.name);
       const radios = [...document.querySelectorAll(`input[type=radio][name="${CSS.escape(el.name)}"]`)];
       if (!radios.some((r) => visible(r) || visible(byFor(r)) || visible(r.closest('label')))) continue;
-      const label = groupQuestion(radios);
+      const label = clip(groupQuestion(radios), 80);
       if (CAPTCHA.test(ident + label)) continue;
       radios.forEach((r) => r.setAttribute('data-pa-i', String(i)));
-      fields.push({
-        i: i++, kind: 'radio', label, name: clip(ident, 120), placeholder: '', autocomplete: '',
-        options: radios.slice(0, 12).map((r) => clip(optionLabel(r), 40)),
-        section: sectionOf(radios[0]), filled: radios.some((r) => r.checked),
-      });
+      fields.push([i++, 'r', label, sid(radios[0]), clip(el.name, 50), '', '', radios.some((r) => r.checked) ? 1 : 0]);
       continue;
     }
 
     if (!visible(el)) continue;
-    const label = labelOf(el);
-    const placeholder = clip(el.getAttribute('placeholder'), 60);
+    const label = clip(labelOf(el), 80);
+    const placeholder = clip(el.getAttribute('placeholder'), 40);
     if (CAPTCHA.test(ident + label + placeholder)) continue;
-    const kind = tag === 'select' ? 'select' : tag === 'textarea' ? 'textarea' : type === 'date' ? 'date' : 'text';
+    const kind = tag === 'select' ? 's' : tag === 'textarea' ? 'a' : type === 'date' ? 'd' : 't';
     const filled = tag === 'select'
       ? el.selectedIndex > 0 && clip(el.options[el.selectedIndex].text, 40) !== ''
       : el.value.trim() !== '';
     el.setAttribute('data-pa-i', String(i));
-    fields.push({
-      i: i++, kind, label, name: clip(ident, 120), placeholder,
-      autocomplete: clip(el.getAttribute('autocomplete'), 40), section: sectionOf(el), filled,
-    });
+    fields.push([i++, kind, label, sid(el), ident, placeholder, clip(el.getAttribute('autocomplete'), 30), filled ? 1 : 0]);
   }
-  const result = { host: location.host, title: clip(document.title, 80), count: fields.length, fields };
-  window.__paScan = result;
-  return JSON.stringify(result);
+  const text = JSON.stringify({ v: 1, host: location.host, sections: sections.map((x) => clip(x, 60)), f: fields });
+  window.__paScanText = text;
+  return JSON.stringify({ count: fields.length, chars: text.length, parts: Math.ceil(text.length / PART) });
 })()

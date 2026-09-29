@@ -1,7 +1,7 @@
 """spec 005：通用填表引擎（识别 + 填写计划）。
 
-扫描结果 tests/fixtures/forms/generic-form.scan.json 是在真实 Chrome 里对 generic-form.html 运行 scan.js 得到的。
-基本信息全部是虚构的示例值。
+扫描结果 tests/fixtures/forms/generic-form.scan.json 是在项目主的 Chrome 里（Claude in Chrome）对
+generic-form.html 运行 scan.js、再按 900 字分段读回拼起来的原文。基本信息全部是虚构的示例值。
 """
 
 import html
@@ -19,7 +19,8 @@ from core.models import PersonalProfile
 from form_engine import match
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "forms"
-SCAN = json.loads((FIXTURES / "generic-form.scan.json").read_text(encoding="utf-8"))
+SCAN_TEXT = (FIXTURES / "generic-form.scan.json").read_text(encoding="utf-8").strip()
+SCAN = {"fields": match.expand_scan(SCAN_TEXT)}
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 PROFILE = PersonalProfile.model_validate({
@@ -111,6 +112,13 @@ def test_report_contains_no_values(d):
         assert v not in report, v
 
 
+def test_script_carries_plan_once(d):
+    """填写计划只出现在脚本末尾一次（注释里不能再复制一份个人信息）。"""
+    script = match.plan(SCAN["fields"], PROFILE, d, allow_sensitive=SENSITIVE)["script"]
+    assert script.count("SAMPLE ONE") == 1
+    assert "__PLAN__" not in script
+
+
 def ops_of(script):
     return {op["i"]: op for op in json.loads(re.search(r"\}\)\((\[.*\])\)\s*$", script, re.S).group(1))}
 
@@ -125,6 +133,20 @@ def test_values_and_formats(d):
     assert "female" in ops[3]["c"] and "女" in ops[3]["c"]
     assert "China" in ops[4]["c"] and "chin" in ops[4]["c"]               # 基本信息写"中国"也能对上
     assert "single" in ops[5]["c"]
+
+
+def test_scan_text_split_and_joined():
+    """浏览器工具一次只回传约 1000 字：按 900 字切开再拼回，结果不变；少读一段要报错。"""
+    parts = [SCAN_TEXT[k:k + 900] for k in range(0, len(SCAN_TEXT), 900)]
+    assert len(parts) == 2 and max(len(p) for p in parts) < 1000
+    assert match.expand_scan("".join(parts)) == SCAN["fields"]
+    f3 = SCAN["fields"][3]
+    assert f3["kind"] == "radio" and f3["section"] == "Sex" and f3["filled"] is False
+    assert SCAN["fields"][14]["filled"] is True
+    with pytest.raises(match.ScanError):
+        match.expand_scan(parts[0])
+    with pytest.raises(match.ScanError):
+        match.expand_scan('{"fields": []}')
 
 
 def test_confusable_fields(d):
@@ -165,7 +187,7 @@ def test_unknown_date_format_needs_agent(d):
 def test_mcp_tools_registered():
     from agent_tools import mcp_server, tools
     assert "(() =>" in tools.get_form_scan_script()["script"]
-    r = tools.plan_form_fill(SCAN["fields"], materials_root=None, profile=PROFILE)
+    r = tools.plan_form_fill(SCAN_TEXT, materials_root=None, profile=PROFILE)
     assert set(r) >= {"fill", "sensitive", "missing", "needs_format", "already_filled", "unmatched", "script"}
     assert hasattr(mcp_server, "plan_form_fill") and hasattr(mcp_server, "get_form_scan_script")
 

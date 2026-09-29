@@ -36,8 +36,10 @@ description: 用户要 Agent 帮忙在真实官网上填签证 / 办事申请表
 
 **先用通用填表引擎（specs/005-fill-engine），再自己补。**每一页按这个顺序：
 
-1. `get_form_scan_script()` → 用 `javascript_tool` 在当前页原样运行 `script`，得到 `fields`。
-2. `plan_form_fill(fields)` → 看报告：
+1. `get_form_scan_script()` → 用 `javascript_tool` 在当前页原样运行 `script`，返回 `{count, chars, parts}`。
+   浏览器工具一次只回传约 1000 字：依次运行 `window.__paScanText.slice(900*k, 900*(k+1))`（k 从 0 到 parts-1），
+   把每段**原样**拼起来（不要改写、不要加空格）。
+2. `plan_form_fill(scan=拼好的字符串)` → 看报告：
    - `sensitive`：列出这些字段的中文名（不说值），问用户"这些要不要也自动填"；同意的路径放进 `allow_sensitive` 再调一次。
    - `missing`：基本信息里没有 → 问用户；长期信息确认后写回基本信息，本次行程信息不写回。
 3. 用 `javascript_tool` 原样运行计划里的 `script`（**不要在对话里复述 script，它含个人信息**）。返回 `gone` 大于 0 说明页面刷新了。

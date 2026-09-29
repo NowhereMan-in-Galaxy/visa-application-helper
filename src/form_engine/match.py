@@ -268,6 +268,41 @@ def text_value(value: Any, leaf: Leaf, d: Dictionary, f: dict, part: str | None)
     return row[0] if row else str(value)
 
 
+# ---------------------------------------------------------------- 扫描结果
+
+_KINDS = {"t": "text", "d": "date", "a": "textarea", "s": "select", "r": "radio"}
+
+
+class ScanError(ValueError):
+    pass
+
+
+def expand_scan(scan: str | dict | list) -> list[dict]:
+    """把 scan.js 的压缩结果（分段读回后拼起来的字符串）展开成格子列表。
+
+    也接受已经展开的列表（以后的插件可以直接传）。拼接出错（少读或重复读了一段）时抛 ScanError。
+    """
+    if isinstance(scan, list):
+        return scan
+    if isinstance(scan, str):
+        try:
+            scan = json.loads(scan)
+        except json.JSONDecodeError as e:
+            raise ScanError(f"扫描结果不是完整的 JSON，可能少读或重复读了一段：{e}") from e
+    if not isinstance(scan, dict) or scan.get("v") != 1:
+        raise ScanError("扫描结果格式不对：要用 get_form_scan_script 的脚本扫描")
+    sections = scan.get("sections") or []
+    out = []
+    for row in scan.get("f") or []:
+        i, k, label, sec, name, placeholder, auto, filled = row
+        out.append({
+            "i": i, "kind": _KINDS.get(k, k), "label": label,
+            "section": sections[sec] if isinstance(sec, int) and 0 <= sec < len(sections) else "",
+            "name": name, "placeholder": placeholder, "autocomplete": auto, "filled": bool(filled),
+        })
+    return out
+
+
 # ---------------------------------------------------------------- 生成计划
 
 def _brief(f: dict) -> str:
