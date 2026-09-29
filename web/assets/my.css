@@ -111,7 +111,9 @@ details.one-off summary { cursor: pointer; color: var(--muted); }
 .one-off-row button { margin-left: auto; padding: 3px 10px; font-size: 12px; }
 
 /* ---- 基本信息（specs/003-personal-profile）：按分组折叠的表单，表单由 /api/personal-profile/fields 生成 ---- */
-.profile-intro { margin: 0 0 16px; font-size: 13px; max-width: 760px; }
+.profile-intro { margin: 0 0 10px; font-size: 13px; max-width: 760px; }
+.profile-helper { margin: 0 0 16px; }
+.profile-helper button { padding: 4px 12px; font-size: 13px; }
 details.pgroup > summary { cursor: pointer; list-style: none; }
 details.pgroup > summary::-webkit-details-marker { display: none; }
 details.pgroup > summary h2::before { content: "▸"; display: inline-block; width: 1.2em; color: var(--muted); }

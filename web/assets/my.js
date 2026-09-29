@@ -1013,6 +1013,20 @@
         { class: "muted profile-intro" },
         "可以反复用到的个人资料：姓名拼音、护照、住址、学历、工作、家庭、签证历史……每个分组单独保存，只存在这台电脑的材料根目录里，以后填 DS-160 等表格时可以直接取用。没把握的先留空。"
       ),
+      el(
+        "p",
+        { class: "profile-helper" },
+        el("button", {
+          type: "button",
+          text: "打开填表对照",
+          // 窄窗口，方便放在官网旁边；不支持弹窗时退回新标签页
+          onclick: function () {
+            var w = window.open("/fill-helper.html", "pa-fill-helper", "width=440,height=900");
+            if (!w) location.href = "/fill-helper.html";
+          },
+        }),
+        el("small", { class: "muted", text: "　在官网旁边打开，点一下复制、自己粘贴。适合禁止自动填表的网站（例如澳洲 ImmiAccount）。" })
+      ),
       groups.map(profileGroupPanel)
     );
   }

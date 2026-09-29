@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>填表对照</title>
+<link rel="stylesheet" href="/assets/guides.css" />
+<link rel="stylesheet" href="/assets/fill-helper.css" />
+</head>
+<body class="fh">
+<!-- 填表对照清单（specs/005-fill-engine）：开在官网旁边，点一下复制，自己粘贴。这个页面不碰官网。 -->
+<header class="fh-head">
+  <div class="fh-title"><strong>填表对照</strong><span class="muted">点一下复制 · 不碰官网</span></div>
+  <input id="q" type="search" placeholder="搜：官网上的英文或中文，例如 passport、城市" autocomplete="off" />
+  <div class="fh-tools">
+    <label><input id="reveal" type="checkbox" /> 显示证件号</label>
+    <span id="progress" class="muted"></span>
+    <button id="reset" type="button">清空勾选</button>
+  </div>
+</header>
+<div id="error" class="banner" role="alert" hidden></div>
+<main id="list" aria-live="polite"></main>
+<div id="toast" class="fh-toast" role="status" hidden></div>
+<script src="/assets/fill-helper.js"></script>
+</body>
+</html>
