@@ -29,7 +29,7 @@
 
    全部显示 ✓ 才算通过。✗ 下面会用中文说明哪里不对。
 4. **自己检视一遍**：启动本地服务（见仓库根目录 README），打开 `/guides.html`，点进你的攻略看预览，模拟回答几个问题，确认步骤和材料符合常识。
-5. **提交**：一份攻略一个提交，提交信息写清楚来源，例如 `feat(guides): add japan tourist visa (Shanghai consulate)`。
+5. **提交**：一份攻略一个提交，提交信息写清楚来源，例如 `feat(guides): add japan tourist visa (Shanghai consulate)`。提交即表示你同意这份攻略按仓库的 [MIT 许可证](../LICENSE) 发布。
 
 ## 改词表时要注意
 
