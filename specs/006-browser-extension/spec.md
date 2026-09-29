@@ -33,7 +33,7 @@
 - **本地服务只放行这一个插件，只放行 `/api/ext/` 下的接口**：Origin 是 `chrome-extension://<EXTENSION_ID>`
   的写请求，路径以 `/api/ext/` 开头才放行；别的插件 ID、别的路径照旧 403。Host 检查（防 DNS 重绑定）不变。
 - **插件权限最小化**：
-  - 固定权限：`storage`、`sidePanel`、`activeTab`、`scripting`；`host_permissions` 只有 `http://127.0.0.1:8000/*`。
+  - 固定权限：`storage`、`sidePanel`、`activeTab`、`scripting`、`tabs`（2026-09-29 项目主实测：没有 `tabs` 时侧边栏读不到当前网页地址，一直显示"打开一个网页再用"；`activeTab` 只在点图标那一刻给地址，页面一跳转就失效。Chrome 会把 `tabs` 描述成"读取浏览记录"，插件只用它读当前标签页的地址）；`host_permissions` 只有 `http://127.0.0.1:8000/*`。
   - "填本页"用 `activeTab`（用户点击才有权限，只对当前页）。
   - "自动填这个网站"要额外申请这个网站的权限（`optional_host_permissions`，Chrome 会弹窗让用户同意）。
 - **禁止自动化的网站**：共享区 `community/site_policies.yaml` 记录网站条款（例如 ImmiAccount 第 4.5 条）。

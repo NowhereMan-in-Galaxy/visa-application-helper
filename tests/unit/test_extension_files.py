@@ -32,7 +32,7 @@ def manifest():
 def test_manifest_permissions_are_minimal():
     m = manifest()
     assert m["manifest_version"] == 3
-    assert sorted(m["permissions"]) == ["activeTab", "scripting", "sidePanel", "storage"]
+    assert sorted(m["permissions"]) == ["activeTab", "scripting", "sidePanel", "storage", "tabs"]
     assert m["host_permissions"] == ["http://127.0.0.1:8000/*"]
     assert sorted(m["optional_host_permissions"]) == ["http://*/*", "https://*/*"]
     for f in (m["background"]["service_worker"], m["side_panel"]["default_path"]):
