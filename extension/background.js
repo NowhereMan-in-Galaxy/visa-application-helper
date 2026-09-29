@@ -5,8 +5,21 @@
 const API = 'http://127.0.0.1:8000';
 const DEFAULT_SETTINGS = { autoHosts: [], ackHosts: [], sensitive: false };
 const MAX_AUTO_PER_URL = 2; // 同一个网址 60 秒内最多自动填 2 轮（页面刷新后出现新格子时补一轮）
+// 选了某个选项才冒出来的格子（"有没有……"选了 Yes、选了"已婚"才出现配偶一栏）：
+// 填完等一下再扫一遍，有新的能填就接着填，一次最多 3 轮；之后页面上再冒出新格子，由 engine/watch.js 通知再填。
+const MAX_ROUNDS = 3;
+const SETTLE_MS = 800;
+const MAX_WATCH_FILLS = 30; // 同一个标签页、同一个网址，由"冒出新格子"触发的补填最多这么多次，防止来回刷新的页面没完没了
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+// 侧边栏只在点了插件图标的那个标签页里显示（2026-09-29 项目主：不要在所有网页上都显示）。
+// 全局先关掉；点图标时只给当前标签页打开。setOptions 和 open 都不能 await 在前面，否则丢掉"用户点击"的标记。
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
+chrome.sidePanel.setOptions({ enabled: false }).catch(() => {});
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.setOptions({ tabId: tab.id, path: 'sidepanel.html', enabled: true });
+  chrome.sidePanel.open({ tabId: tab.id });
+});
 
 async function getSettings() {
   const { settings } = await chrome.storage.local.get('settings');
@@ -51,6 +64,30 @@ async function fillTab(tabId) {
   }
   if (policy.automation === 'forbidden' && !settings.ackHosts.includes(host)) return { error: 'needs_ack', policy };
 
+  // filled 各轮相加；选项对不上 / 找不到的格子每一轮都会再数一次，只看最后一轮
+  const total = { filled: 0, skipped: 0, gone: 0, already: 0 };
+  let last = null;
+  for (let k = 0; k < MAX_ROUNDS; k++) {
+    if (k) await sleep(SETTLE_MS);
+    const round = await fillOnce(tabId, settings);
+    if (round.error) {
+      if (!last) return round;
+      break;
+    }
+    last = round;
+    total.filled += round.counts.filled || 0;
+    total.skipped = round.counts.skipped || 0;
+    total.gone = round.counts.gone || 0;
+    total.rounds = k + 1;
+    if (!round.counts.filled) break; // 这一轮什么都没填，不会再冒出新格子
+  }
+  // 之后页面上再冒出新格子（用户自己点了某个选项）：watch.js 通知后台再填一次
+  await run(tabId, { files: ['engine/watch.js'], world: 'ISOLATED' }).catch(() => {});
+  return finish(tabId, tab, host, policy, total, last);
+}
+
+// 扫描 → 计划 → 填写 → 标红，一轮
+async function fillOnce(tabId, settings) {
   let scanText;
   try {
     await run(tabId, { files: ['engine/scan.js'] });
@@ -65,10 +102,14 @@ async function fillTab(tabId) {
   } catch (e) {
     return { error: e.code === 'api' ? 'bad_scan' : 'offline', detail: e.message };
   }
+  if (!plan.ops.length) return { counts: {}, plan, scanText, ...(await markLeftover(tabId, plan, scanText)) };
 
   await run(tabId, { func: (ops) => { window.__paPlan = ops; }, args: [plan.ops] });
   const counts = JSON.parse(await run(tabId, { files: ['engine/fill.js'] }));
+  return { counts, plan, scanText, ...(await markLeftover(tabId, plan, scanText)) };
+}
 
+async function markLeftover(tabId, plan, scanText) {
   const marks = [
     ...plan.manual.map((x) => ({ i: x.i, why: '请手动选：' + x.label })),
     ...plan.missing.map((x) => ({ i: x.i, why: '资料里没有：' + x.label })),
@@ -81,7 +122,11 @@ async function fillTab(tabId) {
 
   // 留给"让 Agent 补填"的格子描述（不含页面上的值）；"请手动选"的是会刷新页面的下拉框，不交给 Agent
   const leftover = await describeLeftover(tabId, scanText, marks.filter((m) => !plan.manual.some((x) => x.i === m.i)));
+  return { leftover };
+}
 
+async function finish(tabId, tab, host, policy, counts, round) {
+  const { plan, leftover } = round;
   const result = {
     host, url: tab.url, at: Date.now(), counts, policy, leftover,
     manual: plan.manual.map((x) => x.label),
@@ -174,13 +219,66 @@ async function clearFilled(tabId) {
   });
 }
 
+// 存进基本信息（第三版）：扫描 → 读出格子里现在的内容（engine/read.js）→ 本地服务算出和基本信息不一样的项。
+// 这里只算建议；用户在侧边栏勾选后才调用 /api/ext/capture/apply 写入。
+async function captureTab(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.url || !/^https?:/.test(tab.url)) return { error: 'not_web' };
+  const host = new URL(tab.url).hostname;
+  const settings = await getSettings();
+  let policy;
+  try {
+    policy = await sitePolicy(host);
+  } catch (e) {
+    return { error: 'offline' };
+  }
+  if (policy.automation === 'forbidden' && !settings.ackHosts.includes(host)) return { error: 'needs_ack', policy };
+  let scanText, values;
+  try {
+    await run(tabId, { files: ['engine/scan.js'] });
+    scanText = await run(tabId, { func: () => { const t = window.__paScanText; delete window.__paScanText; return t; } });
+    values = JSON.parse(await run(tabId, { files: ['engine/read.js'] }));
+  } catch (e) {
+    return { error: 'no_permission' };
+  }
+  try {
+    return await api('/api/ext/capture', { scan: scanText, values });
+  } catch (e) {
+    return { error: e.code === 'api' ? 'bad_scan' : 'offline', detail: e.message };
+  }
+}
+
+async function applyCapture(items) {
+  try {
+    return await api('/api/ext/capture/apply', { items });
+  } catch (e) {
+    return { error: 'failed', detail: e.message };
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const reply = (p) => { p.then(sendResponse, (e) => sendResponse({ error: 'failed', detail: String(e) })); return true; };
   if (msg && msg.type === 'fill') return reply(fillTab(msg.tabId));
   if (msg && msg.type === 'assist-fill') return reply(assistFill(msg.tabId, msg.fills || []));
   if (msg && msg.type === 'clear') return reply(clearFilled(msg.tabId).then((n) => ({ cleared: n })));
+  if (msg && msg.type === 'capture') return reply(captureTab(msg.tabId));
+  if (msg && msg.type === 'fields-appeared' && sender.tab) return reply(refillAppeared(sender.tab));
+  if (msg && msg.type === 'capture-apply') return reply(applyCapture(msg.items || []));
   return false;
 });
+
+// 页面上冒出了新格子（engine/watch.js 报告）：再填一次，结果推给侧边栏。
+// watch.js 只在用过"填本页"（或自动填）的标签页里装；同一网址次数有上限。
+async function refillAppeared(tab) {
+  const key = 'watch:' + tab.id;
+  const prev = (await chrome.storage.session.get(key))[key];
+  const n = prev && prev.url === tab.url ? prev.n + 1 : 1;
+  if (n > MAX_WATCH_FILLS) return { skipped: 'limit' };
+  await chrome.storage.session.set({ [key]: { url: tab.url, n } });
+  const result = await fillTab(tab.id);
+  chrome.runtime.sendMessage({ type: 'filled', tabId: tab.id, result }).catch(() => {}); // 侧边栏没开时没人收，忽略
+  return { ok: true };
+}
 
 // 打开了"自动填"的网站：页面加载完成就填
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
@@ -202,5 +300,5 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.session.remove(['result:' + tabId, 'auto:' + tabId]);
+  chrome.storage.session.remove(['result:' + tabId, 'auto:' + tabId, 'watch:' + tabId]);
 });

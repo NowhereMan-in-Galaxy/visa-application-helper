@@ -35,8 +35,11 @@ def test_manifest_permissions_are_minimal():
     assert sorted(m["permissions"]) == ["activeTab", "scripting", "sidePanel", "storage", "tabs"]
     assert m["host_permissions"] == ["http://127.0.0.1:8000/*"]
     assert sorted(m["optional_host_permissions"]) == ["http://*/*", "https://*/*"]
-    for f in (m["background"]["service_worker"], m["side_panel"]["default_path"]):
-        assert (EXT / f).is_file()
+    assert (EXT / m["background"]["service_worker"]).is_file() and (EXT / "sidepanel.html").is_file()
+    # 侧边栏只在点了图标的标签页里打开（不在清单里写全局 default_path）
+    assert "side_panel" not in m
+    bg = (EXT / "background.js").read_text(encoding="utf-8")
+    assert "openPanelOnActionClick: false" in bg and "setOptions({ tabId: tab.id" in bg
 
 
 def test_fixed_key_gives_the_allowed_id():
@@ -102,3 +105,13 @@ def test_extension_flow_in_headless_chrome(tmp_path):
     assert out["surname"] == "EXAMPLE" and out["city"] == "Testville" and out["nat"] == "CN" and out["sex"] == "F"
     assert out["marked"]["marked"] == len(marks) and out["red"] == len(marks)
     assert out["planLeft"] is False and out["marksLeft"] is False  # 计划用完就删
+
+
+def test_watch_script_only_counts_fields():
+    """第三版：冒出新格子时再填。watch.js 在插件隔离环境里跑，不读格子内容；每一轮标红前先清掉上一轮的红框。"""
+    watch = (EXT / "engine" / "watch.js").read_text(encoding="utf-8")
+    assert ".value" not in watch and "fields-appeared" in watch and "WeakSet" in watch
+    bg = (EXT / "background.js").read_text(encoding="utf-8")
+    assert "files: ['engine/watch.js'], world: 'ISOLATED'" in bg and "MAX_WATCH_FILLS" in bg
+    assert "data-pa-red" in (EXT / "engine" / "mark.js").read_text(encoding="utf-8")
+

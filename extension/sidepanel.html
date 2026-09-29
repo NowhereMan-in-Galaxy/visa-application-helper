@@ -11,32 +11,54 @@
   <span id="host" class="muted"></span>
 </header>
 
-<p id="offline" class="warn" hidden>连不上本地服务。在项目目录运行 <code>uv run youtiao</code> 后重新打开侧边栏。</p>
-<p id="notweb" class="muted" hidden>打开一个网页再用。</p>
+<p id="offline" class="note warn" hidden>连不上本地服务。在项目目录运行 <code>uv run youtiao</code> 后重新打开侧边栏。</p>
+<p id="notweb" class="note muted" hidden>打开一个网页再用。</p>
 
 <section id="main" hidden>
-  <div id="policy" class="policy" hidden>
-    <strong id="policy-name"></strong> 的使用条款禁止自动化：
+  <details id="policy" class="policy" hidden>
+    <summary><span id="policy-name"></span> 条款禁止自动化</summary>
     <blockquote id="policy-clause"></blockquote>
     <p id="policy-consequence"></p>
-    <label><input id="ack" type="checkbox" /> 我知道风险，允许在这个网站自动填</label>
-  </div>
+  </details>
+  <label id="ack-row" class="ack" hidden><input id="ack" type="checkbox" /> 我知道风险，允许在这个网站自动填</label>
 
-  <div class="actions">
+  <div class="bar">
     <button id="fill" class="primary" type="button">填本页</button>
-    <label><input id="auto" type="checkbox" /> 自动填这个网站</label>
-    <label><input id="sensitive" type="checkbox" /> 敏感信息也填</label>
+    <button id="capture" type="button">存进基本信息</button>
+    <button id="clear" class="quiet" type="button" title="清空这一页插件填过的格子（黄框）">清空</button>
+  </div>
+  <div class="opts">
+    <label><input id="auto" type="checkbox" /> 打开这个网站就自动填</label>
+    <label><input id="sensitive" type="checkbox" /> 证件号等敏感信息也填</label>
   </div>
 
-  <div id="result" class="result" hidden></div>
-  <div class="actions more">
-    <button id="assist" type="button" hidden>让 Agent 补填</button>
-    <button id="clear" type="button">清空本页自动填的</button>
+  <div id="status" class="status" hidden></div>
+
+  <div id="left" class="card" hidden>
+    <div class="card-head">
+      <strong id="left-title"></strong>
+      <button id="left-all" class="link" type="button">全选</button>
+    </div>
+    <ul id="left-list" class="rows"></ul>
+    <button id="assist" class="primary wide" type="button"></button>
+  </div>
+
+  <div id="save" class="card" hidden>
+    <div class="card-head">
+      <strong id="save-title"></strong>
+      <button id="save-close" class="link" type="button">收起</button>
+    </div>
+    <ul id="save-list" class="rows"></ul>
+    <button id="save-go" class="primary wide" type="button"></button>
   </div>
 </section>
 
-<iframe id="assist-frame" title="让 Agent 补填" hidden></iframe>
-<iframe id="helper" title="填表对照" allow="clipboard-write" hidden></iframe>
+<nav id="tabs" class="tabs" hidden>
+  <button type="button" data-tab="helper" class="on">对照清单</button>
+  <button type="button" data-tab="assist-frame">Agent</button>
+</nav>
+<iframe id="helper" class="pane" title="填表对照" allow="clipboard-write" hidden></iframe>
+<iframe id="assist-frame" class="pane" title="让 Agent 补填" hidden></iframe>
 
 <script src="sidepanel.js"></script>
 </body>

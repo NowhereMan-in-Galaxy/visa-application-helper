@@ -3,6 +3,7 @@
 (function () {
   "use strict";
 
+  if (/[?&]embed=1\b/.test(location.search)) document.body.classList.add("embed");
   var DONE_KEY = "pa-fill-helper-done"; // 本次填表已复制过的项（sessionStorage，关掉窗口就清空）
   var data = null;
   var done = loadDone();

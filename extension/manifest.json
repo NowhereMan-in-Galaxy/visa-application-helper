@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "有条有理 · 填表",
   "version": "0.1.0",
-  "description": "用本机「有条有理」里的基本信息填官网表格：常见格子一次填完，填不了的标红，侧边栏点一下复制。",
+  "description": "用本机「有条有理」里的基本信息填官网表格：常见格子一次填完，没填上的可以交给 Agent；页面上填好的内容可以存回基本信息。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArYsr2waYA4zGoZd6xtVvEnpTKcdeNTFic12GAUk05Dpi7E9d6gszKSRso65LflZnOwp67LbEa10QQ1nHkbDFUWo0zty4eI3ybt5IZubR5CCF2YSiV+GlrI/YwDsoJ/b8M0Qx4OsathaysRLt0qMoKZzkGSzHBshxNdcSGjGeqWud7gyVBXMSXbdZTkmzTsTLennfBXIjMG/xLiPlUDnzhpySHz+E3W2a7I214F34dK1PpLSTPvJkg504/Q39MCnQ3/spIzoEoogoj+IFuildkekWsrLHEciSJJkr75zlDeQ5umAGkylCnuCKPrWHgcxDp4TRM1a2pHFjjZHjI54kfwIDAQAB",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -21,9 +21,6 @@
   ],
   "background": {
     "service_worker": "background.js"
-  },
-  "side_panel": {
-    "default_path": "sidepanel.html"
   },
   "action": {
     "default_title": "有条有理 · 填表"
