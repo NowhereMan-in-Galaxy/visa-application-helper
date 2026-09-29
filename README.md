@@ -2,7 +2,19 @@
 
 **把小红书上零散的签证 / 办事攻略，整理成照着做就行的清单，并自动对上你手里已有的材料。**
 
-<!-- 截图（用虚构资料拍）：攻略库 → 开始办 → 办事页；新建攻略窗口。放在 docs/screenshots/ -->
+![攻略库和办理中的事](docs/screenshots/home.png)
+
+| 照着攻略办：问几个问题，只留和你有关的步骤和材料 | 材料库：过期、快过期的自动提醒 |
+|---|---|
+| ![办事页](docs/screenshots/track.png) | ![我的资料](docs/screenshots/materials.png) |
+
+<details><summary>贴帖子让 Agent 整理成攻略</summary>
+
+![新建攻略](docs/screenshots/new-guide.png)
+
+</details>
+
+<sub>截图里的资料都是虚构的（`uv run youtiao --demo`）。</sub>
 
 办签证、领补贴时，最难的往往不是"去办"，而是弄清楚**到底要办什么**：攻略散在十几篇帖子里，说法互相矛盾；材料有有效期，搞不清哪份还能用；同一份护照、同一份流水，下次办别的事还得重新翻。
 

@@ -6,16 +6,17 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import date
 from pathlib import Path
+
+import yaml
 
 from config import COMMUNITY_DIR, REPO_ROOT
 from core.guides import load_guide
 from core.material_types import load_vocabulary
 from core.models import PersonalProfile
 from core.profile_storage import save_personal_profile
-from core.tracks import create_track
+from core.tracks import create_track, save_track, set_fact_value
 
 EXAMPLES = REPO_ROOT / "docs" / "examples" / "material-index"
 DEMO_GUIDE = "schengen-tourist"
@@ -38,16 +39,29 @@ DEMO_PROFILE = {
 }
 
 
+# 示例办事预先回答的问题：让材料清单按"在职、去法国"收窄，页面上能看到材料对上的效果
+DEMO_FACTS = {"country": "法国", "identity": "在职", "minor": "否", "married": "否", "sponsored": "否"}
+
+
 def build_demo_root(root: Path, today: date) -> Path:
     """在 root 下准备虚构资料：基本信息、示例材料、一件示例办事。返回 root。"""
     root.mkdir(parents=True, exist_ok=True)
     save_personal_profile(root, PersonalProfile.model_validate(DEMO_PROFILE))
-    for sub in ("records", "applications"):
-        target = root / "index" / sub
-        target.mkdir(parents=True, exist_ok=True)
-        for f in sorted((EXAMPLES / sub).glob("*.yaml")):
-            shutil.copy(f, target / f.name)
+    records = root / "index" / "records"
+    records.mkdir(parents=True, exist_ok=True)
+    for f in sorted((EXAMPLES / "records").glob("*.yaml")):
+        data = yaml.safe_load(f.read_text(encoding="utf-8"))
+        # id 以 example- 开头的记录永远不参与匹配（防止示例数据被当成真实材料，见 core/tracks.py）。
+        # 试用模式整个目录都是虚构的，所以换成 demo- 开头，让它们能对上示例办事。
+        data["id"] = "demo-" + data["id"].removeprefix("example-")
+        data.pop("belongs_to", None)
+        (records / f"{data['id']}.yaml").write_text(
+            "# 试用模式的虚构资料\n" + yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
     vocab = load_vocabulary(COMMUNITY_DIR / "material_types.yaml")
     guide = load_guide(COMMUNITY_DIR / "guides" / f"{DEMO_GUIDE}.yaml", vocab).guide
-    create_track(root, guide, today, title="示例：申根短期旅游签证")
+    track = create_track(root, guide, today, title="示例：申根短期旅游签证")
+    for fact, value in DEMO_FACTS.items():
+        if fact in guide.facts:
+            set_fact_value(guide, track, fact, value)
+    save_track(root, track)
     return root
