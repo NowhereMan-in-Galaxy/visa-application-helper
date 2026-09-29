@@ -85,11 +85,12 @@
 
   // 改基本信息的确认卡片：旧值 → 新值，点确认才写入
   function proposalCard(p) {
+    var trip = p.group === "trip";  // 这次行程（spec 007）：写进这件办事，不是基本信息
     var status = h("div", { class: "agent-card-status" });
     var ok = h("button", { type: "button", class: "primary", text: "确认修改" });
     var no = h("button", { type: "button", text: "不改" });
     var card = h("div", { class: "agent-card" }, [
-      h("strong", { text: "Agent 想修改你的基本信息" }),
+      h("strong", { text: trip ? "整理出的这次行程" : "Agent 想修改你的基本信息" }),
       h("ul", null, p.changed.map(function (c) {
         // 名字只留最后两段（"目前的单位或学校 › 工作电话"），分组名在卡片里是多余的
         var name = c.label.split(" › ").slice(-2).join(" › ");
@@ -108,7 +109,10 @@
     ok.addEventListener("click", function () {
       ok.disabled = no.disabled = true;
       post("/api/agent/profile-proposals/" + encodeURIComponent(p.proposal_id) + "/confirm")
-        .then(function () { done("✓ 已写入基本信息"); dataChanged({ profile_group: p.group }); })
+        .then(function () {
+          done(trip ? "✓ 已存进这件办事" : "✓ 已写入基本信息");
+          dataChanged(trip ? { track_id: p.track_id } : { profile_group: p.group });
+        })
         .catch(function (err) { ok.disabled = no.disabled = false; status.textContent = err.message; });
     });
     no.addEventListener("click", function () {
@@ -131,6 +135,7 @@
    *   sendLabel()   发送按钮上的字（可随状态变化）
    *   validate(text) 返回错误文字则不发送
    *   onEvent(type, data)  收到事件时回调（例如 "draft"、"done"）
+ *   emptyText()   输入框为空时代替发送的话（返回空字符串则不发送）
    */
   function create(options) {
     var sessionId = null, jobId = null, source = null;
@@ -214,7 +219,7 @@
     }
 
     function send(text) {
-      text = (text || "").trim();
+      text = (text || "").trim() || (options.emptyText ? options.emptyText() : "");
       if (!text || busy() || blocked()) return;
       if (options.validate && options.validate(text)) return;
       var hint = log.querySelector(".agent-hint");

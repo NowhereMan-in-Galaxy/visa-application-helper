@@ -1264,6 +1264,8 @@ class AgentJobContext(BaseModel):
     host: str | None = None
     fields: list[dict] | None = None
     sensitive: bool = False
+    # 办事页「让 Agent 整理」（spec 007 第 2 步）：勾选要读的材料记录 id
+    materials: list[str] | None = None
 
 
 class AgentJobRequest(BaseModel):
@@ -1302,6 +1304,16 @@ def agent_start_job(req: AgentJobRequest) -> dict:
         if any(not isinstance(f, dict) or not isinstance(f.get("i"), int) or isinstance(f.get("i"), bool) for f in fields):
             raise HTTPException(422, "每个格子要有整数编号 i")
         prompt = agent_prompts.fill_assist_prompt(text, req.context.model_dump(), follow_up=bool(req.session_id))
+    elif req.kind == "trip_extract":
+        if not req.context.track_id:
+            raise HTTPException(422, "要先打开一件办事")
+        view = _track_view(_load_track_or_404(req.context.track_id))
+        mats = req.context.materials or []
+        if len(mats) > agent_prompts.MAX_TRIP_MATERIALS:
+            raise HTTPException(422, f"一次最多读 {agent_prompts.MAX_TRIP_MATERIALS} 份材料")
+        if not set(mats) <= {m["id"] for m in view.trip_materials}:
+            raise HTTPException(422, "勾选的材料不是这件办事的")
+        prompt = agent_prompts.trip_extract_prompt(text, req.context.model_dump(), follow_up=bool(req.session_id))
     else:
         raise HTTPException(422, f"暂不支持的任务类型：{req.kind}")
     try:

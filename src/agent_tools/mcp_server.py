@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Image, MCPServer
 from pydantic import ValidationError
 
 import config
@@ -20,7 +20,7 @@ mcp = MCPServer(
     name="personal-assistant",
     instructions=(
         "本地个人办事助手：只读共享区的流程攻略、读写你自己的「我的办事」进度。"
-        "不提供删除工具，也不提供读取材料文件内容本身的工具——只看结构化的状态。"
+        "不提供删除工具；材料文件的内容只在「让 Agent 整理行程」的任务里、只读那件办事的材料（read_track_material），其余只看结构化的状态。"
         "「基本信息」（PersonalProfile）可读；写回只能写用户亲口回答并确认过的内容。"
     ),
 )
@@ -243,6 +243,26 @@ def propose_trip_update(track_id: str, changes: dict) -> dict:
         return {"error": f"找不到这件办事：{track_id}"}
     except ValidationError as e:
         return {"error": f"字段名或取值不对，没有记下提议：{e}"}
+
+
+@mcp.tool(
+    description=(
+        "「让 Agent 整理行程」专用（spec 007）：读一份这件办事的材料（邀请函、酒店订单、机票行程单……），"
+        "record_id 用任务里给你的材料 id。返回文字，扫描件和图片返回图片。别的任务里调用会报错"
+    )
+)
+def read_track_material(track_id: str, record_id: str) -> list[str | Image]:
+    from core.tracks import TrackNotFoundError
+
+    try:
+        res = tools.read_track_material(track_id, record_id)
+    except TrackNotFoundError:
+        return [f"找不到这件办事：{track_id}"]
+    except ValueError as e:
+        return [str(e)]
+    if "text" in res:
+        return [f"【{res['type']}】\n{res['text']}"]
+    return [f"【{res['type']}】（图片）", *[Image(data=data, format=fmt) for data, fmt in res["images"]]]
 
 
 @mcp.tool(

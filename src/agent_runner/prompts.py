@@ -75,6 +75,51 @@ def fill_assist_prompt(user_input: str, context: dict, *, follow_up: bool = Fals
     ])
 
 
+MAX_TRIP_MATERIALS = 6
+
+# 按目的，这类行程通常要的信息（spec 007 第 2 步）：Agent 据此提醒还空着的几项
+TYPICAL_BY_PURPOSE = [
+    ("旅游", "行程安排（每段的日期、城市）、去程和返程航班、住处名称和地址"),
+    ("商务 / 会议 / 学术交流", "邀请单位、联系人姓名和电话、具体做什么（会议名称、活动内容）、谁出钱"),
+    ("探亲访友", "邀请人姓名、和你的关系、地址、电话、住在哪里"),
+]
+
+
+def trip_extract_prompt(user_input: str, context: dict, *, follow_up: bool = False) -> str:
+    """办事页「让 Agent 整理」（spec 007 第 2 步）：把用户说的话和勾选的材料整理成这件办事的行程信息，提议后由用户确认。"""
+    track_id = context.get("track_id")
+    materials = [str(m) for m in context.get("materials") or []]
+    read = (f"2. 依次用 read_track_material(track_id=\"{track_id}\", record_id=…) 读这几份材料：{', '.join(materials)}。"
+            if materials else "2. 这次没有勾选材料，只用用户说的话。")
+    if follow_up:
+        return "\n".join([
+            "（用户在「让 Agent 整理」里接着说话。）按用户的话补充或更正；有要改的就再调用一次 propose_trip_update（只放新的或改过的字段）。",
+            read if materials else "",
+            "",
+            f"用户：{user_input}",
+        ])
+    return "\n".join([
+        f"你在帮用户整理一件办事（id：{track_id}）的「这次行程」：目的、日期、交通、行程安排、住处、邀请人、费用、同行人。",
+        "",
+        "按顺序做：",
+        f"1. 用 get_track(\"{track_id}\") 看这件事：它是哪份攻略（办什么签证）、trip 里已经填了什么。",
+        read,
+        "3. 只根据用户说的话和材料原文，用**一次** propose_trip_update 提议（和已有值相同的不要放；日期写 YYYY-MM-DD；"
+        "purpose 用官网上常见的英文写法，例如 Tourism、Business、Visiting family or friends）。页面会弹出确认卡片，用户确认后才存。",
+        "   - 材料之间、或材料和用户的话说法不一致的字段不要提议，在回答里列出来让用户定。",
+        "   - 行程安排 itinerary 每段一项 {start_date, end_date, city, plan}；同行人 companions 每人一项 {name, relationship}。",
+        "4. 按这次的目的，看看下面这类行程通常要的信息还空着哪几项（最多 5 项），在回答里用一句话问用户：",
+        *[f"   - {k}：{v}" for k, v in TYPICAL_BY_PURPOSE],
+        "",
+        "规则：",
+        "- 不要猜，没写的不填；材料看不清的字段不填。",
+        "- 不写基本信息。材料里出现和基本信息有关的内容（例如你的工作单位）不用管。",
+        "- 回答用中文，3–6 行：读了哪几份、提议了几项（卡片上有细节，不要重复）、哪些有冲突、还缺哪几项。不要复述证件号、完整地址和电话。",
+        "",
+        f"用户：{user_input}",
+    ])
+
+
 def create_guide_prompt(user_input: str, guide_type: str, *, follow_up: bool = False,
                         draft_id: str | None = None) -> str:
     """新建攻略（spec 004）。第一条消息给完整规则；后续消息接着同一次对话（--resume），只补充提醒。"""
