@@ -339,3 +339,15 @@ def test_immiaccount_labels(d):
     assert one(kind="select", label="Place of issue") == "passport.issue_country"
     # ASP.NET 前缀里的 "PlaceHolder" 不能让签发日期变成签发地
     assert one(kind="select", label="", name="ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay") == "passport.issue_date"
+
+
+def test_identity_card_dialog_is_not_the_passport(d):
+    """2026-09-29 项目主实测：ImmiAccount「National identity card」弹窗里的签发国家 / 日期被填成了护照的。"""
+    def one(label, kind="text", section="National identity card"):
+        return match.match_field({"kind": kind, "label": label, "section": section, "name": "_2a0b0a0a_input"}, d)
+    assert one("Identification number") == "identity.national_id_number"
+    assert one("Date of issue") == "identity.national_id_issue_date"
+    assert one("Date of expiry") == "identity.national_id_expiry_date"
+    assert one("Country of issue", "select") is None                  # 不是护照签发国，交给 Agent / 用户
+    assert one("Date of issue", section="Passport details") == "passport.issue_date"
+    assert one("Country of passport", "select", "Passport details") == "identity.nationality"

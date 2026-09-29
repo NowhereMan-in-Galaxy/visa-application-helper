@@ -71,10 +71,20 @@ fields:
     match: [[refused, refusal, 拒签]]
     exclude: *others
   identity.nationality:
-    match: [[nationality, citizenship, 国籍]]
+    match: [[nationality, citizenship, country of passport, passport country, 国籍]]
     exclude: [*others, other, previous, 其他, 曾经]
   identity.national_id_number:
-    match: [[national id, national identification, identity card, id card, citizen id, 身份证]]
+    match: [[national id, national identification, identity card, id card, citizen id, identification number, 身份证]]
+    exclude: [*others, taxpayer, tax, 纳税人]
+  # 身份证的签发 / 有效日期：小节标题是"身份证"，格子自己叫 Date of issue（ImmiAccount 的 National identity card 弹窗）
+  identity.national_id_issue_date:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [issue, issued, issuance, 签发], [date, dte, dt, day, month, year, 日期]]
+    exclude: *others
+  identity.national_id_expiry_date:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [expiry, expiration, expires, expire, valid until, 有效期, 到期]]
+    exclude: *others
+  identity.national_id_issuing_authority:
+    match: [[national id, national identity, identity card, id card, identity document, 身份证], [issuing authority, authority, place of issue, 签发机关]]
     exclude: *others
   identity.us_ssn:
     match: [[social security, ssn]]
@@ -95,22 +105,22 @@ fields:
     exclude: *others
   passport.issuing_authority:
     match: [[issuing authority, authority, 签发机关]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_date:
     match: [[issue, issued, issuance, 签发], [date, dte, dt, day, month, year, 日期]]
-    exclude: [*others, visa, 签证, license, licence]
+    exclude: [*others, visa, 签证, license, licence, national identity, identity card, id card, identity document, 身份证]
   passport.expiry_date:
     match: [[expiry, expiration, expires, expire, valid until, 有效期, 到期]]
-    exclude: [*others, visa, 签证, license, licence, card]
+    exclude: [*others, visa, 签证, license, licence, card, national identity, identity card, id card, identity document, 身份证]
   passport.issue_city:
     match: [[issue, issued, issuance, 签发], [city, town, 城市]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_province:
     match: [[issue, issued, issuance, 签发], [state, province, 省]]
-    exclude: *others
+    exclude: [*others, national identity, identity card, id card, identity document, 身份证]
   passport.issue_country:
     match: [[issue, issued, issuance, 签发], [country, 国家, place of issue]]
-    exclude: [*others, authority, 机关]
+    exclude: [*others, authority, 机关, national identity, identity card, id card, identity document, 身份证]
 
   # ---------- 住址和联系方式 ----------
   contact.home_address.street:
