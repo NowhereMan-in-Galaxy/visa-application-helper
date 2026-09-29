@@ -56,6 +56,7 @@ EXPECTED = {
     15: "contact.primary_phone", 16: "contact.email", 17: "identity.birth_city",
     18: "family.father.surname", 19: "family.father.given_names", 20: "family.mother.surname",
     21: "identity.native_full_name", 22: "identity.national_id_number", 24: "contact.secondary_phone",
+    23: "trip.purpose",  # spec 007：这次行程的目的；没选"这件事"时算"资料里没有"
 }
 SENSITIVE = ["identity.date_of_birth", "passport.passport_number", "identity.national_id_number"]
 
@@ -92,8 +93,8 @@ def test_fixture_plan_matches_expected(d):
     got = {**by_i(r["fill"]), **by_i(r["missing"])}
     assert got == EXPECTED
     assert r["already_filled"] == [14]
-    assert [u["i"] for u in r["unmatched"]] == [23]
-    assert by_i(r["missing"]) == {24: "contact.secondary_phone"}
+    assert [u["i"] for u in r["unmatched"]] == []  # 23 "Purpose of trip" 以前认不出，现在是 trip.purpose
+    assert by_i(r["missing"]) == {23: "trip.purpose", 24: "contact.secondary_phone"}
     assert r["sensitive"] == [] and r["needs_format"] == []
 
 
@@ -351,3 +352,30 @@ def test_identity_card_dialog_is_not_the_passport(d):
     assert one("Country of issue", "select") is None                  # 不是护照签发国，交给 Agent / 用户
     assert one("Date of issue", section="Passport details") == "passport.issue_date"
     assert one("Country of passport", "select", "Passport details") == "identity.nationality"
+
+
+# ---- spec 007：这次行程的格子，值来自这件办事 ----
+
+def test_trip_fields_use_the_track(d):
+    from core.trip import TripInfo
+    fields = [
+        {"i": 0, "kind": "text", "label": "Purpose of your trip", "section": "", "name": "purpose"},
+        {"i": 1, "kind": "text", "label": "Intended date of arrival (DD/MM/YYYY)", "section": "", "name": "arr"},
+        {"i": 2, "kind": "text", "label": "City", "section": "Address where you will stay", "name": "stayCity"},
+        {"i": 3, "kind": "select", "label": "Person paying for your trip", "section": "", "name": "payer"},
+        {"i": 4, "kind": "radio", "label": "Are there other persons traveling with you?", "section": "", "name": "comp"},
+        {"i": 5, "kind": "text", "label": "Date of arrival", "section": "Previous visits: last five visits", "name": "prevArr"},
+        {"i": 6, "kind": "text", "label": "City", "section": "Home address", "name": "homeCity"},
+    ]
+    got = {f["i"]: match.match_field(f, d) for f in fields}
+    assert got == {0: "trip.purpose", 1: "trip.arrival_date", 2: "trip.stay_address.city", 3: "trip.payer",
+                   4: "trip.companions", 5: None, 6: "contact.home_address.city"}
+    trip = TripInfo.model_validate({"purpose": "Tourism", "arrival_date": "2026-10-01", "payer": "self",
+                                    "stay_address": {"city": "Sampleville"}, "companions": [{"name": "EXAMPLE A"}]})
+    r = match.plan(fields[:5], PersonalProfile(), d, trip=trip)
+    ops = {o["i"]: o for o in r["ops"]}
+    assert ops[0]["v"] == "Tourism" and ops[1]["v"] == "01/10/2026" and ops[2]["v"] == "Sampleville"
+    assert "self" in ops[3]["c"] and ops[4]["c"][0] == "yes"
+    none = match.plan(fields[:5], PersonalProfile(), d)
+    assert {x["path"] for x in none["missing"]} == {got[i] for i in range(5)}
+

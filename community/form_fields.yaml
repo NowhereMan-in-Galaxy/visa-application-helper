@@ -19,7 +19,8 @@ others: &others [father, mother, parent, spouse, husband, wife, partner, former,
   父亲, 母亲, 父, 母, 配偶, 丈夫, 妻子, 子女, 亲属, 兄弟, 姐妹, 联系人, 紧急, 上司, 同行]
 # 出现这些词，说明问的不是住址
 not_home: &not_home [mailing, 邮寄, 通讯, birth, 出生, issue, issued, issuance, 签发, employer, company, school,
-  work, business, office, 单位, 公司, 学校, email, e mail, 邮箱, destination, hotel, 酒店, 目的地]
+  work, business, office, 单位, 公司, 学校, email, e mail, 邮箱, destination, hotel, 酒店, 目的地,
+  where you will stay, staying, accommodation, 住宿, 住处, host, inviting, 邀请]
 
 fields:
   # ---------- 基本身份 ----------
@@ -252,6 +253,61 @@ fields:
 
 # 下拉框 / 单选框的候选写法：基本信息里存的值 → 网页选项上可能出现的写法。
 # 是非题用 yes / no；没写的值按"值本身、下划线换空格"去找。
+  # ---------- 这次行程（spec 007：值来自"这件办事"，不是基本信息）----------
+  trip.purpose:
+    match: [[purpose of trip, purpose of your trip, purpose of travel, purpose of visit, purpose of your visit,
+      purpose of stay, main purpose, reason for visit, reason for travel, 旅行目的, 访问目的, 目的]]
+    exclude: [*others, previous, last, prior, 上次, 以往]
+  trip.purpose_detail:
+    match: [[purpose, visit, trip, stay, 目的, 行程], [details, detail, describe, explain, 具体, 说明]]
+    exclude: [*others, previous, last, prior, 上次, 以往]
+  trip.arrival_date:
+    match: [[arrival, arrive, arriving, entry, enter, intended date of arrival, 入境, 抵达], [date, dte, dt, day, month, year, 日期]]
+    exclude: [*others, previous, last, prior, visited, 上次, 以往, departure, leave, 离境, issue, issued, 签发, expiry]
+  trip.departure_date:
+    match: [[departure, depart, departing, leave, leaving, exit, 离境, 离开], [date, dte, dt, day, month, year, 日期]]
+    exclude: [*others, previous, last, prior, visited, 上次, 以往, arrival, arrive, 入境, issue, issued, 签发]
+  trip.arrival_city:
+    match: [[arrival, arrive, arriving, entry, port of entry, 入境, 抵达], [city, port, airport, 城市, 口岸, 机场]]
+    exclude: [*others, previous, last, prior, 上次, 以往, departure, 离境]
+  trip.stay_name:
+    match: [[hotel, accommodation, place of stay, where you will stay, 酒店, 住宿, 住处], [name, 名称]]
+  trip.stay_address.street:
+    match: [[hotel, accommodation, where you will stay, staying, address in, 酒店, 住宿, 住处], [street, address, address line 1, 街道, 地址]]
+    exclude: [city, town, state, province, zip, postal, postcode, country, phone, email, 城市, 省, 邮编, 国家, 电话, line 2, address 2, 2]
+  trip.stay_address.city:
+    match: [[hotel, accommodation, where you will stay, staying, 酒店, 住宿, 住处], [city, town, 城市]]
+  trip.stay_address.province:
+    match: [[hotel, accommodation, where you will stay, staying, 酒店, 住宿, 住处], [state, province, 省, 州]]
+  trip.stay_address.postal_code:
+    match: [[hotel, accommodation, where you will stay, staying, 酒店, 住宿, 住处], [postal code, zip, zip code, postcode, 邮编]]
+  trip.stay_address.country:
+    match: [[hotel, accommodation, where you will stay, staying, 酒店, 住宿, 住处], [country, 国家]]
+  trip.stay_phone:
+    match: [[hotel, accommodation, where you will stay, 酒店, 住宿, 住处], [phone, telephone, tel, 电话]]
+  trip.host_name:
+    match: [[host, inviting, invitation, inviter, contact person, sponsor, organisation inviting, organization inviting, 邀请, 联系人], [name, 姓名, 名称]]
+    exclude: [father, mother, spouse, emergency, 紧急, host name server]
+  trip.host_relationship:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [relationship, relation, 关系]]
+  trip.host_address.street:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [street, address, 街道, 地址]]
+    exclude: [city, town, state, province, zip, postal, country, phone, email, 城市, 省, 邮编, 国家, 电话, 邮箱]
+  trip.host_address.city:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [city, town, 城市]]
+  trip.host_address.country:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [country, 国家]]
+  trip.host_phone:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [phone, telephone, tel, 电话]]
+  trip.host_email:
+    match: [[host, inviting, inviter, contact person, 邀请, 联系人], [email, e mail, 邮箱]]
+  trip.payer:
+    match: [[paying for your trip, pay for your trip, paying for the trip, who will pay, person paying, entity paying,
+      cost of your trip, costs of your stay, funding, 谁支付, 费用由, 出资]]
+  trip.companions:
+    match: [[traveling with you, travelling with you, persons traveling, persons travelling, other people travelling,
+      accompanying you, 同行人, 同行]]
+
 values:
   # 加引号：不加的话 YAML 会把 yes / no / true / false 读成真 / 假，和网页上的 "Yes" / "No" 对不上
   "yes": ["yes", "y", "true", 是]
@@ -282,6 +338,11 @@ values:
   homemaker: [homemaker, 家庭主妇]
   student: [student, 学生]
   retired: [retired, 退休]
+  # 谁出钱（spec 007 行程信息的 payer）
+  self: [self, myself, 自己, 本人]
+  host: [host, inviting person, inviting organisation, inviting organization, 邀请方]
+  employer: [employer, present employer, my employer, 单位, 雇主]
+  family: [family, parents, relative, family member, 家人, 父母]
 
 # 国家的不同写法：基本信息里写了其中任何一种，就用这一行的全部写法去找选项。
 # 第一个写法是填文本框时用的（英文）。
