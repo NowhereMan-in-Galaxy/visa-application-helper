@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -22,6 +23,8 @@ FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "forms"
 SCAN_TEXT = (FIXTURES / "generic-form.scan.json").read_text(encoding="utf-8").strip()
 SCAN = {"fields": match.expand_scan(SCAN_TEXT)}
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+# GitHub Actions 的 Linux 机器上，无界面 Chrome 要关掉沙盒才能启动
+LINUX_SANDBOX = ["--no-sandbox"] if sys.platform.startswith("linux") else []
 
 PROFILE = PersonalProfile.model_validate({
     "identity": {
@@ -263,7 +266,7 @@ def test_fill_in_headless_chrome(d, tmp_path):
     src = (FIXTURES / "generic-form.html").read_text(encoding="utf-8")
     page.write_text(src.replace("</body>", f'<pre id="pa-out"></pre><script>{js}</script></body>'), encoding="utf-8")
     exe = CHROME if Path(CHROME).exists() else shutil.which("google-chrome")
-    dom = subprocess.run([exe, "--headless=new", "--disable-gpu", "--dump-dom", page.as_uri()],
+    dom = subprocess.run([exe, "--headless=new", "--disable-gpu", *LINUX_SANDBOX, "--dump-dom", page.as_uri()],
                          capture_output=True, text=True, timeout=60).stdout
     out = json.loads(html.unescape(re.search(r'<pre id="pa-out">(.*?)</pre>', dom, re.S).group(1)))
     v = out["values"]
