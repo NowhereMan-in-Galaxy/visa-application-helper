@@ -65,7 +65,8 @@ CREATE_GUIDE_TOOLS = READ_RULES + ["Skill"] + [
 # 没有浏览器工具：Agent 碰不到官网，真正填写的是插件。
 FILL_ASSIST_TOOLS = READ_RULES + [
     MCP_PREFIX + name
-    for name in ("get_personal_profile", "get_profile_gaps", "propose_profile_update", "submit_form_fills")
+    # 读基本信息只给精简版 get_fill_reference：完整的 get_personal_profile 太长，Agent 读不完（2026-09-29 实测）
+    for name in ("get_fill_reference", "get_profile_gaps", "propose_profile_update", "submit_form_fills")
 ]
 
 TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS, "fill_assist": FILL_ASSIST_TOOLS}

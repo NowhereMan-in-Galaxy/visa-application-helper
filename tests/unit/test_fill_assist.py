@@ -33,18 +33,51 @@ def test_submit_records_and_side_events_report_once(tmp_path):
     assert jobs.side_events(tmp_path, state) == []  # 不重复报
 
 
-@pytest.mark.parametrize("fills, learn, msg", [
-    ([], None, "不能为空"),
-    ([{"i": "7", "value": "x"}], None, "非负整数"),
-    ([{"i": True, "value": "x"}], None, "非负整数"),
-    ([{"i": 1, "value": "  "}], None, "非空"),
-    ([{"i": 1, "value": "x" * 2001}], None, "太长"),
-    ([{"i": 1, "value": "x"}], [{"phrase": "p", "path": "identity.no_such"}], "不存在"),
+@pytest.mark.parametrize("fills, msg", [
+    ([], "空"),
+    ([{"i": "x", "value": "x"}], "非负整数"),
+    ([{"i": True, "value": "x"}], "非负整数"),
+    ([{"i": 1, "value": "  "}], "非空"),
+    ([{"i": 1, "value": "x" * 2001}], "太长"),
 ])
-def test_submit_rejects_bad_input(tmp_path, fills, learn, msg):
+def test_submit_rejects_when_nothing_usable(tmp_path, fills, msg):
     with pytest.raises(ValueError, match=msg):
-        activity.submit_form_fills(tmp_path, fills, learn)
+        activity.submit_form_fills(tmp_path, fills)
     assert activity.read_form_fills(tmp_path) == []
+
+
+def test_submit_skips_bad_items_but_keeps_the_rest(tmp_path):
+    """2026-09-29 实测：一条 learn 指向列表字段（曾用名），整批 8 格都被退回。现在只跳过不合格的。"""
+    r = activity.submit_form_fills(
+        tmp_path,
+        [{"i": 3, "value": "15 Jun 1990"}, {"i": "8", "value": 2020}, {"i": -1, "value": "x"}],
+        [{"phrase": "known by any other names", "path": "identity.other_names"},  # 列表字段也算
+         {"phrase": "whatever", "path": "identity.no_such"}],
+    )
+    assert r["count"] == 2 and [s["i"] for s in r["skipped"]] == [-1]
+    assert r["learn"] == 1 and len(r["learn_skipped"]) == 1
+    assert activity.read_form_fills(tmp_path)[0]["fills"] == [{"i": 3, "value": "15 Jun 1990"}, {"i": 8, "value": "2020"}]
+
+
+def test_mcp_tool_returns_reason_instead_of_raising(monkeypatch, tmp_path):
+    from agent_tools import mcp_server
+    monkeypatch.setattr(config, "get_materials_root", lambda: tmp_path)
+    monkeypatch.setenv(activity.UI_ENV, "1")
+    r = mcp_server.submit_form_fills([{"i": 1, "value": " "}])
+    assert "非空" in r["error"]
+
+
+def test_fill_reference_tool_is_compact(monkeypatch, tmp_path):
+    from agent_tools import mcp_server
+    from core.models import PersonalProfile
+    from core.profile_storage import save_personal_profile
+    monkeypatch.setattr(config, "get_materials_root", lambda: tmp_path)
+    save_personal_profile(tmp_path, PersonalProfile.model_validate(
+        {"identity": {"surname": "EXAMPLE", "date_of_birth": "1990-06-15"}}))
+    items = {x["path"]: x for x in mcp_server.get_fill_reference()["items"]}
+    assert items["identity.surname"]["values"] == ["EXAMPLE"]
+    assert "15 JUN 1990" in items["identity.date_of_birth"]["values"]
+    assert items["identity.surname"]["label"].startswith("基本身份 › ")
 
 
 # ---- 命令行权限：没有浏览器，只能读基本信息和交结果 ----
@@ -55,8 +88,8 @@ def test_fill_assist_command_has_no_browser(fake_cli):
     assert "--chrome" not in cmd
     assert not any(t.startswith(cli.CHROME_PREFIX) for t in allowed)
     assert cli.MCP_PREFIX + "submit_form_fills" in allowed
-    assert cli.MCP_PREFIX + "get_personal_profile" in allowed
-    for direct in ("update_personal_profile", "set_step_done", "save_guide_draft"):
+    assert cli.MCP_PREFIX + "get_fill_reference" in allowed
+    for direct in ("get_personal_profile", "update_personal_profile", "set_step_done", "save_guide_draft"):
         assert cli.MCP_PREFIX + direct not in allowed
     assert cmd[cmd.index("--max-budget-usd") + 1] == "2"
 

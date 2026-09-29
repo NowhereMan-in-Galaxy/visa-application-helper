@@ -235,7 +235,29 @@ def propose_profile_update(group: str, changes: dict) -> dict:
 def submit_form_fills(fills: list[dict], learn: list[dict] | None = None) -> dict:
     if os.environ.get(activity.UI_ENV) != "1":
         raise ValueError("submit_form_fills 只在填表插件调起的任务里用")
-    return activity.submit_form_fills(config.get_materials_root(), fills, learn)
+    try:
+        return activity.submit_form_fills(config.get_materials_root(), fills, learn)
+    except ValueError as e:
+        # 抛出的异常在 Agent 那头只显示成"Error executing tool"，看不到原因；改成把原因作为结果返回
+        return {"error": str(e)}
+
+
+@mcp.tool(
+    description=(
+        "只读：填表用的基本信息精简版——每个有值的字段一行：path、中文标签、可以直接填的写法（日期给几种格式、国家给英文名）。"
+        "比 get_personal_profile 短得多，填表时优先用它"
+    )
+)
+def get_fill_reference() -> dict:
+    from form_engine.match import default_dictionary
+    from form_engine.reference import reference
+    from core.profile_storage import load_personal_profile
+
+    ref = reference(load_personal_profile(config.get_materials_root()), default_dictionary())
+    return {"items": [
+        {"path": it["path"], "label": f"{g['label']} › {it['label']}", "values": [v["text"] for v in it["values"]]}
+        for g in ref["groups"] for it in g["items"]
+    ]}
 
 
 def main() -> None:

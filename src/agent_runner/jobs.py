@@ -51,6 +51,7 @@ TOOL_LABELS = {
     "confirm_match": "确认材料",
     "propose_profile_update": "准备基本信息的修改提议",
     "submit_form_fills": "把要填的内容交给插件",
+    "get_fill_reference": "读取基本信息（精简版）",
     "Bash": "尝试运行命令（没有权限，已被拒绝）",
     "Read": "阅读",
     "Skill": "阅读操作说明",

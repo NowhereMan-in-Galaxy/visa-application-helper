@@ -230,37 +230,57 @@ def read_form_fills(root: Path) -> list[dict]:
     return out
 
 
+def _profile_paths() -> set[str]:
+    """基本信息里所有字段的路径：单值字段（含嵌套对象）和列表字段本身（例如 identity.other_names）。"""
+    from form_engine.match import profile_leaves
+
+    paths = set(profile_leaves())
+    for g in describe_personal_profile():
+        paths.update(f"{g['key']}.{f['key']}" for f in g["fields"])
+    return paths
+
+
 def submit_form_fills(root: Path, fills: list[dict], learn: list[dict] | None = None) -> dict:
     """记下 Agent 判断好的"哪一格填什么"，由后台任务推给插件去填。不碰官网，也不改基本信息。
 
     fills：[{"i": 格子编号, "value": 文字}]；learn：[{"phrase": 格子上的说法, "path": 基本信息字段路径}]。
-    格式不对抛 ValueError（中文说明），什么都不记。
+    不合格的格子和建议单独跳过、在返回值里说明原因，其余照常记下（2026-09-29 项目主实测：
+    一条 learn 指向列表字段，整批结果都被退回了）。一格合格的都没有时抛 ValueError。
     """
-    from form_engine.match import profile_leaves
-
     clean: list[dict] = []
+    skipped: list[dict] = []
     for f in fills or []:
-        i, value = (f or {}).get("i"), (f or {}).get("value")
+        f = f if isinstance(f, dict) else {}
+        i, value = f.get("i"), f.get("value")
+        if isinstance(i, str) and i.isdigit():
+            i = int(i)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = str(value)
         if not isinstance(i, int) or isinstance(i, bool) or i < 0:
-            raise ValueError(f"格子编号要是非负整数：{i!r}")
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError(f"第 {i} 格的值要是非空文字")
-        if len(value) > MAX_FILL_VALUE:
-            raise ValueError(f"第 {i} 格的值太长（最多 {MAX_FILL_VALUE} 字）")
-        clean.append({"i": i, "value": value.strip()})
+            skipped.append({"i": f.get("i"), "reason": "格子编号要是非负整数"})
+        elif not isinstance(value, str) or not value.strip():
+            skipped.append({"i": i, "reason": "值要是非空文字"})
+        elif len(value) > MAX_FILL_VALUE:
+            skipped.append({"i": i, "reason": f"值太长（最多 {MAX_FILL_VALUE} 字）"})
+        else:
+            clean.append({"i": i, "value": value.strip()})
     if not clean:
-        raise ValueError("fills 不能为空")
-    leaves = profile_leaves()
+        reasons = "；".join(f"第 {s['i']} 格：{s['reason']}" for s in skipped) or "fills 是空的"
+        raise ValueError(f"没有可以交给插件的格子（{reasons}）")
+    paths = _profile_paths()
     lessons: list[dict] = []
+    learn_skipped: list[str] = []
     for item in learn or []:
-        phrase, path = str((item or {}).get("phrase") or "").strip(), (item or {}).get("path")
-        if path not in leaves:
-            raise ValueError(f"learn 里的字段路径不存在：{path}")
-        if phrase:
+        item = item if isinstance(item, dict) else {}
+        phrase, path = str(item.get("phrase") or "").strip(), item.get("path")
+        if path in paths and phrase:
             lessons.append({"phrase": phrase[:100], "path": path})
+        else:
+            learn_skipped.append(f"{path}（字段路径不存在或 phrase 为空）")
     entry = {"id": uuid4().hex[:12], "time": _now(), "fills": clean, "learn": lessons}
     entries = (read_form_fills(root) + [entry])[-MAX_FORM_FILLS:]
     path = form_fills_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
-    return {"fills_id": entry["id"], "count": len(clean), "learn": len(lessons)}
+    return {"fills_id": entry["id"], "count": len(clean), "skipped": skipped,
+            "learn": len(lessons), "learn_skipped": learn_skipped}

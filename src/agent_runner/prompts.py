@@ -49,7 +49,7 @@ def fill_assist_prompt(user_input: str, context: dict, *, follow_up: bool = Fals
         *[_field_line(f) for f in fields],
         "",
         "请你：",
-        "1. 用 get_personal_profile 读用户的基本信息，判断每一格该填什么。",
+        "1. 用 get_fill_reference 读用户的基本信息（每个字段一行，已经整理好可以直接填的写法），判断每一格该填什么。",
         "2. 基本信息里有的直接用；这次行程专属的（旅行目的、日期、同行人、在美联系人……）和资料里没有的，用简短的中文一次问完，等用户回答。",
         "3. 确定之后调用 submit_form_fills 交给插件去填：下拉框 / 单选的 value 必须是上面\"选项\"里的原文；日期按格子旁边写的格式；拆成日 / 月 / 年的格子分开交。",
         "4. 你认出来、但插件没认出的说法，放进 learn（phrase 用格子上的英文说法，path 用基本信息字段路径），以后插件就能自己认。",
