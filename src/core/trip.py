@@ -21,7 +21,7 @@ class Companion(_ProfilePart):
 
 class TripInfo(_ProfilePart):
     # purpose 目的
-    purpose: str | None = _f("目的（官网选项的写法，例如 Tourism / Business）")
+    purpose: str | None = _f("目的")
     purpose_detail: str | None = _f("具体做什么", widget="textarea")
     # dates 日期
     arrival_date: date | None = _f("计划入境日期")

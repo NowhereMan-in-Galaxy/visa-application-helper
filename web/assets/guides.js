@@ -934,6 +934,15 @@
       );
     }
 
+    // --- 这次行程（spec 007）：开始办之后问，预览里不显示 ---
+    if (!readonly && window.TripPanel) {
+      main.append(window.TripPanel.render(v, {
+        el: el,
+        redraw: drawTrack,
+        save: function (track, change) { update(track, "/trip", change); },
+      }));
+    }
+
     // --- 步骤时间线 ---
     var anchored = {};
     var visibleSteps = v.steps.filter(function (s) { return s.applies !== "no"; });

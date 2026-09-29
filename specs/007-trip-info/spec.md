@@ -26,7 +26,7 @@
 
 | 组 | 字段 | 类型 |
 |---|---|---|
-| `purpose` 目的 | `purpose` 目的（官网选项的写法，例如 Tourism / Business） | text |
+| `purpose` 目的 | `purpose` 目的（按官网选项的写法填，例如 Tourism / Business） | text |
 | | `purpose_detail` 具体做什么（例如参加某个会议） | textarea |
 | `dates` 日期 | `arrival_date` 计划入境日期、`departure_date` 计划离境日期 | date |
 | | `arrival_city` 入境城市 | text |
