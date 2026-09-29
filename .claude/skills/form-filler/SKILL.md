@@ -10,9 +10,16 @@ description: 用户要 Agent 帮忙在真实官网上填签证 / 办事申请表
 
 ## 硬性红线（任何一步都适用）
 
-1. **只在允许的网站上操作**：开始前读网站使用条款。条款禁止自动化的，只给用户说明，不代填、也不运行填表引擎。已查过禁止的：
-   - USTravelDocs（美签缴费 / 预约）；
-   - 澳洲 ImmiAccount（online.immi.gov.au）：Terms and Conditions 第 4.5 条 "You must not use software automation techniques or solutions when using ImmiAccount."，第 8.3 条可暂停或终止账户（2026-09-29 核实）。
+1. **先查网站条款，禁止自动化的要用户知情后自己决定**（2026-09-29 项目主决定，替换原来的"一律不代填"）：
+   - 开始前读网站使用条款。条款禁止自动化的，**动手之前**先做三件事：
+     1. 引用条款原文（第几条、原话），说清后果（例如账户被暂停或终止、影响以后的申请）；
+     2. 推荐更安全的做法：「我的资料 › 基本信息 › 打开填表对照」，用户自己复制粘贴；
+     3. 问用户"要不要照样让我填"，等用户在对话里**明确同意**（例如"我知道风险，照样填"）才开始。模糊的回答（"嗯""随便"）不算。
+   - 同意只对**这个网站、这次对话**有效；换网站或新对话要重新问。用户不同意就只给说明，不代填、不运行填表引擎。
+   - 已查过禁止自动化的：
+     - USTravelDocs（美签缴费 / 预约）：违反会限制账户；
+     - 澳洲 ImmiAccount（online.immi.gov.au）：Terms and Conditions 第 4.5 条 "You must not use software automation techniques or solutions when using ImmiAccount."，第 8.3 条可暂停或终止账户（2026-09-29 核实）。
+   - 下面第 2–5 条红线不因用户同意而放宽。
 2. **验证码、登录、安全问题、签名、付款、最终提交**：一律交给用户（浏览器工具的 `ask`），不代做、不绕过。
 3. **Security / Background 类法律声明题**（传染病、犯罪、移民违规……）：由用户本人逐题作答，Agent 不预填、不建议答案。
 4. **写回基本信息**：只写用户亲口回答的内容；写之前逐条复述并征得同意（`update_personal_profile`、`confirm_personal_profile_none`）。本次行程专属信息不写回。
