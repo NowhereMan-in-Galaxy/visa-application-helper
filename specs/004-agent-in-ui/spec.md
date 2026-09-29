@@ -68,7 +68,8 @@
 ### 攻略类型
 
 `src/core/guide_types.py` 登记全部攻略类型：`id`、名称、说明、能不能新建、发布到 `community/` 下哪个目录、整理时遵循哪个 skill。
-- 现在：`process`「办事流程攻略」（可新建，发布到 `community/guides/`，skill `guide-author`）；`travel`「旅游攻略」（规划中，页面上灰色不可选）。
+- 现在：`process`「办事流程攻略」（可新建，发布到 `community/guides/`，skill `guide-author`）。
+- ~~`travel`「旅游攻略」（规划中，页面上灰色不可选）~~ **已替换（2026-09-29）**：旅游攻略不是办事攻略的一种，从类型列表里去掉，改为侧边栏单独一栏「03 旅游攻略」（`web/travel.html`，待开发），见 docs/BACKLOG.md。
 - 以后加一种类型 = 登记它 + 写它的数据结构、校验、整理 skill 和预览；新建流程（读帖子 → 草稿 → 预览 → 保存）不用改。
 - 草稿按类型分目录存（见"数据与存储"）。
 
