@@ -30,6 +30,7 @@ def built_files() -> dict[str, str]:
     return {
         "scan.js": HEADER.format(name="scan.js") + scan,
         "fill.js": HEADER.format(name="fill.js") + fill.replace("__PLAN__", PLAN_FROM_WINDOW),
+        "read.js": HEADER.format(name="read.js") + (SRC / "read.js").read_text(encoding="utf-8"),
     }
 
 
