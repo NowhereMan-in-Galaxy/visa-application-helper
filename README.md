@@ -92,7 +92,7 @@ uv run youtiao
 也可以在终端里让你自己的 Agent 按 [`specs/002-guide-to-track/prompt.md`](./specs/002-guide-to-track/prompt.md) 整理。提交前运行一次校验：
 
 ```bash
-PYTHONPATH=src uv run python -m core.guides
+uv run python -m core.guides
 ```
 
 全部是 ✓ 才算通过。详细规则（尤其是"不能出现任何个人信息"）见 [`community/README.md`](./community/README.md)。

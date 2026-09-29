@@ -24,7 +24,7 @@
 3. **校验**：在仓库根目录运行
 
    ```bash
-   PYTHONPATH=src uv run python -m core.guides
+   uv run python -m core.guides
    ```
 
    全部显示 ✓ 才算通过。✗ 下面会用中文说明哪里不对。
