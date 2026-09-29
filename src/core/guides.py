@@ -492,6 +492,16 @@ def main() -> int:
     except FormFieldsError as e:
         failed += 1
         print(f"✗ community/form_fields.yaml：{e}")
+
+    from form_engine.sites import SitePoliciesError, load_site_policies
+
+    try:
+        sites = load_site_policies(COMMUNITY_DIR / "site_policies.yaml")
+        forbidden = sum(1 for s in sites if s.automation == "forbidden")
+        print(f"✓ community/site_policies.yaml：{len(sites)} 个网站，{forbidden} 个禁止自动化")
+    except SitePoliciesError as e:
+        failed += 1
+        print(f"✗ community/site_policies.yaml：{e}")
     return 1 if failed else 0
 
 

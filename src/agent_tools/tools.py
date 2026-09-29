@@ -499,7 +499,9 @@ def plan_form_fill(scan, allow_sensitive: list[str] | None = None, *,
     fields = expand_scan(scan)
     if profile is None:
         profile = load_personal_profile(_materials_root(materials_root))
-    return plan(fields, profile, default_dictionary(), allow_sensitive)
+    result = plan(fields, profile, default_dictionary(), allow_sensitive)
+    result.pop("ops")  # Agent 只需要 script（ops 是给插件用的同一份计划，spec 006）
+    return result
 
 
 # ---------- 攻略草稿（spec 004：界面里"新建攻略"的 Agent 只能写草稿，不能直接写 community/） ----------

@@ -376,7 +376,7 @@ def plan(fields: list[dict], profile: PersonalProfile, d: Dictionary,
                 continue
             ops.append({"i": i, "k": "text", "v": v})
         report["fill"].append(item)
-    return {**report, "script": fill_script(ops)}
+    return {**report, "ops": ops, "script": fill_script(ops)}
 
 
 # ---------------------------------------------------------------- 页面脚本

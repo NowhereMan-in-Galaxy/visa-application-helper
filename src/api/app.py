@@ -87,6 +87,10 @@ from core.uploads import UploadConflictError, save_uploaded_file
 
 app = FastAPI(title="材料资料库")
 
+from api.extension import EXT_PREFIX, EXTENSION_ORIGIN, router as extension_router  # noqa: E402
+
+app.include_router(extension_router)
+
 
 @app.middleware("http")
 async def no_stale_frontend(request, call_next):
@@ -200,6 +204,9 @@ async def anti_csrf(request: Request, call_next):
 
     if request.method.upper() in _UNSAFE_METHODS:
         origin = request.headers.get("origin")
+        # 本项目自己的浏览器插件（固定 ID）只能调 /api/ext/ 下的接口（specs/006-browser-extension）
+        if origin == EXTENSION_ORIGIN and request.url.path.startswith(EXT_PREFIX):
+            return await call_next(request)
         if origin is not None:
             expected = _origin_tuple(request.url.scheme, host_header)
             got = _parse_origin_header(origin)
