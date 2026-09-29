@@ -16,6 +16,8 @@
 
 **同日再次删除（2026-09-24）**：旧的材料维护页 `web/index.html` 及其 `app.js` / `style.css` 也删除，侧边栏去掉「03 旧版材料维护」，根地址 `/` 改为跳转到 `/guides.html`。它的功能已由「我的资料」（`/my.html`）覆盖：新增材料、上传文件、给 PDF 追加一页、维护出行记录。按"申请"查看材料清单的旧视图没有搬过去，已被「我的办事」（Track）取代；对应的 `/api/visa-applications` 接口暂时保留。现在前端只有 `guides.html`（攻略与办事）和 `my.html`（我的资料）两个页面。
 
+**新增入口（2026-09-29）**：侧边栏加「03 旅游攻略」（`web/travel.html`），目前是"待开发"占位页。旅游攻略和办事攻略分开：它不产生办事进度（Track），也不在「新建攻略」的类型里。
+
 按"真实 / 草稿 / 未来"划清当前能力边界，避免把演示当成已实现：
 
 - **真实接通（只读展示）**：`GET /api/visa-applications`、`GET /api/visa-applications/{id}/materials`、`GET /api/materials`、`GET /api/personal-profile`（**只取 `travel_history`，不展示也不缓存证件号等其他字段**）。每路数据独立请求、独立错误处理，一个失败不影响其余内容；真实文本一律 `textContent` 写入防 XSS；`example-` 前缀的申请会标为"示例"。

@@ -378,7 +378,7 @@
           el(
             "div",
             { class: "heading" },
-            el("div", null, el("h1", { text: "照着攻略，一件件办好。" }), el("p", { class: "muted", text: "攻略由大家共同维护；你的进度只保存在这台电脑上。" }))
+            el("div", null, el("h1", { text: "照着攻略，一件件办好。" }))
           ),
           el(
             "section",
@@ -396,16 +396,6 @@
               el("button", { type: "button", class: "primary new-guide-btn", text: "+ 新建攻略", onclick: function () { location.hash = "#/new"; } })),
             el("div", { class: "lib-filter" }, search, tagBox),
             libList
-          ),
-          el(
-            "p",
-            { class: "notice" },
-            "想贡献一份攻略？点上面的「+ 新建攻略」，把小红书分享文字或帖子正文贴给 Agent，它会整理成草稿给你检查。",
-            "也可以在终端里让你的 Agent 按 ",
-            el("code", { text: "specs/002-guide-to-track/prompt.md" }),
-            " 整理，详见 ",
-            el("code", { text: "community/README.md" }),
-            "。"
           )
         );
       })
@@ -478,7 +468,8 @@
 
   // ---------- 新建攻略（spec 004 第 2 步）----------
   //
-  //   #/new                    选攻略类型（以后的旅游攻略等在这里加）+ 没保存的草稿
+  //   #/new                    选攻略类型（以后别的办事类攻略在这里加；旅游攻略单独在 /travel.html）+ 没保存的草稿；
+  //                            只有一种能新建的类型时直接跳到它的新建窗口（草稿列表在新建窗口右边）
   //   #/new/<类型>[/<草稿 id>]  左边和 Agent 对话，右边是草稿：校验结果、词表建议、保存 / 丢弃
   //   #/draft/<类型>/<草稿 id>  草稿的完整预览（和正式攻略的预览页一样）
 
@@ -489,6 +480,12 @@
     Promise.all([request("GET", "/api/guide-types"), request("GET", "/api/guide-drafts")])
       .then(function (results) {
         var types = results[0], drafts = results[1];
+        var available = types.filter(function (t) { return t.available; });
+        if (available.length === 1) {
+          // 只有一种能选，不用再选：直接进新建窗口（replace：按返回键回到攻略库，不会又被跳回来）
+          location.replace("#/new/" + encodeURIComponent(available[0].id));
+          return;
+        }
         var nameOf = {};
         types.forEach(function (t) { nameOf[t.id] = t.name; });
         setView(
@@ -531,9 +528,22 @@
       var draftBox = el("div", { class: "draft-box" });
 
       function drawEmpty() {
-        draftBox.replaceChildren(el("div", { class: "draft-empty" },
+        var empty = el("div", { class: "draft-empty" },
           el("p", { text: "草稿会显示在这里。" }),
-          el("p", { class: "muted", text: "Agent 整理好之后，这里会出现草稿和「保存到攻略库」按钮。" })));
+          el("p", { class: "muted", text: "Agent 整理好之后，这里会出现草稿和「保存到攻略库」按钮。" }));
+        draftBox.replaceChildren(empty);
+        // 以前没保存的草稿列在这里，点一下接着编辑（选类型那一页可能被跳过了）
+        request("GET", "/api/guide-drafts").then(function (drafts) {
+          drafts = drafts.filter(function (d) { return d.type === typeId; });
+          if (!drafts.length || draftId) return;
+          empty.append(el("div", { class: "draft-older" },
+            el("h3", { text: "还没保存的草稿（" + drafts.length + "）" }),
+            el("ul", null, drafts.map(function (d) {
+              return el("li", null,
+                el("a", { href: "#/new/" + encodeURIComponent(d.type) + "/" + encodeURIComponent(d.id), text: d.title || d.id }),
+                el("small", { class: "muted", text: d.valid ? "　✓ 校验通过" : "　✗ 校验未通过" }));
+            }))));
+        }).catch(function () { /* 列不出来也不影响新建 */ });
       }
 
       function loadDraft() {
@@ -636,7 +646,10 @@
 
       setView(
         el("div", { class: "heading" }, el("div", null,
-          el("div", { class: "crumb" }, el("a", { href: "#/", text: "攻略库" }), " / ", el("a", { href: "#/new", text: "新建攻略" }), " / " + type.name),
+          // 只有一种类型时"新建攻略"那一页会直接跳回这里，面包屑就不给它链接
+          types.filter(function (t) { return t.available; }).length > 1
+            ? el("div", { class: "crumb" }, el("a", { href: "#/", text: "攻略库" }), " / ", el("a", { href: "#/new", text: "新建攻略" }), " / " + type.name)
+            : el("div", { class: "crumb" }, el("a", { href: "#/", text: "攻略库" }), " / 新建攻略"),
           el("h1", { text: "新建" + type.name }),
           el("p", { class: "muted", text: type.description }))),
         el("div", { class: "new-ws" },

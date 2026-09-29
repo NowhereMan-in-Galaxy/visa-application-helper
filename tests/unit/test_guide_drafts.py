@@ -56,7 +56,7 @@ def test_guide_types(env):
     c, _, _ = env
     types = {t["id"]: t for t in c.get("/api/guide-types", headers=LOCAL).json()}
     assert types["process"]["available"] is True
-    assert types["travel"]["available"] is False
+    assert "travel" not in types  # 旅游攻略单独放在侧边栏「03 旅游攻略」，不是办事攻略的一种
 
 
 # ---- 验收 5：草稿只写草稿区 ----
@@ -74,7 +74,7 @@ def test_draft_id_rules(env):
     for bad in ("../evil", "Upper", "a/b", ""):
         with pytest.raises(ValueError):
             save(community, root, draft_yaml(), guide_id=bad)
-    with pytest.raises(ValueError):  # 旅游攻略还不能建
+    with pytest.raises(ValueError):  # 旅游攻略不是办事攻略的类型，不能在这里建草稿
         tools.save_guide_draft("x", draft_yaml("x"), guide_type="travel", materials_root=root, community_dir=community)
 
 

@@ -1,7 +1,10 @@
 """攻略类型（spec 004"攻略类型"）：新建攻略时先选类型，不同类型的数据结构、整理规则、校验和预览可以完全不同。
 
-目前只有"办事流程攻略"（community/guides/，spec 002 的 Guide 结构）。旅游攻略等以后加：
-在这里登记一个新类型，给它写数据结构、校验、整理用的 skill 和预览页面即可，新建流程（读帖子 → 草稿 → 预览 → 保存）不用改。
+目前只有"办事流程攻略"（community/guides/，spec 002 的 Guide 结构）。以后的其他办事类攻略在这里登记：
+给它写数据结构、校验、整理用的 skill 和预览页面即可，新建流程（读帖子 → 草稿 → 预览 → 保存）不用改。
+
+旅游攻略不在这里（2026-09-29 项目主决定）：它不是"办事"，没有办事进度（Track），单独放在侧边栏「03 旅游攻略」
+（web/travel.html，待开发），见 docs/BACKLOG.md。
 """
 
 from __future__ import annotations
@@ -30,12 +33,6 @@ GUIDE_TYPES: list[GuideType] = [
         available=True,
         community_subdir="guides",
         skill="guide-author",
-    ),
-    GuideType(
-        id="travel",
-        name="旅游攻略",
-        description="行程、景点、交通、预算。规划中，暂时不能新建（见 docs/BACKLOG.md）。",
-        available=False,
     ),
 ]
 
