@@ -23,3 +23,9 @@ body.fh main#list { max-width: 720px; margin: 0; padding: 4px 16px 40px; }
 .fh-empty { padding: 24px 0; color: var(--muted); }
 
 .fh-toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 6px 14px; font-size: 12px; }
+
+/* 分类按钮 + 列表条目的小标题（2026-09-29 项目主：全是滚动，不好找） */
+.fh-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fh-chip { padding: 1px 8px; font-size: 12px; border: 1px solid var(--line); background: transparent; }
+.fh-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.fh-sub { font-size: 12px; margin: 10px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); }
