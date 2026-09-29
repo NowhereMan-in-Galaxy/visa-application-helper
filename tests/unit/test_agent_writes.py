@@ -10,7 +10,8 @@ import api.app as app_module
 import config
 from agent_runner import jobs
 from agent_tools import activity, tools
-from core.profile_storage import load_personal_profile
+from core.models import PersonalProfile
+from core.profile_storage import load_personal_profile, save_personal_profile
 
 LOCAL = {"Host": "127.0.0.1:8000"}
 EVIL = {**LOCAL, "Origin": "https://evil.example"}
@@ -126,3 +127,13 @@ def test_side_events_only_new(env):
     assert events[0][1]["text"].startswith("已取消勾选：")
     assert events[1][1]["changed"][0]["after"] == FAKE_PHONE
     assert jobs.side_events(root, state) == []  # 不重复报
+
+
+def test_proposal_lists_only_the_changed_cells(env):
+    """2026-09-29 项目主：只改工作电话，确认卡片却把整个"目前的单位"对象当 JSON 列了出来。"""
+    _, root, _ = env
+    save_personal_profile(root, PersonalProfile.model_validate(
+        {"employment": {"current": {"name": "Example Co", "address": {"city": "Testville"}}}}))
+    res = activity.propose_profile_update(root, "employment", {"current": {"phone": FAKE_PHONE, "address": {"city": "Testville"}}})
+    assert [(c["path"], c["before"], c["after"]) for c in res["changed"]] == [("employment.current.phone", None, FAKE_PHONE)]
+    assert "电话" in res["changed"][0]["label"]

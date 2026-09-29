@@ -76,7 +76,13 @@ body.agent-open main { padding-right: 420px; }
 .agent-undo { margin-left: auto; padding: 2px 10px; font-size: 12px; }
 .agent-inline-error { flex-basis: 100%; color: var(--danger); font-size: 12px; }
 .agent-card { border: 1px solid var(--ink); background: #fff; padding: 10px 12px; font-size: 13px; box-shadow: 3px 3px 0 var(--line); }
-.agent-card ul { margin: 6px 0; padding-left: 18px; }
+.agent-card ul { margin: 6px 0; padding: 0; list-style: none; }
+/* 每一格一行：名字一行小字，下面"旧值 → 新值"；长地址、长英文都折行，不撑出横向滚动条 */
+.agent-card li { padding: 5px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.agent-card li:first-child { border-top: 0; }
+.agent-card .change-label { display: block; font-size: 12px; color: var(--muted); }
+.agent-card del { color: var(--muted); }
+.agent-card ins { text-decoration: none; font-weight: 600; }
 .agent-card-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .agent-card-actions button { padding: 4px 12px; font-size: 13px; }
 .agent-card-status { font-size: 12px; color: var(--muted); margin-top: 4px; }

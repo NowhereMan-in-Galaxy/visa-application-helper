@@ -167,18 +167,46 @@ def _write_proposals(root: Path, items: list[dict]) -> None:
     path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _show(value):
+    """确认卡片上显示的值：列表写"N 条"，对象不会出现在这里（已经拆到每一格）。"""
+    if isinstance(value, list):
+        if all(isinstance(x, (str, int, float)) for x in value):
+            return "、".join(map(str, value)) or None
+        return f"{len(value)} 条"
+    return value
+
+
+def _leaf_changes(path: str, before, after, out: list[dict]) -> None:
+    """对象逐格比较，只留真正变了的那一格（2026-09-29 项目主：只改工作电话，卡片却把整个单位的 JSON 都列了出来）。"""
+    if isinstance(before, dict) and isinstance(after, dict):
+        for k in after:
+            _leaf_changes(f"{path}.{k}", before.get(k), after.get(k), out)
+        return
+    if before != after:
+        out.append({"field": path.split(".", 1)[1], "path": path, "before": _show(before), "after": _show(after)})
+
+
 def propose_profile_update(root: Path, group: str, changes: dict) -> dict:
     """校验并记下一条提议，不改基本信息。值没有变化时不记。"""
+    from form_engine.match import profile_leaves
+
     changed = preview_profile_fields(root, group, changes)
     if not changed:
         return {"proposal_id": None, "changed": []}
+    leaves = profile_leaves()
     labels = _labels()
+    cells: list[dict] = []
+    for c in changed:
+        _leaf_changes(f"{group}.{c['field']}", c["before"], c["after"], cells)
+    for c in cells:
+        leaf = leaves.get(c["path"])
+        c["label"] = leaf.label if leaf else labels.get(c["path"], c["field"])
     item = {
         "id": uuid4().hex[:12],
         "time": _now(),
         "group": group,
         "changes": changes,
-        "changed": [{**c, "label": labels.get(f"{group}.{c['field']}", c["field"])} for c in changed],
+        "changed": cells,
     }
     _write_proposals(root, read_proposals(root) + [item])
     return {"proposal_id": item["id"], "changed": item["changed"]}

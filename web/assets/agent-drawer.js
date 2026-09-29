@@ -91,7 +91,15 @@
     var card = h("div", { class: "agent-card" }, [
       h("strong", { text: "Agent 想修改你的基本信息" }),
       h("ul", null, p.changed.map(function (c) {
-        return h("li", null, [h("span", { class: "muted", text: c.label + "：" }), h("span", { text: showValue(c.before) + " → " + showValue(c.after) })]);
+        // 名字只留最后两段（"目前的单位或学校 › 工作电话"），分组名在卡片里是多余的
+        var name = c.label.split(" › ").slice(-2).join(" › ");
+        var before = c.before === null || c.before === undefined || c.before === "" ? null : showValue(c.before);
+        return h("li", null, [
+          h("span", { class: "change-label", text: name }),
+          before ? h("del", { text: before }) : h("span", { class: "muted", text: "（空）" }),
+          " → ",
+          h("ins", { text: showValue(c.after) }),
+        ]);
       })),
       h("div", { class: "agent-card-actions" }, [no, ok]),
       status,
