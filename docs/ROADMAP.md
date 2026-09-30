@@ -106,6 +106,7 @@
   - [x] **改写历史**（2026-09-30 项目主确认）：用 `git filter-repo` 把旧提交里的个人经历（毕业入职时间、材料库里有哪些材料、试验标题里的身份和地点等）换成现在的写法，删掉旧 README 里的项目来源说明。改写前的完整备份在仓库外（`personal-assistant-backup-before-history-rewrite-2026-09-30.bundle`，含旧内容，不要上传）。
   - [x] **名字**（2026-09-30 项目主决定）：作者和 LICENSE 保留真名；GitHub 仓库叫 `visa-application-helper`，README 和 INSTALL.md 里的地址已改。本机文件夹、Python 包名和 MCP 服务名仍叫 `personal-assistant`，不影响使用。
   - [x] **已公开**（2026-09-30）：<https://github.com/NowhereMan-in-Galaxy/visa-application-helper>。CI 第一次在 GitHub 上跑，全部通过。GitHub 提示 `actions/checkout@v4`、`setup-uv@v6` 用的 Node 20 要淘汰了，以后升级这两个版本号。
+  - [x] **在线演示站**（2026-09-30 项目主提出）：GitHub Pages 上的只读演示，攻略库排最前面，每次推送自动更新，见 [`docs/demo/site.md`](./demo/site.md)。
   - [ ] 公开后**不再改写历史**；每次提交前照旧扫一遍个人信息。
 - **完成标志**：`git log` 全历史里没有个人信息；新克隆的仓库里没有任何个人数据。
 
