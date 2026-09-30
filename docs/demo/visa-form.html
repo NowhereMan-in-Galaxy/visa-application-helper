@@ -1,0 +1,132 @@
+<!doctype html>
+<!-- README 动图用的虚构签证表（不对应任何真实网站）。用法见 docs/demo/README.md。
+     填写用的是项目真实的填表引擎：页面加载时运行 src/form_engine/scan.js，点「填本页」时按 visa-form.plan.json 逐格运行 fill.js。 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Short-stay Visa Application · Demo</title>
+<style>
+  :root { --navy: #1f3350; --ink: #1d2430; --muted: #6b7280; --line: #d9dde3; --bg: #eef1f5; --accent: #2f6fb3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+  header { background: var(--navy); color: #fff; padding: 11px 32px; display: flex; align-items: center; gap: 14px; }
+  header .seal { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #c9d4e5; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header .demo { margin-left: 8px; font-size: 11px; padding: 2px 7px; border: 1px solid #9fb3cf; border-radius: 3px; color: #cfdbec; }
+  .steps { display: flex; gap: 0; background: #fff; border-bottom: 1px solid var(--line); padding: 0 32px; }
+  .steps span { padding: 8px 18px 7px; font-size: 13px; color: var(--muted); border-bottom: 3px solid transparent; }
+  .steps span.on { color: var(--navy); font-weight: 600; border-color: var(--accent); }
+  main { max-width: 980px; margin: 14px auto 16px; padding: 0 24px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px 20px 14px; margin-bottom: 10px; }
+  .card h2 { font-size: 14.5px; margin: 0 0 8px; color: var(--navy); }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 18px; }
+  .grid .wide { grid-column: span 2; }
+  label.f { display: grid; gap: 4px; font-size: 12.5px; color: #3b4452; }
+  input[type=text], input[type=email], input[type=tel], select { font: inherit; font-size: 14px; padding: 5px 9px; border: 1px solid #c3c9d2; border-radius: 4px; background: #fff; width: 100%; }
+  fieldset { border: 0; padding: 0; margin: 0; }
+  fieldset legend { font-size: 12.5px; color: #3b4452; padding: 0; margin-bottom: 6px; }
+  fieldset label { margin-right: 14px; font-size: 14px; }
+  .actions { display: flex; justify-content: space-between; align-items: center; }
+  .actions small { color: var(--muted); }
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 9px 18px; font: inherit; font-weight: 600; }
+  #pa-demo { position: fixed; top: 12px; right: 18px; z-index: 10; background: #4f6146; color: #fff; border: 0; border-radius: 18px; padding: 8px 16px; font: 600 13px -apple-system, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; }
+  #pa-toast { position: fixed; top: 58px; right: 18px; z-index: 10; background: #fff; border: 1px solid #cfd8c6; border-left: 4px solid #4f6146; border-radius: 6px; padding: 9px 14px; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.15); display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="seal">V</div>
+  <h1>Short-stay Visa Application</h1>
+  <span class="demo">DEMO · fictional form</span>
+</header>
+<nav class="steps"><span class="on">1 Applicant</span><span>2 Passport</span><span>3 Travel</span><span>4 Review</span></nav>
+
+<main>
+  <section class="card">
+    <h2>Applicant</h2>
+    <div class="grid">
+      <label class="f">Surname (as in passport)<input type="text" name="surname"></label>
+      <label class="f">Given names<input type="text" name="givenNames"></label>
+      <label class="f">Date of birth (DD/MM/YYYY)<input type="text" name="dob" placeholder="DD/MM/YYYY"></label>
+      <fieldset><legend>Sex</legend>
+        <label><input type="radio" name="sex" value="M"> Male</label>
+        <label><input type="radio" name="sex" value="F"> Female</label>
+      </fieldset>
+      <label class="f">Nationality
+        <select name="nationality"><option value=""></option><option>China</option><option>Japan</option><option>United States</option></select></label>
+      <label class="f">Marital status
+        <select name="maritalStatus"><option value=""></option><option>Single</option><option>Married</option><option>Divorced</option></select></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Passport</h2>
+    <div class="grid">
+      <label class="f">Passport number<input type="text" name="passportNumber"></label>
+      <label class="f">Passport date of issue (DD/MM/YYYY)<input type="text" name="passportIssue" placeholder="DD/MM/YYYY"></label>
+      <label class="f">Passport date of expiry (DD/MM/YYYY)<input type="text" name="passportExpiry" placeholder="DD/MM/YYYY"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Home address and contact</h2>
+    <div class="grid">
+      <label class="f wide">Street address<input type="text" name="street"></label>
+      <label class="f">City<input type="text" name="city"></label>
+      <label class="f">Postal code<input type="text" name="postcode"></label>
+      <label class="f">Mobile phone<input type="tel" name="phone"></label>
+      <label class="f">Email<input type="email" name="email"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>This trip</h2>
+    <div class="grid">
+      <label class="f">Purpose of your trip
+        <select name="purpose"><option value=""></option><option>Tourism</option><option>Business</option><option>Visiting family or friends</option><option>Study</option></select></label>
+      <label class="f">Intended date of arrival (DD/MM/YYYY)<input type="text" name="arrival" placeholder="DD/MM/YYYY"></label>
+      <label class="f">Intended date of departure (DD/MM/YYYY)<input type="text" name="departure" placeholder="DD/MM/YYYY"></label>
+      <label class="f wide">Name of hotel or accommodation<input type="text" name="hotel"></label>
+      <label class="f">City of accommodation<input type="text" name="hotelCity"></label>
+    </div>
+  </section>
+
+  <div class="actions"><small>Fictional form for demonstrating 有条有理. Not affiliated with any government.</small><button class="btn" type="button">Save and continue</button></div>
+</main>
+
+<button id="pa-demo" type="button">填本页</button>
+<div id="pa-toast"></div>
+
+<script>
+(async () => {
+  "use strict";
+  const get = (p) => fetch(p).then((r) => r.text());
+  // 真实的填表引擎：先扫描（给每个格子编号），填的时候按计划逐格运行，方便录成动图
+  const [scan, fill] = await Promise.all([get("/src/form_engine/scan.js"), get("/src/form_engine/fill.js")]);
+  window.__paScanResult = (0, eval)(scan);
+  let plan = [];
+  try { plan = await fetch("visa-form.plan.json").then((r) => r.json()); } catch (e) { /* 还没生成计划：只能扫描 */ }
+  const toast = document.getElementById("pa-toast");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // 录动图时用 window.paStep() 一格一格填；手动点按钮则连续填完
+  let next = 0;
+  window.paStep = () => {
+    if (next >= plan.length) return false;
+    (0, eval)(fill.replace("__PLAN__", JSON.stringify([plan[next++]])));
+    return next < plan.length;
+  };
+  window.paDone = () => {
+    const total = document.querySelectorAll("input[type=text],input[type=tel],input[type=email],select").length + 1;
+    toast.textContent = "✓ 已填 " + plan.length + " 格 · 护照号留给你自己填";
+    toast.style.display = "block";
+    return total;
+  };
+  document.getElementById("pa-demo").addEventListener("click", async () => {
+    while (window.paStep()) await sleep(90);
+    window.paDone();
+  });
+})();
+</script>
+</body>
+</html>
