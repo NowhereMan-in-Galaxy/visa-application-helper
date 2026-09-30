@@ -124,3 +124,36 @@ def trip_source_ids(requirements: list) -> list[str]:
         if r.material_type in TRIP_SOURCE_TYPES or any(w in name for w in TRIP_SOURCE_WORDS):
             out.append(r.id)
     return out
+
+
+# ---- 这件事的文件夹（spec 007 第 4 步）：文件留在原处，只列出、只读 ----
+FOLDER_PREFIX = "f:"
+MAX_FOLDER_FILES = 100
+FOLDER_TRIP_WORDS = TRIP_SOURCE_WORDS + ("booking", "ticket", "schedule", "预订", "订单", "日程")
+
+
+def folder_files(folder: str | None) -> list[dict[str, Any]] | None:
+    """文件夹本身和下一层子文件夹里能读的文件，按路径排序、最多 MAX_FOLDER_FILES 个。
+
+    没关联返回 []；关联了但文件夹不在了返回 None。
+    """
+    if not folder:
+        return []
+    from pathlib import Path
+
+    base = Path(folder)
+    if not base.is_dir():
+        return None
+    found = []
+    for path in sorted(base.iterdir()):
+        if path.name.startswith("."):
+            continue
+        children = sorted(path.iterdir()) if path.is_dir() else [path]
+        for f in children:
+            if f.name.startswith(".") or not f.is_file() or not f.name.lower().endswith(READABLE_SUFFIXES):
+                continue
+            rel = f.relative_to(base).as_posix()
+            name = f.name.lower()
+            found.append({"id": FOLDER_PREFIX + rel, "type": f.name, "sublabel": path.name if path.is_dir() else None,
+                          "one_off": any(w in name for w in FOLDER_TRIP_WORDS), "own": False, "folder": True})
+    return found[:MAX_FOLDER_FILES]

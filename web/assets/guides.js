@@ -885,6 +885,24 @@
           .then(function (nv) { return loadMyRecords().then(function () { return nv; }); })
           .catch(function (e) { showError(e.message); throw e; });
       },
+      setFolder: function (path) {
+        showError("");
+        return request("PUT", "/api/tracks/" + encodeURIComponent(v.id) + "/folder", { path: path })
+          .catch(function (e) { showError(e.message); throw e; });
+      },
+      chooseFolder: function () {
+        showError("");
+        return fetch("/api/tracks/" + encodeURIComponent(v.id) + "/folder/choose", { method: "POST", headers: { Accept: "application/json" } })
+          .then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (b) {
+              if (r.ok) return b;
+              var err = new Error(b.detail || "出错了（" + r.status + "）");
+              err.status = r.status;
+              if (r.status !== 501) showError(err.message);
+              throw err;
+            });
+          });
+      },
       redraw: drawTrack,
       jump: jumpTo,
       openTrip: function () {

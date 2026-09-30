@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide, Requirement, Step
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
-from core.trip import TripInfo, describe_trip_groups, trip_group_keys, trip_materials, trip_source_ids
+from core.trip import TripInfo, describe_trip_groups, folder_files, trip_group_keys, trip_materials, trip_source_ids
 from core.status import compute_status
 from core.windows import reminders as _reminders, window_view
 
@@ -90,6 +90,8 @@ class Track(BaseModel):
     custom_materials: list[CustomMaterial] = []
     # 这次行程的信息（specs/007-trip-info）：目的、日期、住处、邀请人……只属于这件办事，不写进基本信息
     trip: TripInfo = TripInfo()
+    # 用户给这件办事选的文件夹（绝对路径，spec 007 第 4 步）：文件留在原处，只列出、让「让 Agent 整理」能读
+    folder: str | None = None
 
 
 def apply_adjustments(guide: Guide, track: Track) -> Guide:
@@ -323,6 +325,8 @@ class TrackView(BaseModel):
     trip_materials: list[dict] = []
     # 开始清单里要上传的"行程材料"需求 id（spec 007 第 3 步）
     trip_sources: list[str] = []
+    folder: str | None = None
+    folder_missing: bool = False  # 关联了文件夹但它不在了（被移走或改名）
     # 被隐藏的步骤和材料 [{kind: "step"|"requirement", id, title}]，界面上用来"恢复"
     hidden_items: list[dict] = []
     # 以后"开始可以办"或"截止"的日子 [{date, kind: opens|closes, step, title}]，按日期排序（spec §3c）
@@ -546,6 +550,7 @@ def compute_track_view(
         if s.as_of is not None and (today - s.as_of).days > SOURCE_STALE_AFTER_DAYS
     ]
 
+    in_folder = folder_files(track.folder)  # 唯一碰文件系统的地方：只列文件名
     return TrackView(
         id=track.id, title=track.title, guide_id=guide.id, guide_title=guide.title,
         created=track.created, deadline=track.deadline, completed=track.completed,
@@ -563,7 +568,9 @@ def compute_track_view(
         trip_groups=describe_trip_groups(trip_group_keys(guide.category, guide.trip)),
         trip_materials=trip_materials(
             track, [r for r in records if not r.id.startswith(EXAMPLE_PREFIX)],
-            lambda r: not _default_keep(_record_type(r, vocab), vocab)),
+            lambda r: not _default_keep(_record_type(r, vocab), vocab)) + (in_folder or []),
+        folder=track.folder,
+        folder_missing=in_folder is None,
         trip_sources=trip_source_ids(req_views),
         hidden_items=[
             {"kind": "step", "id": s.id, "title": s.title} for s in guide.steps if s.id in hidden_steps

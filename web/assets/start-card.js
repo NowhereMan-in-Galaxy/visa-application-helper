@@ -1,6 +1,7 @@
 // 办事页最上面的"开始清单"（specs/007-trip-info 第 3 步）：回答问题 → 放进这次行程的材料 → 整理这次行程。
 // 有「这次行程」、没办完、没做完也没跳过时代替「下一步」卡片。guides.js 调用：
-//   window.StartCard.render(v, {el, upload(path, formData), remove(recordId), redraw(view), jump(id), openTrip()})
+//   window.StartCard.render(v, {el, upload(path, formData), remove(recordId), setFolder(path|null), chooseFolder(),
+//                               redraw(view), jump(id), openTrip()})
 // 返回 null 表示这次不显示（调用方照常画「下一步」）。
 (function () {
   "use strict";
@@ -109,11 +110,47 @@
         row(0, st.unanswered ? "回答几个问题（还有 " + st.unanswered + " 个）" : "回答几个问题", null,
           st.done[0] ? null : function () { deps.jump("facts"); }),
         row(1, "先放进和这次行程强相关的材料", el("div", { class: "start-body" },
-          el("small", { class: "muted", text: "邀请函、订单里的日期和地址，填官网时都用得上" }), mats)),
+          el("small", { class: "muted", text: "邀请函、订单里的日期和地址，填官网时都用得上" }), folderLine(el, v, deps), mats)),
         row(2, "整理这次行程", st.done[2] ? null : el("button", { type: "button", class: "primary start-go", text: "让 Agent 整理", onclick: deps.openTrip }))
       ),
       skip
     );
+  }
+
+  // 这件事的文件夹（第 4 步）：Mac 上弹出系统选择窗口；别的系统（501）改为输入路径
+  function folderLine(el, v, deps) {
+    function pathForm() {
+      var input = el("input", { type: "text", placeholder: "~/Desktop/澳洲签证", "aria-label": "文件夹路径", value: v.folder || null });
+      var form = el("form", { class: "start-folder-form" }, input, el("button", { type: "submit", text: "关联" }));
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (input.value.trim()) deps.setFolder(input.value.trim()).then(deps.redraw).catch(function () {});
+      });
+      return form;
+    }
+    var line = el("div", { class: "start-folder" });
+    function choose() {
+      deps.chooseFolder().then(function (res) {
+        if (res && res.cancelled) return;
+        deps.redraw(res);
+      }).catch(function (e) {
+        if (e && e.status === 501) { line.innerHTML = ""; line.append(pathForm()); }
+      });
+    }
+    if (!v.folder) {
+      line.append(el("button", { type: "button", class: "start-folder-pick", text: "📁 选这件事的文件夹", onclick: choose }));
+      return line;
+    }
+    var name = v.folder.replace(/\/+$/, "").split("/").pop();
+    var count = v.trip_materials.filter(function (m) { return m.folder; }).length;
+    line.append(
+      el("span", { title: v.folder, text: "📁 " + name + (v.folder_missing ? " · 找不到了" : " · " + count + " 个文件") }),
+      el("button", { type: "button", class: "linkish", text: "换", onclick: choose }),
+      el("button", { type: "button", class: "linkish muted", text: "不关联", onclick: function () {
+        deps.setFolder(null).then(deps.redraw).catch(function () {});
+      } })
+    );
+    return line;
   }
 
   // "＋ 其他"：攻略没列的行程材料（邀请函、会议通知……），填个名字再选文件

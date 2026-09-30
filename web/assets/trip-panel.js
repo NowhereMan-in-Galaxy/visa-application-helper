@@ -6,6 +6,7 @@
   "use strict";
 
   var expanded = {}; // 哪些办事把这一块展开了（只在页面内存里）
+  var MAX_PICK = 6; // 和后端 prompts.MAX_TRIP_MATERIALS 一致
   var extractors = {}; // 办事 id → {chat, picked, v}：对话窗口整页只建一份，重画时挂回去，不丢对话
 
   function isEmpty(v) {
@@ -98,7 +99,7 @@
     );
   }
 
-  function materialLabel(m) { return m.type + (m.sublabel ? " · " + m.sublabel : ""); }
+  function materialLabel(m) { return (m.folder ? "📁 " : "") + m.type + (m.sublabel ? " · " + m.sublabel : ""); }
 
   // 「让 Agent 整理」：输入框 + 勾选材料 + 对话记录（确认卡片也出现在这里）
   function extractBox(el, v) {
@@ -106,7 +107,6 @@
     var st = extractors[v.id];
     if (!st) {
       st = extractors[v.id] = { picked: {} };
-      v.trip_materials.forEach(function (m) { st.picked[m.id] = m.one_off; });
       st.chat = window.AgentChat.create({
         kind: "trip_extract",
         context: function () { return { page: "track", track_id: st.v.id, materials: pickedIds() }; },
@@ -118,6 +118,10 @@
       });
     }
     st.v = v;
+    // 新出现的材料（刚上传、刚关联文件夹）按默认勾选；一次最多读 MAX_PICK 份，默认也只勾这么多
+    v.trip_materials.forEach(function (m) {
+      if (!(m.id in st.picked)) st.picked[m.id] = m.one_off && pickedIds().length < MAX_PICK;
+    });
     function pickedIds() {
       return st.v.trip_materials.filter(function (m) { return st.picked[m.id]; }).map(function (m) { return m.id; });
     }

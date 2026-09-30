@@ -423,3 +423,7 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .start-body { display: grid; gap: 6px; }
 .start-mat.have .linkish { font-size: 12px; }
 .start-skip { display: block; margin: 6px 0 0 auto; font-size: 12px; }
+.start-folder { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; }
+.start-folder-pick { justify-self: start; font-size: 13px; }
+.start-folder-form { display: flex; gap: 6px; }
+.start-folder-form input { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); width: 220px; }

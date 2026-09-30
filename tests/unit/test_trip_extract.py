@@ -260,3 +260,64 @@ def test_remove_own_trip_material(env):
     trash = sorted(p.name for p in (root / ".trash" / "materials").iterdir())
     assert any(n.endswith(f"-{hotel['id']}.yaml") for n in trash) and any(n.endswith(".pdf") for n in trash)
     assert not (root / "index" / "records" / f"{hotel['id']}.yaml").exists()
+
+
+# ---- 第 4 步：这件事的文件夹 ----
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    h = tmp_path / "home"
+    visa = h / "Desktop" / "澳洲签证"
+    (visa / "酒店").mkdir(parents=True)
+    (visa / "a" / "b").mkdir(parents=True)
+    (visa / ".hidden").mkdir()
+    put_file(visa, "Invitation letter.txt", b"Invitation from Example University, 1-5 October 2026")
+    put_file(visa, "护照首页.jpg", b"\xff\xd8")
+    put_file(visa, "酒店/Hotel booking.pdf", b"%PDF x")
+    put_file(visa, "a/b/too-deep.pdf", b"%PDF x")
+    put_file(visa, ".hidden/secret.txt", b"x")
+    put_file(visa, ".DS_Store", b"x")
+    put_file(visa, "notes.heic", b"x")
+    monkeypatch.setattr(app_module.Path, "home", classmethod(lambda cls: h))
+    return h, visa
+
+
+def test_folder_validation(env, home):
+    c, root, tid = env
+    h, visa = home
+    url = f"/api/tracks/{tid}/folder"
+    for bad in [str(h), str(h / "Desktop"), str(h / "nope"), "relative/path", str(root), str(app_module.REPO_ROOT / "docs")]:
+        assert c.put(url, headers=LOCAL, json={"path": bad}).status_code == 422, bad
+    v = c.put(url, headers=LOCAL, json={"path": str(visa)}).json()
+    assert v["folder"] == str(visa.resolve()) and v["folder_missing"] is False
+    assert c.put(url, headers=LOCAL, json={"path": None}).json()["folder"] is None
+
+
+def test_folder_files_listed_and_read(env, home, monkeypatch):
+    c, root, tid = env
+    _, visa = home
+    v = c.put(f"/api/tracks/{tid}/folder", headers=LOCAL, json={"path": str(visa)}).json()
+    files = {m["id"]: m for m in v["trip_materials"] if m.get("folder")}
+    assert set(files) == {"f:Invitation letter.txt", "f:护照首页.jpg", "f:酒店/Hotel booking.pdf"}
+    assert files["f:Invitation letter.txt"]["one_off"] and files["f:酒店/Hotel booking.pdf"]["one_off"]
+    assert files["f:酒店/Hotel booking.pdf"]["sublabel"] == "酒店"
+    assert not files["f:护照首页.jpg"]["one_off"] and not files["f:护照首页.jpg"]["own"]
+
+    monkeypatch.setenv(activity.KIND_ENV, "trip_extract")
+    assert "Example University" in tools.read_track_material(tid, "f:Invitation letter.txt")["text"]
+    for bad in ["f:../secret.txt", "f:a/b/too-deep.pdf", "f:.hidden/secret.txt"]:
+        with pytest.raises(ValueError, match="不是这件办事的材料"):
+            tools.read_track_material(tid, bad)
+    # 页面上勾了文件夹里的文件，可以发起整理任务
+    assert c.post("/api/agent/jobs", headers=LOCAL, json={"kind": "trip_extract", "input": "x",
+                  "context": {"track_id": tid, "materials": ["f:../secret.txt"]}}).status_code == 422
+
+    visa.rename(visa.with_name("改了名"))
+    v = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()
+    assert v["folder_missing"] is True and not any(m.get("folder") for m in v["trip_materials"])
+
+
+def test_folder_choose_is_mac_only(env, monkeypatch):
+    c, _, tid = env
+    monkeypatch.setattr("sys.platform", "linux")
+    assert c.post(f"/api/tracks/{tid}/folder/choose", headers=LOCAL).status_code == 501
