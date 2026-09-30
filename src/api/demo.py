@@ -36,7 +36,17 @@ DEMO_PROFILE = {
     "family": {"marital_status": "single"},
     "employment": {"primary_occupation": "computer_science",
                    "current": {"name": "EXAMPLE TECH CO., LTD.", "job_title": "SOFTWARE ENGINEER"}},
+    # 出行记录：加拿大等签证要列出过去每次出境，填过一次以后都能用
+    "travel_history": [
+        {"country": "日本", "entry_date": "2023-04-01", "exit_date": "2023-04-07", "purpose": "旅游"},
+        {"country": "泰国", "entry_date": "2024-01-20", "exit_date": "2024-01-27", "purpose": "旅游"},
+        {"country": "新加坡", "entry_date": "2024-08-12", "exit_date": "2024-08-15", "purpose": "出差"},
+        {"country": "韩国", "entry_date": "2025-05-01", "exit_date": "2025-05-05", "purpose": "旅游"},
+    ],
 }
+
+# 示例办事里已经做完的步骤：进度页上能看到进度
+DEMO_DONE_STEPS = ["s-choose-country"]
 
 
 # 示例办事预先回答的问题：让材料清单按"在职、去法国"收窄，页面上能看到材料对上的效果
@@ -75,6 +85,10 @@ def build_demo_root(root: Path, today: date) -> Path:
     from core.trip import merge_trip
 
     track.trip = merge_trip(track.trip, DEMO_TRIP)
+    from core.tracks import set_step_done
+
+    for step in DEMO_DONE_STEPS:
+        set_step_done(track, step, True, today)
     hotel = root / "other" / "demo-hotel-booking.txt"
     hotel.parent.mkdir(parents=True, exist_ok=True)
     hotel.write_text(DEMO_HOTEL, encoding="utf-8")

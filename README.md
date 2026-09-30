@@ -1,106 +1,117 @@
 # 有条有理
 
-**办签证、领补贴，把散在各处的攻略整理成一张清单，一步步照着做。**
+一个装在自己电脑上的办事助手：把签证、补贴这类事的攻略、材料和官网填表串在一起，Agent 帮你跑腿。
 
-![攻略库和正在办的事](docs/screenshots/home.png)
+![首页](docs/screenshots/home.png)
 
-<sub>截图里的资料都是虚构的。</sub>
+<sub>本页截图里的资料都是虚构的。</sub>
 
-## 它解决什么问题
+## 为什么做这个
 
-准备办一件事的时候，你大概会经历这些：
+办签证时，最让人不想动的往往是这三件事：
 
-- 在小红书翻了十几篇帖子，说法各不相同，不知道该信哪篇；
-- 材料一大堆，哪份过期了、哪份还没开，全靠脑子记；
-- 到官网填表，护照号、地址、工作经历又要一格一格敲一遍。
+1. **攻略太散。** 小红书上搜了一圈、收藏了几十条笔记，真要办的时候翻不过来，几篇的说法还对不上。
+2. **同样的材料每次都要重新找。** 护照、流水、在职证明，每办一次事就翻一遍文件夹；哪份过期了，也要一份份看。
+3. **官网填表太慢。** 姓名、护照号、地址要一格一格敲，还有些信息平时根本不会记，比如加拿大签证要填过去每一次出境记录。
 
-有条有理就是为这几件事做的。它是一个**装在你自己电脑上**的小工具，用浏览器打开就能用。
+有条有理把这几步连起来：
 
-## 以办一次申根签证为例
+- 贴几条笔记链接，Agent 读完，整理成一份攻略：分几步、每步要什么材料、哪几篇说法有冲突。
+- 材料和基本信息只录一次。下次办别的事，已有的材料自动对上，快过期的会提醒。出行记录填过一次就一直在。
+- 到官网上点一下，插件把认得的格子填好，认不出的交给 Agent 补。
 
-**1. 挑一份攻略，点"开始办"。** 攻略先问你几个问题，比如在职还是学生、去哪个国家，然后只留下和你有关的步骤和材料。
+## 安装
 
-**2. 按开始清单准备。** 最上面有一张三步的小清单：回答问题 → 放进邀请函、酒店订单这些和行程有关的材料 → 整理这次行程。你也可以直接关联桌面上早就建好的"申根签证"文件夹，不用把文件再传一遍。
+### 交给 Agent 装（推荐）
 
-![办事页和开始清单](docs/screenshots/track.png)
+如果你用 [Claude Code](https://claude.com/claude-code)，在终端里打开它，发这句话：
 
-**3. 让 Agent 帮你整理行程。** 用一句话说"11 月 2 日到 9 日去巴黎玩，住某某酒店"，或者让它读你勾选的订单和邀请函，它会把目的、日期、住处整理好，**你确认之后才保存**。
+> 按 https://github.com/NowhereMan-in-Galaxy/personal-assistant/blob/main/INSTALL.md 帮我装好有条有理
 
-![这次行程](docs/screenshots/trip.png)
+它会下载项目、装好依赖、问你资料想放在哪、启动，最后告诉你怎么装 Chrome 插件（这一步要你自己点三下）。装完说一句"带我上手"，它会接着带你挑攻略、登记材料。
 
-**4. 看材料缺什么。** 你之前登记过的护照、流水、在职证明会自动对上；右边「材料一览」告诉你哪些已经有、哪些过期了、还缺什么。
+目前只在 Mac 上的 Claude Code 里完整走过这个流程。其他 Agent 也可以试，它们会读同一份 [`INSTALL.md`](./INSTALL.md)。
 
-**5. 到官网填表。** 装上 Chrome 插件，在官网上点"填本页"，姓名、生日、护照、地址、这次的行程日期几秒钟就填好。填不了的格子标红框，你自己补。**签名、付款、提交永远由你来点。**
+### 自己装
 
-材料和基本信息只需要录一次，下次办别的事还能接着用。
+<details><summary>展开看步骤（大约 10 分钟）</summary>
 
-## 你的资料只在你的电脑上
+1. 装 [uv](https://docs.astral.sh/uv/)（它会顺便准备好 Python）。打开「终端」，运行：
 
-- 你的材料文件、基本信息、办事进度，都存在你自己电脑上的一个文件夹里，**不会上传到任何地方**。这个文件夹也可以放在 iCloud 或 Google Drive 里，方便多台电脑同步。
-- 仓库里只有攻略和代码。攻略放在 [`community/`](./community/) 里，大家一起维护，**不含任何个人信息**。
-- 软件本身不调用任何 AI，也不需要注册账号。Agent 功能是可选的，用的是你自己电脑上的 Claude Code。
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
 
-## 安装（大约 10 分钟）
+   装完关掉终端再打开。Windows 用 PowerShell 运行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`。
 
-需要：一台 Mac（Windows 和 Linux 应该也能用，但测试得少），以及 Chrome 浏览器。
+2. 在本页上方点 **Code → Download ZIP**，解压，比如放到「文稿」里（文件夹叫 `personal-assistant-main`）。会用 git 的话也可以 `git clone`。
 
-**第 1 步：装 uv**（一个帮你准备 Python 环境的小工具，只装一次）
+3. 启动（第一次要等一两分钟）：
 
-打开「终端」（在启动台里搜"终端"），粘贴下面这行，按回车：
+   ```bash
+   cd ~/Documents/personal-assistant-main
+   uv run youtiao
+   ```
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+   浏览器会打开 <http://127.0.0.1:8000>。以后每次用都运行这两行，关掉终端就停了。
 
-装完后把终端关掉，再重新打开一次。
+4. Chrome 插件：地址栏打开 `chrome://extensions`，打开「开发者模式」，点「加载已解压的扩展程序」，选项目里的 `extension` 文件夹。
 
-<details><summary>Windows 用户</summary>
+5. Agent 功能要装好 [Claude Code](https://claude.com/claude-code) 并登录；让 Agent 读小红书帖子还要 [Claude in Chrome](https://claude.ai/chrome)。不装也能用其他功能。
 
-打开 PowerShell，运行：
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+想先看看效果，运行 `uv run youtiao --demo`，打开的是一套虚构资料。
 
 </details>
 
-**第 2 步：下载这个项目**
+## 以一次申根签证为例
 
-在本页上方点绿色的 **Code → Download ZIP**，解压到你喜欢的位置，比如「文稿」。解压出来的文件夹叫 `personal-assistant-main`。会用 git 的话也可以 `git clone`。
+### 1. 创建攻略
 
-**第 3 步：启动**
+在攻略库点「+ 新建攻略」，贴几条小红书笔记的分享链接。Agent 在不登录的浏览器里读这些帖子（一次最多 6 条，不碰你的账号），整理成一份攻略：
 
-在终端里进入刚才解压的文件夹，然后启动。第一次启动会自动下载需要的东西，要等一两分钟：
+- 先问你几个会影响清单的问题，比如在职还是学生、去哪国递签；
+- 分阶段列出步骤，每一步要准备什么材料、在哪办；
+- 每一条都附原帖里的原话。几篇说法不一样的地方单独标出来，由你判断。
 
-```bash
-cd ~/Documents/personal-assistant-main
-uv run youtiao
-```
+![整理好的申根攻略](docs/screenshots/guide.png)
 
-浏览器会自动打开 <http://127.0.0.1:8000>。以后每次想用，都在终端里运行这两行；用完直接关掉终端窗口就行。
+仓库里已经有几份整理好的攻略（见下面[现有攻略](#现有攻略)），有你要办的事就可以直接用。
 
-**先看看效果？** 运行 `uv run youtiao --demo`，打开的是一套虚构的资料，随便点，不会影响你自己的数据。
+### 2. 准备材料
 
-**第一次正式使用**：先到「我的资料」登记几份常用材料（护照、流水……），填一下基本信息，再去攻略库挑一份"开始办"。右下角的「问 Agent」里点"带我上手"，它会一步步带你走一遍（需要下面的 Agent 功能）。
+「我的资料」里登记护照、流水、在职证明这些常用材料，填上取得日期。过期、快过期的会排在最上面。基本信息和出行记录也在这里，填一次，以后办什么事都能用。
 
-## 可选功能
+![我的资料和出行记录](docs/screenshots/materials.png)
 
-### Chrome 填表插件
+挑一份攻略点「开始办」，和你无关的步骤和材料会自动隐藏，已经登记的材料自动对上。最上面有一张开始清单：回答问题 → 放进邀请函、酒店订单这些这次行程的材料 → 整理这次行程。如果你早就在桌面建了一个"申根签证"文件夹，直接关联它就行，不用再传一遍。
 
-1. 在 Chrome 地址栏打开 `chrome://extensions`，打开右上角的「开发者模式」。
-2. 点「加载已解压的扩展程序」，选项目里的 `extension` 文件夹。
-3. 点工具栏上的插件图标，右边会打开侧边栏。到要填的官网，先在顶部选「这件事」，再点「填本页」。
+![开始清单](docs/screenshots/track.png)
 
-插件只和你电脑上的有条有理通信，所以用的时候 `uv run youtiao` 要开着。有些网站的条款禁止自动填表，比如澳洲 ImmiAccount，侧边栏会先把条款原文给你看，由你决定用不用。
+「这次行程」可以自己填，也可以交给 Agent：说一句"11 月 2 日到 9 日去巴黎玩，自己出钱"，或者让它读你勾选的订单和邀请函。它把目的、日期、住处整理好，你确认之后才保存。填官网时要用的就是这些。
 
-### Agent 功能
+![这次行程](docs/screenshots/trip.png)
 
-「让 Agent 整理」行程、「新建攻略」和右下角的「问 Agent」需要：
+### 3. Agent 填表
 
-- 装好 [Claude Code](https://claude.com/claude-code) 并登录；
-- 如果要让它读小红书帖子来整理攻略，还要装 [Claude in Chrome](https://claude.ai/chrome) 扩展。它只用不登录的浏览器读帖子，不会碰你的账号。
+装好 Chrome 插件后，在官网上打开侧边栏，选好是哪件事，点「填本页」。姓名、生日、护照、地址、这次的行程日期，一两秒就填好，填过的格子套上黄色虚线框，方便你核对：
 
-装好后重启有条有理，页面会自动发现它。不装也不影响其他功能。
+![填好的表格](docs/screenshots/fill.png)
+
+插件认不出的格子会标红框，侧边栏里点「交给 Agent」，Agent 看着这些格子，用你的资料补上，缺的会问你。选完"已婚"才冒出来的配偶栏这类，插件会自己再填一轮。
+
+签名、付款、提交、验证码，永远由你自己来。条款禁止自动填表的网站（比如澳洲 ImmiAccount），侧边栏会先把条款原文给你看，推荐你用「填表对照」页自己复制粘贴。
+
+### 4. 跟踪进度
+
+办事页按阶段列出每一步，做完勾上。每一步下面是这一步要交的材料，缺的可以直接上传。右边「材料一览」告诉你还缺什么、哪些要重开。有时间要求的步骤（比如"社保满 6 个月才能申请"）可以导出到日历。
+
+![跟踪进度](docs/screenshots/progress.png)
+
+## 你的资料只在你的电脑上
+
+- 材料文件、基本信息、办事进度都存在你电脑上的一个文件夹里，不会上传到任何地方。这个文件夹也可以放在 iCloud 或 Google Drive 里，方便多台电脑同步。
+- 仓库里只有代码和攻略。攻略在 [`community/`](./community/) 里，大家一起维护，不含个人信息。
+- 软件本身不调用 AI，也不用注册账号。Agent 功能用的是你自己电脑上的 Claude Code。
 
 ## 现有攻略
 
@@ -114,42 +125,30 @@ uv run youtiao
 | 在美 F-1 学生申请阿根廷旅游签证 | 签证 |
 | 杭州应届生补贴（青荷礼包 / 生活 / 租房 / 就业） | 补贴 |
 
-攻略整理自公开帖子和官网，**会过时**。每份都写了资料截至哪天，办之前请以官网为准。
-
-没有你要办的事？点攻略库的「+ 新建攻略」，贴几篇帖子的链接，Agent 会帮你整理成一份新攻略，每一条都附上原帖里的原话，说法冲突的地方会单独标出来。
-
-<details><summary>贴帖子整理攻略的样子</summary>
-
-![新建攻略](docs/screenshots/new-guide.png)
-
-</details>
+攻略整理自公开帖子和官网，会过时。每份都写了资料截至哪天，办之前请以官网为准。
 
 ## 常见问题
 
 **要花钱吗？**
-有条有理本身免费。Agent 功能用的是 Claude Code，要有 Claude 的订阅或者 API 额度。
+有条有理本身免费。Agent 功能用的是 Claude Code，需要 Claude 的订阅或 API 额度。
 
-**我的资料存在哪？**
-默认存在项目文件夹里的 `materials/`。想换地方（比如 iCloud），把 `config.example.yaml` 复制一份改名为 `config.yaml`，改里面的 `materials_root`。
+**资料存在哪？**
+默认在项目文件夹里的 `materials/`。想换地方，把 `config.example.yaml` 复制成 `config.yaml`，改里面的 `materials_root`。
 
-**怎么更新到新版本？**
-重新下载 ZIP 覆盖，或者用 git 的话运行 `git pull`。你的资料在 `materials/` 或你自己指定的文件夹里，不会被覆盖。
+**怎么更新？**
+用 git 装的运行 `git pull`；下载 ZIP 的重新下载覆盖。你的资料不在代码里，不会被覆盖。
 
-**攻略写错了、过时了怎么办？**
-欢迎[提一个 issue](../../issues/new/choose)（选"攻略过时了"），或者直接改好 `community/guides/` 里的文件提交 Pull Request，见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。
-
-**它会替我提交申请吗？**
-不会。签名、付款、提交、验证码，永远由你自己来。
+**攻略写错了、过时了？**
+[提一个 issue](../../issues/new/choose)，或者直接改 `community/guides/` 里的文件提 Pull Request，见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。
 
 ## 边界
 
 - 这不是法律或移民建议。攻略可能过时或有错，以官网和使馆为准。
 - 不代你签名、付款、提交，也不处理验证码。
-- 使用条款禁止自动化的网站，会先告诉你条款原文和风险，推荐你用「填表对照」页自己复制粘贴。
 
 ## 参与
 
-想分享攻略、报告问题或一起开发，请看 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。
+分享攻略、报告问题、一起写代码，都见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。
 
 ## 许可证
 
@@ -157,4 +156,4 @@ uv run youtiao
 
 ---
 
-**English**: *Youtiao Youli* ("well organized") turns scattered visa and paperwork guides into step-by-step checklists, matches them against the documents you already have, and fills common fields on official application sites through a Chrome extension. Everything personal stays on your computer; guides are shared in `community/`. The app itself calls no AI model; optional agent features use your own Claude Code. The interface is in Chinese for now.
+**English**: *Youtiao Youli* is a local assistant for visa and paperwork errands. It turns scattered social-media guides into step-by-step checklists, keeps your documents and personal details in one place so they are matched automatically next time, and fills common fields on official application sites through a Chrome extension, with an agent (Claude Code) handling the rest. Everything personal stays on your computer. To install, ask Claude Code to follow [`INSTALL.md`](./INSTALL.md). The interface is in Chinese for now.
