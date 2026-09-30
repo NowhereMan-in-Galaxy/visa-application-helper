@@ -25,9 +25,12 @@ def test_demo_root_has_profile_materials_and_example_track(tmp_path, monkeypatch
     c = TestClient(app_module.app)
     assert c.get("/api/personal-profile", headers=LOCAL).json()["identity"]["surname"] == "ZHANG"
     from api.demo import EXAMPLES
-    assert len(c.get("/api/materials", headers=LOCAL).json()) == len(list((EXAMPLES / "records").glob("*.yaml")))
+    # 示例记录 + 一份只属于示例办事的虚构酒店订单
+    assert len(c.get("/api/materials", headers=LOCAL).json()) == len(list((EXAMPLES / "records").glob("*.yaml"))) + 1
     tracks = c.get("/api/tracks", headers=LOCAL).json()
     assert [t["title"] for t in tracks] == ["示例：申根短期旅游签证"]
+    v = c.get(f"/api/tracks/{tracks[0]['id']}", headers=LOCAL).json()
+    assert v["trip"]["purpose"] == "Tourism" and [m["type"] for m in v["trip_materials"]] == ["酒店预订单"]
 
 
 def test_launcher_demo_sets_env(monkeypatch, tmp_path):

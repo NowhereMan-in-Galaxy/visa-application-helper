@@ -42,6 +42,15 @@ DEMO_PROFILE = {
 # 示例办事预先回答的问题：让材料清单按"在职、去法国"收窄，页面上能看到材料对上的效果
 DEMO_FACTS = {"country": "法国", "identity": "在职", "minor": "否", "married": "否", "sponsored": "否"}
 
+# 示例办事的"这次行程"和一份虚构的酒店订单（spec 007）：页面上能看到开始清单和行程信息
+DEMO_TRIP = {"purpose": "Tourism", "purpose_detail": "巴黎、里昂旅游",
+             "stay_name": "HOTEL EXAMPLE PARIS", "stay_address": {"city": "PARIS", "country": "法国"}, "payer": "self"}
+DEMO_HOTEL = """HOTEL EXAMPLE PARIS — Booking confirmation (fictional)
+Guest: ZHANG SAN
+Check-in: 2026-11-02   Check-out: 2026-11-09
+Address: 1 Rue Exemple, 75001 Paris, France
+"""
+
 
 def build_demo_root(root: Path, today: date) -> Path:
     """在 root 下准备虚构资料：基本信息、示例材料、一件示例办事。返回 root。"""
@@ -63,5 +72,15 @@ def build_demo_root(root: Path, today: date) -> Path:
     for fact, value in DEMO_FACTS.items():
         if fact in guide.facts:
             set_fact_value(guide, track, fact, value)
+    from core.trip import merge_trip
+
+    track.trip = merge_trip(track.trip, DEMO_TRIP)
+    hotel = root / "other" / "demo-hotel-booking.txt"
+    hotel.parent.mkdir(parents=True, exist_ok=True)
+    hotel.write_text(DEMO_HOTEL, encoding="utf-8")
+    (records / "demo-hotel-booking.yaml").write_text("# 试用模式的虚构资料\n" + yaml.safe_dump({
+        "id": "demo-hotel-booking", "category": "other", "type": "酒店预订单", "material_type": "hotel_reservation",
+        "obtained_date": today.isoformat(), "file_ref": "other/demo-hotel-booking.txt", "for_track": track.id,
+    }, allow_unicode=True, sort_keys=False), encoding="utf-8")
     save_track(root, track)
     return root
