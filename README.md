@@ -28,7 +28,7 @@
 
 如果你用 [Claude Code](https://claude.com/claude-code)，在终端里打开它，发这句话：
 
-> 按 https://github.com/NowhereMan-in-Galaxy/personal-assistant/blob/main/INSTALL.md 帮我装好有条有理
+> 按 https://github.com/NowhereMan-in-Galaxy/visa-application-helper/blob/main/INSTALL.md 帮我装好有条有理
 
 它会下载项目、装好依赖、问你资料想放在哪、启动，最后告诉你怎么装 Chrome 插件（这一步要你自己点三下）。装完说一句"带我上手"，它会接着带你挑攻略、登记材料。
 
@@ -46,12 +46,12 @@
 
    装完关掉终端再打开。Windows 用 PowerShell 运行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`。
 
-2. 在本页上方点 **Code → Download ZIP**，解压，比如放到「文稿」里（文件夹叫 `personal-assistant-main`）。会用 git 的话也可以 `git clone`。
+2. 在本页上方点 **Code → Download ZIP**，解压，比如放到「文稿」里（文件夹叫 `visa-application-helper-main`）。会用 git 的话也可以 `git clone`。
 
 3. 启动（第一次要等一两分钟）：
 
    ```bash
-   cd ~/Documents/personal-assistant-main
+   cd ~/Documents/visa-application-helper-main
    uv run youtiao
    ```
 

@@ -2,7 +2,7 @@
 
 用户把这个仓库的链接发给你，让你帮忙安装「有条有理」时，照这份说明一步步做。这份说明在 **macOS 上的 Claude Code** 里完整走过；其他 Agent 或系统大体也能照做，遇到对不上的地方停下来告诉用户。
 
-仓库地址：`https://github.com/NowhereMan-in-Galaxy/personal-assistant`
+仓库地址：`https://github.com/NowhereMan-in-Galaxy/visa-application-helper`
 
 ## 规则
 
@@ -29,25 +29,25 @@ Windows 用 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/ins
 
 ### 2. 下载项目
 
-问用户想放在哪，默认 `~/personal-assistant`。
+问用户想放在哪，默认 `~/visa-application-helper`。
 
 有 git：
 
 ```bash
-git clone https://github.com/NowhereMan-in-Galaxy/personal-assistant.git ~/personal-assistant
+git clone https://github.com/NowhereMan-in-Galaxy/visa-application-helper.git ~/visa-application-helper
 ```
 
 没有 git：
 
 ```bash
-curl -L -o /tmp/youtiao.zip https://github.com/NowhereMan-in-Galaxy/personal-assistant/archive/refs/heads/main.zip
-unzip -q /tmp/youtiao.zip -d ~ && mv ~/personal-assistant-main ~/personal-assistant
+curl -L -o /tmp/youtiao.zip https://github.com/NowhereMan-in-Galaxy/visa-application-helper/archive/refs/heads/main.zip
+unzip -q /tmp/youtiao.zip -d ~ && mv ~/visa-application-helper-main ~/visa-application-helper
 ```
 
 ### 3. 装依赖并自检
 
 ```bash
-cd ~/personal-assistant
+cd ~/visa-application-helper
 uv sync
 uv run python -m core.guides
 ```
@@ -64,7 +64,7 @@ uv run python -m core.guides
 ### 5. 启动
 
 ```bash
-cd ~/personal-assistant && uv run youtiao
+cd ~/visa-application-helper && uv run youtiao
 ```
 
 这条命令会一直运行，并打开浏览器访问 <http://127.0.0.1:8000>。你可以在后台启动它，确认页面能打开，然后告诉用户：**以后每次用，在终端里运行这一行；关掉终端就停了。**
@@ -75,7 +75,7 @@ cd ~/personal-assistant && uv run youtiao
 
 项目里有给 Agent 用的工具（`.mcp.json`）和操作说明（`.claude/skills/`），只有**在项目文件夹里打开的** Claude Code 才会加载。告诉用户：
 
-1. 新开一个终端，运行 `cd ~/personal-assistant && claude`；
+1. 新开一个终端，运行 `cd ~/visa-application-helper && claude`；
 2. Claude Code 问要不要启用 `personal-assistant` 这个 MCP 服务时，选**启用**（选错了可以输入 `/mcp` 重新打开）。
 
 页面上的「让 Agent 整理」「新建攻略」「问 Agent」会自己调用 Claude Code，不需要额外设置，只要用户已经登录过 Claude Code。
@@ -85,7 +85,7 @@ cd ~/personal-assistant && uv run youtiao
 Chrome 不允许程序替用户装插件。把下面三步发给用户，把路径换成实际的：
 
 1. Chrome 地址栏打开 `chrome://extensions`，打开右上角的「开发者模式」；
-2. 点「加载已解压的扩展程序」，选 `~/personal-assistant/extension` 文件夹；
+2. 点「加载已解压的扩展程序」，选 `~/visa-application-helper/extension` 文件夹；
 3. 点工具栏上的插件图标打开侧边栏，到官网上点「填本页」。
 
 ### 8. 可选：读小红书帖子
@@ -98,4 +98,4 @@ Chrome 不允许程序替用户装插件。把下面三步发给用户，把路�
 
 ## 装好后给用户的总结
 
-用三四行告诉用户：装在哪、资料放在哪、以后怎么启动（`cd ~/personal-assistant && uv run youtiao`）、插件装了没有。
+用三四行告诉用户：装在哪、资料放在哪、以后怎么启动（`cd ~/visa-application-helper && uv run youtiao`）、插件装了没有。
