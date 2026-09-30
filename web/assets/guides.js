@@ -1302,15 +1302,12 @@
     return bits;
   }
 
-  // ---------- 个人调整：⋯ 菜单 / 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏 ----------
+  // ---------- 个人调整：平铺的操作 / 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏 ----------
   // （specs/002-guide-to-track/tasks-parallel-3.md 任务 F；只在办事页出现，攻略预览页 readonly 时不构造这些控件）
 
-  // 关闭所有已展开的 ⋯ 菜单；同时把"确认删除？"重置回原文字。挂在 document 上，点菜单之外的任何地方都会触发。
+  // 把"再点一次删除"重置回原文字。挂在 document 上，点别处任何地方都会触发。
   function closeAllMenus() {
-    document.querySelectorAll(".menu").forEach(function (m) {
-      resetConfirms(m);
-      m.hidden = true;
-    });
+    document.querySelectorAll(".menu-inline").forEach(resetConfirms);
   }
 
   function resetConfirms(menu) {
@@ -1320,25 +1317,9 @@
     });
   }
 
-  // 一个 "⋯" 按钮 + 一份下拉菜单；同一时间只开一个（点开时先关掉别的），点菜单外任意处会经冒泡关闭。
-  function kebabMenu(items) {
-    var menu = el("div", { class: "menu", hidden: true }, items);
-    var toggle = el("button", {
-      type: "button",
-      class: "kebab",
-      "aria-haspopup": "true",
-      "aria-expanded": "false",
-      "aria-label": "更多操作",
-      text: "⋯",
-      onclick: function (ev) {
-        ev.stopPropagation(); // 否则这次点击会冒泡到 document，立刻把刚打开的菜单又关掉
-        var opening = menu.hidden;
-        closeAllMenus();
-        menu.hidden = !opening;
-        toggle.setAttribute("aria-expanded", opening ? "true" : "false");
-      },
-    });
-    return el("div", { class: "menu-wrap" }, toggle, menu);
+  // 步骤 / 材料的操作直接平铺在后面（2026-09-30 项目主：点开"⋯"再选太麻烦）；桌面上鼠标移到那一项才显示
+  function inlineActions(items) {
+    return el("div", { class: "menu-wrap" }, el("div", { class: "menu-inline" }, items));
   }
 
   function menuButton(label, onclick) {
@@ -1347,13 +1328,13 @@
 
   // "删除"按钮：第一次点变成"确认删除？"，第二次点才真的发请求；不用 window.confirm。
   function confirmDeleteButton(label, doDelete) {
-    var btn = el("button", { type: "button", class: "menu-item danger", text: label });
+    var btn = el("button", { type: "button", class: "menu-item danger", text: label });  // 平铺在后面，点两次才删
     btn.dataset.label = label;
     btn.addEventListener("click", function (ev) {
       ev.stopPropagation(); // 第一次点击不能让它冒泡到 document 把"确认删除？"状态重置掉
       if (!btn.dataset.confirming) {
         btn.dataset.confirming = "1";
-        btn.textContent = "确认删除？";
+        btn.textContent = "再点一次删除";
         return;
       }
       btn.disabled = true;
@@ -1596,8 +1577,8 @@
     var menu = null;
     if (!ctx.readonly) {
       var menuItems = [
-        menuButton("加备注", note.open),
-        menuButton("隐藏这一步", function () { update(v, "/hidden/steps/" + encodeURIComponent(s.id), { hidden: true }); }),
+        menuButton("备注", note.open),
+        menuButton("隐藏", function () { update(v, "/hidden/steps/" + encodeURIComponent(s.id), { hidden: true }); }),
       ];
       if (s.custom) {
         menuItems.push(menuButton("改名", rename.open));
@@ -1605,7 +1586,7 @@
           return request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-steps/" + encodeURIComponent(s.id));
         }));
       }
-      menu = kebabMenu(menuItems);
+      menu = inlineActions(menuItems);
     }
 
     var mats = s.requirements
@@ -1691,8 +1672,8 @@
     var menu = null;
     if (!ctx.readonly) {
       var menuItems = [
-        menuButton("加备注", note.open),
-        menuButton("隐藏这项材料", function () { update(v, "/hidden/requirements/" + encodeURIComponent(r.id), { hidden: true }); }),
+        menuButton("备注", note.open),
+        menuButton("隐藏", function () { update(v, "/hidden/requirements/" + encodeURIComponent(r.id), { hidden: true }); }),
       ];
       if (r.custom) {
         menuItems.push(menuButton("改名", rename.open));
@@ -1700,7 +1681,7 @@
           return request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/custom-materials/" + encodeURIComponent(r.id));
         }));
       }
-      menu = kebabMenu(menuItems);
+      menu = inlineActions(menuItems);
     }
 
     return el(
@@ -1991,7 +1972,7 @@
     );
   }
 
-  // 点"⋯"菜单之外的任何地方都关掉已展开的菜单（点菜单按钮本身时会 stopPropagation，不会跑到这里）
+  // 点别处任何地方都把"再点一次删除"恢复原样（删除按钮第一次点击会 stopPropagation，不会跑到这里）
   document.addEventListener("click", closeAllMenus);
 
   document.getElementById("today").textContent = "今天 " + todayIso();
