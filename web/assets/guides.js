@@ -879,6 +879,12 @@
         return uploadRequest(path, fd).then(function (nv) { return loadMyRecords().then(function () { return nv; }); })
           .catch(function (e) { showError(e.message); throw e; });
       },
+      remove: function (recordId) {
+        showError("");
+        return request("DELETE", "/api/tracks/" + encodeURIComponent(v.id) + "/materials/" + encodeURIComponent(recordId))
+          .then(function (nv) { return loadMyRecords().then(function () { return nv; }); })
+          .catch(function (e) { showError(e.message); throw e; });
+      },
       redraw: drawTrack,
       jump: jumpTo,
       openTrip: function () {

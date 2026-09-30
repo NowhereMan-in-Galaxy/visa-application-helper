@@ -1,6 +1,6 @@
 // 办事页最上面的"开始清单"（specs/007-trip-info 第 3 步）：回答问题 → 放进这次行程的材料 → 整理这次行程。
 // 有「这次行程」、没办完、没做完也没跳过时代替「下一步」卡片。guides.js 调用：
-//   window.StartCard.render(v, {el, upload(path, formData), redraw(view), jump(id), openTrip()})
+//   window.StartCard.render(v, {el, upload(path, formData), remove(recordId), redraw(view), jump(id), openTrip()})
 // 返回 null 表示这次不显示（调用方照常画「下一步」）。
 (function () {
   "use strict";
@@ -17,7 +17,8 @@
     v.requirements.forEach(function (r) { reqById[r.id] = r; });
     var sources = v.trip_sources.map(function (id) { return reqById[id]; }).filter(Boolean);
     var have = function (r) { return r.state === "ready" || r.state === "unconfirmed"; };
-    var matsDone = sources.length ? sources.every(have) : v.trip_materials.length > 0;
+    // 传一份就算完成：攻略里很多材料是"保险起见"准备的，不必都传
+    var matsDone = v.trip_materials.length > 0;
     return {
       unanswered: unanswered,
       sources: sources,
@@ -59,9 +60,30 @@
       return deps.upload(path, fd).then(deps.redraw);
     }
 
+    // 只属于这件办事的材料可以移除（点两次）；长期材料在「我的资料」里管理
+    var own = {};
+    v.trip_materials.forEach(function (m) { if (m.own) own[m.id] = m; });
+    var shown = {};
+    function removeBtn(id) {
+      var btn = el("button", { type: "button", class: "linkish muted", text: "移除" });
+      btn.addEventListener("click", function () {
+        if (btn.dataset.armed !== "1") { btn.dataset.armed = "1"; btn.textContent = "再点一次"; return; }
+        btn.disabled = true;
+        deps.remove(id).then(deps.redraw).catch(function () { btn.disabled = false; });
+      });
+      return btn;
+    }
+    function haveItem(name, id) {
+      if (id) shown[id] = true;
+      return el("span", { class: "start-mat have" }, el("span", { text: name + " ✓" }), id && own[id] ? removeBtn(id) : null);
+    }
+
     var mats = el("div", { class: "start-mats" },
       st.sources.map(function (r) {
-        if (st.have(r)) return el("span", { class: "start-mat have", text: r.name + " ✓" });
+        if (st.have(r)) {
+          var mine = r.records.filter(function (x) { return own[x.id]; })[0];
+          return haveItem(r.name, mine ? mine.id : null);
+        }
         return el("span", { class: "start-mat" }, el("span", { text: r.name }), filePicker(el, "上传", function (file) {
           var fd = new FormData();
           fd.set("file", file);
@@ -69,6 +91,8 @@
           return upload("/api/tracks/" + encodeURIComponent(v.id) + "/requirements/" + encodeURIComponent(r.id) + "/upload", fd);
         }));
       }),
+      // "＋ 其他"传的、或别处传的只属于这件事的材料
+      v.trip_materials.filter(function (m) { return m.own && !shown[m.id]; }).map(function (m) { return haveItem(m.type, m.id); }),
       otherUpload(el, v, upload)
     );
 
@@ -84,7 +108,8 @@
       el("ol", { class: "start-list" },
         row(0, st.unanswered ? "回答几个问题（还有 " + st.unanswered + " 个）" : "回答几个问题", null,
           st.done[0] ? null : function () { deps.jump("facts"); }),
-        row(1, "放进这次行程的材料", mats),
+        row(1, "先放进和这次行程强相关的材料", el("div", { class: "start-body" },
+          el("small", { class: "muted", text: "邀请函、订单里的日期和地址，填官网时都用得上" }), mats)),
         row(2, "整理这次行程", st.done[2] ? null : el("button", { type: "button", class: "primary start-go", text: "让 Agent 整理", onclick: deps.openTrip }))
       ),
       skip

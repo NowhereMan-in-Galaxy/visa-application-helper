@@ -1227,6 +1227,28 @@ async def upload_trip_file(track_id: str, file: UploadFile = File(...), name: st
     return _track_view(track)
 
 
+@app.delete("/api/tracks/{track_id}/materials/{record_id}", response_model=TrackView)
+def remove_track_material(track_id: str, record_id: str) -> TrackView:
+    """开始清单里的"移除"（spec 007 第 3 步）：只移除只属于这件办事的材料，移到回收站，不真的删。"""
+    from core.storage import trash_material_record
+
+    track = _load_track_or_404(track_id)
+    record = next((r for r in load_material_records(materials_index_dir()) if r.id == record_id), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"没有这份材料：{record_id}")
+    if record.for_track != track.id:
+        raise HTTPException(status_code=422, detail="这份材料不只属于这件办事，请到「我的资料」里管理")
+    trash_material_record(get_materials_root(), materials_index_dir(), record, f"{datetime.now():%Y%m%d-%H%M%S}")
+    for key in list(track.matches):
+        ids = [i for i in track.matches[key] if i != record_id]
+        if ids:
+            track.matches[key] = ids
+        else:
+            del track.matches[key]
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
 def _resolve_export_dir(text: str) -> Path:
     """校验用户给的导出位置：必须是已经存在的文件夹；不能在仓库里面（材料根目录除外），
     免得把个人材料复制进会被提交、甚至公开的目录（例如 community/）。"""

@@ -94,7 +94,7 @@ READABLE_SUFFIXES = (".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".
 def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) -> list[dict[str, Any]]:
     """这件事的材料：确认挂在这件事上的，或者只属于这件事的（for_track）；只列能读的格式。不碰文件系统。
 
-    one_off(record) 判断是不是一次性材料（默认勾上）。返回 [{id, type, sublabel, one_off}]，不含路径。
+    one_off(record) 判断是不是一次性材料（默认勾上）。返回 [{id, type, sublabel, one_off, own}]，不含路径。
     """
     matched = {i for ids in track.matches.values() for i in ids}
     out = []
@@ -103,8 +103,8 @@ def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) ->
             continue
         if not r.file_ref or not r.file_ref.lower().endswith(READABLE_SUFFIXES):
             continue
-        out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel,
-                    "one_off": r.for_track == track.id or one_off(r)})
+        own = r.for_track == track.id  # 只属于这件办事：开始清单里可以移除
+        out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel, "one_off": own or one_off(r), "own": own})
     return out
 
 

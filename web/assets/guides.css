@@ -420,4 +420,6 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .start-mat.have { color: var(--muted); }
 .start-other input { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); width: 150px; }
 .start-go { justify-self: start; }
+.start-body { display: grid; gap: 6px; }
+.start-mat.have .linkish { font-size: 12px; }
 .start-skip { display: block; margin: 6px 0 0 auto; font-size: 12px; }

@@ -82,7 +82,7 @@ def test_trip_materials(env):
     record(root, "m-nofile", "邀请函", None, for_track=tid)
     record(root, "m-passport", "护照", "passport/p.jpg")                         # 长期材料，没确认挂在这件事上
     mats = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()["trip_materials"]
-    assert mats == [{"id": "m-invite", "type": "邀请函", "sublabel": None, "one_off": True}]
+    assert mats == [{"id": "m-invite", "type": "邀请函", "sublabel": None, "one_off": True, "own": True}]
     # 确认挂在这件事上之后，长期材料也在，默认不勾
     track_file = root / "tracks" / f"{tid}.yaml"
     data = yaml.safe_load(track_file.read_text(encoding="utf-8"))
@@ -90,6 +90,7 @@ def test_trip_materials(env):
     track_file.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     mats = {m["id"]: m for m in c.get(f"/api/tracks/{tid}", headers=LOCAL).json()["trip_materials"]}
     assert set(mats) == {"m-invite", "m-passport"} and mats["m-passport"]["one_off"] is False
+    assert mats["m-passport"]["own"] is False
 
 
 # ---- 2d read_track_material ----
@@ -237,3 +238,25 @@ def test_trip_files_upload(env):
     assert c.post(url, headers=LOCAL, data={"name": "x"}, files={"file": ("a.exe", b"x", "application/octet-stream")}).status_code == 422
     assert c.post("/api/tracks/no-such/trip-files", headers=LOCAL, data={"name": "x"},
                   files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 404
+
+
+def test_remove_own_trip_material(env):
+    c, root, tid = env
+    # 按攻略的"酒店预订单"上传（只属于这件事），再用"＋ 其他"传一份
+    v = c.post(f"/api/tracks/{tid}/requirements/r-hotel/upload", headers=LOCAL, data={"keep": "false"},
+               files={"file": ("hotel.pdf", b"%PDF x", "application/pdf")}).json()
+    hotel = next(m for m in v["trip_materials"] if m["type"] == "酒店预订单")
+    assert hotel["own"] is True and "r-hotel" in yaml.safe_load((root / "tracks" / f"{tid}.yaml").read_text(encoding="utf-8"))["matches"]
+    record(root, "m-long", "护照", "passport/p.pdf")                       # 长期材料
+    record(root, "m-other", "邀请函", "other/x.pdf", for_track="another")   # 别的办事的
+    assert c.delete(f"/api/tracks/{tid}/materials/m-long", headers=LOCAL).status_code == 422
+    assert c.delete(f"/api/tracks/{tid}/materials/m-other", headers=LOCAL).status_code == 422
+    assert c.delete(f"/api/tracks/{tid}/materials/nope", headers=LOCAL).status_code == 404
+
+    r = c.delete(f"/api/tracks/{tid}/materials/{hotel['id']}", headers=LOCAL)
+    assert r.status_code == 200 and r.json()["trip_materials"] == []
+    assert next(q for q in r.json()["requirements"] if q["id"] == "r-hotel")["state"] == "missing"
+    assert "r-hotel" not in (yaml.safe_load((root / "tracks" / f"{tid}.yaml").read_text(encoding="utf-8")).get("matches") or {})
+    trash = sorted(p.name for p in (root / ".trash" / "materials").iterdir())
+    assert any(n.endswith(f"-{hotel['id']}.yaml") for n in trash) and any(n.endswith(".pdf") for n in trash)
+    assert not (root / "index" / "records" / f"{hotel['id']}.yaml").exists()
