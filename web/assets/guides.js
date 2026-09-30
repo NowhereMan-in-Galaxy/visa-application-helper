@@ -374,13 +374,12 @@
         search.addEventListener("input", function () { homeState.query = search.value; drawLibrary(); });
         drawLibrary();
 
-        setView(
-          el(
-            "div",
-            { class: "heading" },
-            el("div", null, el("h1", { text: "照着攻略，一件件办好。" }))
-          ),
-          el(
+        var heading = el(
+          "div",
+          { class: "heading" },
+          el("div", null, el("h1", { text: "照着攻略，一件件办好。" }))
+        );
+        var trackSection = el(
             "section",
             { class: "panel" },
             el("div", { class: "panel-head" }, el("h2", null, "办理中", el("span", { class: "count", text: active.length })), trackChips),
@@ -396,17 +395,18 @@
                         .then(function (t) { location.hash = "#/track/" + encodeURIComponent(t.id); })
                         .catch(function (e) { showError(e.message); });
                     } }))
-          ),
-          doneSection,
-          el(
+          );
+        var librarySection = el(
             "section",
             { class: "panel library" },
             el("div", { class: "panel-head" }, el("h2", null, "攻略库", libCount),
               el("button", { type: "button", class: "primary new-guide-btn", text: "+ 新建攻略", onclick: function () { location.hash = "#/new"; } })),
             el("div", { class: "lib-filter" }, search, tagBox),
             libList
-          )
-        );
+          );
+        // 在线演示站（docs/demo/site.md）：来看的人先看攻略库
+        if (window.PA_DEMO) setView(heading, librarySection, trackSection, doneSection);
+        else setView(heading, trackSection, doneSection, librarySection);
       })
       .catch(function (e) {
         setView();

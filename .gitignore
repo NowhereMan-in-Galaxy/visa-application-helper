@@ -33,3 +33,4 @@ outputs/
 # （默认 materials/index/，已被上面的 materials/ 忽略）。旧位置 materials_index/ 整个忽略：
 # 切换到旧提交时 git 可能在这里重新放出旧文件，不能让它们再被提交。
 materials_index/
+_site/

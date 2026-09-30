@@ -2,6 +2,8 @@
 
 一个装在自己电脑上的办事助手：把签证、补贴这类事的攻略、材料和官网填表串在一起，Agent 帮你跑腿。
 
+**[在线看看 →](https://nowhereman-in-galaxy.github.io/visa-application-helper/)**　不用安装，用一套虚构资料点着看攻略、办事页和我的资料。
+
 ![在官网上点「填本页」，一两秒填好 18 格](docs/screenshots/fill-demo.gif)
 
 <sub>演示用的是虚构表单和虚构资料，填写由插件背后同一个填表引擎完成（画面里没有录到插件侧边栏）。本页其他截图的资料也都是虚构的。</sub>
