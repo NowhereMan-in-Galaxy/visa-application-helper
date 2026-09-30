@@ -1,0 +1,117 @@
+[
+ {
+  "i": 0,
+  "k": "text",
+  "v": "ZHANG"
+ },
+ {
+  "i": 1,
+  "k": "text",
+  "v": "SAN"
+ },
+ {
+  "i": 2,
+  "k": "text",
+  "v": "20/05/1995"
+ },
+ {
+  "i": 3,
+  "k": "radio",
+  "c": [
+   "male",
+   "m",
+   "man",
+   "男",
+   "男性"
+  ]
+ },
+ {
+  "i": 4,
+  "k": "select",
+  "c": [
+   "China",
+   "中国",
+   "中华人民共和国",
+   "中国大陆",
+   "chn",
+   "prc",
+   "chin",
+   "china mainland",
+   "peoples republic of china",
+   "people s republic of china"
+  ]
+ },
+ {
+  "i": 5,
+  "k": "select",
+  "c": [
+   "single",
+   "never married",
+   "unmarried",
+   "未婚",
+   "单身"
+  ]
+ },
+ {
+  "i": 7,
+  "k": "text",
+  "v": "10/01/2025"
+ },
+ {
+  "i": 8,
+  "k": "text",
+  "v": "09/01/2035"
+ },
+ {
+  "i": 9,
+  "k": "text",
+  "v": "1 EXAMPLE ROAD"
+ },
+ {
+  "i": 10,
+  "k": "text",
+  "v": "SHANGHAI"
+ },
+ {
+  "i": 11,
+  "k": "text",
+  "v": "200000"
+ },
+ {
+  "i": 12,
+  "k": "text",
+  "v": "13800000000"
+ },
+ {
+  "i": 13,
+  "k": "text",
+  "v": "zhang.san@example.com"
+ },
+ {
+  "i": 14,
+  "k": "select",
+  "c": [
+   "Tourism"
+  ]
+ },
+ {
+  "i": 15,
+  "k": "text",
+  "v": "02/11/2026"
+ },
+ {
+  "i": 16,
+  "k": "text",
+  "v": "09/11/2026"
+ },
+ {
+  "i": 17,
+  "k": "text",
+  "v": "HOTEL EXAMPLE PARIS"
+ },
+ {
+  "i": 18,
+  "k": "text",
+  "v": "PARIS"
+ }
+]
