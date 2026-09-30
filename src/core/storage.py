@@ -74,3 +74,19 @@ def overwrite_material_record(materials_index_dir: Path, record: MaterialRecord)
     with path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(record.model_dump(mode="json"), f, allow_unicode=True, sort_keys=False)
     return path
+
+
+def trash_material_record(materials_root: Path, materials_index_dir: Path, record: MaterialRecord, stamp: str) -> Path:
+    """移除一条材料：不真的删，记录 YAML 和文件都移到 <材料根目录>/.trash/materials/，文件名前加 stamp（移除时间）。
+
+    文件路径必须落在材料根目录里面才移（防止改坏的记录把别处的文件挪走）；文件已经不在了就只移记录。返回回收站目录。
+    """
+    trash = materials_root / ".trash" / "materials"
+    trash.mkdir(parents=True, exist_ok=True)
+    if record.file_ref:
+        root = materials_root.resolve()
+        src = (root / record.file_ref).resolve()
+        if root in src.parents and src.is_file():
+            src.rename(trash / f"{stamp}-{src.name}")
+    (materials_index_dir / "records" / f"{record.id}.yaml").rename(trash / f"{stamp}-{record.id}.yaml")
+    return trash

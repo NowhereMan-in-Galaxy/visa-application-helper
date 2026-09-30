@@ -1208,6 +1208,101 @@ async def upload_for_requirement(
     return _track_view(track)
 
 
+@app.post("/api/tracks/{track_id}/trip-files", response_model=TrackView)
+async def upload_trip_file(track_id: str, file: UploadFile = File(...), name: str = Form(...)) -> TrackView:
+    """开始清单的"＋ 其他"（spec 007 第 3 步）：攻略没列的行程材料（例如邀请函），只属于这件办事。"""
+    from core.trip import READABLE_SUFFIXES
+
+    track = _load_track_or_404(track_id)
+    name = name.strip()
+    if not 1 <= len(name) <= 30:
+        raise HTTPException(status_code=422, detail="材料名写 1–30 个字")
+    if not (file.filename or "").lower().endswith(READABLE_SUFFIXES):
+        raise HTTPException(status_code=422, detail="只能传 PDF、Word、文本或图片（png / jpg / webp）")
+    await _create_material(
+        belongs_to=None, category=MaterialCategory.OTHER, type_=name, obtained_date=date.today(), sublabel=None,
+        validity_days=None, recommended_update_interval_days=None, recommended_update_day_of_month=None,
+        file=file, for_track=track.id,
+    )
+    return _track_view(track)
+
+
+@app.delete("/api/tracks/{track_id}/materials/{record_id}", response_model=TrackView)
+def remove_track_material(track_id: str, record_id: str) -> TrackView:
+    """开始清单里的"移除"（spec 007 第 3 步）：只移除只属于这件办事的材料，移到回收站，不真的删。"""
+    from core.storage import trash_material_record
+
+    track = _load_track_or_404(track_id)
+    record = next((r for r in load_material_records(materials_index_dir()) if r.id == record_id), None)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"没有这份材料：{record_id}")
+    if record.for_track != track.id:
+        raise HTTPException(status_code=422, detail="这份材料不只属于这件办事，请到「我的资料」里管理")
+    trash_material_record(get_materials_root(), materials_index_dir(), record, f"{datetime.now():%Y%m%d-%H%M%S}")
+    for key in list(track.matches):
+        ids = [i for i in track.matches[key] if i != record_id]
+        if ids:
+            track.matches[key] = ids
+        else:
+            del track.matches[key]
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+def _resolve_track_folder(text: str) -> Path:
+    """这件办事的文件夹（spec 007 第 4 步）：主目录下面的一个具体文件夹，不能是整个桌面 / 文稿 / 下载、主目录、材料根目录，不能在仓库里。"""
+    path = Path(text.strip()).expanduser()
+    if not path.is_absolute():
+        raise HTTPException(status_code=422, detail="请填完整路径，例如 ~/Desktop/澳洲签证")
+    path = path.resolve()
+    if not path.is_dir():
+        raise HTTPException(status_code=422, detail=f"文件夹不存在：{path}")
+    home = Path.home().resolve()
+    if home not in path.parents:
+        raise HTTPException(status_code=422, detail="请选你自己用户目录下的文件夹")
+    too_big = {home / "Desktop", home / "Documents", home / "Downloads", get_materials_root().resolve()}
+    if path in too_big:
+        raise HTTPException(status_code=422, detail="范围太大了，请选里面这件事专用的那个文件夹")
+    repo = REPO_ROOT.resolve()
+    if path == repo or repo in path.parents:
+        raise HTTPException(status_code=422, detail="不能选项目仓库里的文件夹")
+    return path
+
+
+class TrackFolderRequest(BaseModel):
+    path: str | None = None
+
+
+@app.put("/api/tracks/{track_id}/folder", response_model=TrackView)
+def set_track_folder(track_id: str, payload: TrackFolderRequest) -> TrackView:
+    """关联 / 取消关联这件办事的文件夹（spec 007 第 4 步）。文件留在原处，不复制。"""
+    track = _load_track_or_404(track_id)
+    track.folder = str(_resolve_track_folder(payload.path)) if payload.path and payload.path.strip() else None
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
+@app.post("/api/tracks/{track_id}/folder/choose")
+def choose_track_folder(track_id: str):
+    """在 Mac 上弹出系统的"选择文件夹"窗口（spec 007 第 4 步）；别的系统 501，页面改为输入路径。"""
+    import subprocess
+    import sys
+
+    track = _load_track_or_404(track_id)
+    if sys.platform != "darwin":
+        raise HTTPException(status_code=501, detail="这台电脑不能弹出选择窗口，请直接填路径")
+    script = 'POSIX path of (choose folder with prompt "选这件事的材料文件夹" default location (path to desktop folder))'
+    try:
+        out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=300, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return {"cancelled": True}
+    if out.returncode != 0 or not out.stdout.strip():
+        return {"cancelled": True}  # 点了取消
+    track.folder = str(_resolve_track_folder(out.stdout.strip()))
+    save_track(get_materials_root(), track)
+    return _track_view(track)
+
+
 def _resolve_export_dir(text: str) -> Path:
     """校验用户给的导出位置：必须是已经存在的文件夹；不能在仓库里面（材料根目录除外），
     免得把个人材料复制进会被提交、甚至公开的目录（例如 community/）。"""

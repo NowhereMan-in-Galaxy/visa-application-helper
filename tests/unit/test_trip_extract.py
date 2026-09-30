@@ -82,7 +82,7 @@ def test_trip_materials(env):
     record(root, "m-nofile", "邀请函", None, for_track=tid)
     record(root, "m-passport", "护照", "passport/p.jpg")                         # 长期材料，没确认挂在这件事上
     mats = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()["trip_materials"]
-    assert mats == [{"id": "m-invite", "type": "邀请函", "sublabel": None, "one_off": True}]
+    assert mats == [{"id": "m-invite", "type": "邀请函", "sublabel": None, "one_off": True, "own": True}]
     # 确认挂在这件事上之后，长期材料也在，默认不勾
     track_file = root / "tracks" / f"{tid}.yaml"
     data = yaml.safe_load(track_file.read_text(encoding="utf-8"))
@@ -90,6 +90,7 @@ def test_trip_materials(env):
     track_file.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     mats = {m["id"]: m for m in c.get(f"/api/tracks/{tid}", headers=LOCAL).json()["trip_materials"]}
     assert set(mats) == {"m-invite", "m-passport"} and mats["m-passport"]["one_off"] is False
+    assert mats["m-passport"]["own"] is False
 
 
 # ---- 2d read_track_material ----
@@ -199,3 +200,124 @@ def test_trip_proposal_event_carries_track_id(env):
     activity.propose_trip_update(root, tid, {"purpose": "Business"})
     (ev,) = [e for e in jobs.side_events(root, state) if e[0] == "proposal"]
     assert ev[1]["group"] == "trip" and ev[1]["track_id"] == tid
+
+
+# ---- 第 3 步：开始清单 ----
+
+def test_trip_sources_pick_trip_materials():
+    from types import SimpleNamespace as R
+    from core.trip import trip_source_ids
+    reqs = [R(id="a", name="行程单", material_type="itinerary", state="missing"),
+            R(id="b", name="房东邀请信（住朋友家）", material_type=None, state="missing"),
+            R(id="c", name="Hotel booking", material_type=None, state="ready"),
+            R(id="d", name="护照", material_type="passport", state="missing"),
+            R(id="e", name="机票预订单", material_type="flight_reservation", state="not_applicable"),
+            R(id="f", name="会议邀请函", material_type=None, state="undecided")]
+    assert trip_source_ids(reqs) == ["a", "b", "c"]
+
+
+def test_schengen_track_lists_trip_sources(env):
+    c, _, tid = env
+    v = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()
+    names = {r["id"]: r["name"] for r in v["requirements"]}
+    assert {names[i] for i in v["trip_sources"]} >= {"行程单", "机票预订单", "酒店预订单"}
+    assert "护照" not in {names[i] for i in v["trip_sources"]}
+
+
+def test_trip_files_upload(env):
+    c, root, tid = env
+    url = f"/api/tracks/{tid}/trip-files"
+    r = c.post(url, headers=LOCAL, data={"name": "会议邀请函"}, files={"file": ("invite.pdf", b"%PDF x", "application/pdf")})
+    assert r.status_code == 200
+    mats = r.json()["trip_materials"]
+    assert [(m["type"], m["one_off"]) for m in mats] == [("会议邀请函", True)]
+    (rec,) = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in (root / "index" / "records").glob("*.yaml")]
+    assert rec["for_track"] == tid and rec["category"] == "other"
+    assert (root / rec["file_ref"]).is_file()
+    assert c.post(url, headers=LOCAL, data={"name": " "}, files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 422
+    assert c.post(url, headers=LOCAL, data={"name": "x"}, files={"file": ("a.exe", b"x", "application/octet-stream")}).status_code == 422
+    assert c.post("/api/tracks/no-such/trip-files", headers=LOCAL, data={"name": "x"},
+                  files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 404
+
+
+def test_remove_own_trip_material(env):
+    c, root, tid = env
+    # 按攻略的"酒店预订单"上传（只属于这件事），再用"＋ 其他"传一份
+    v = c.post(f"/api/tracks/{tid}/requirements/r-hotel/upload", headers=LOCAL, data={"keep": "false"},
+               files={"file": ("hotel.pdf", b"%PDF x", "application/pdf")}).json()
+    hotel = next(m for m in v["trip_materials"] if m["type"] == "酒店预订单")
+    assert hotel["own"] is True and "r-hotel" in yaml.safe_load((root / "tracks" / f"{tid}.yaml").read_text(encoding="utf-8"))["matches"]
+    record(root, "m-long", "护照", "passport/p.pdf")                       # 长期材料
+    record(root, "m-other", "邀请函", "other/x.pdf", for_track="another")   # 别的办事的
+    assert c.delete(f"/api/tracks/{tid}/materials/m-long", headers=LOCAL).status_code == 422
+    assert c.delete(f"/api/tracks/{tid}/materials/m-other", headers=LOCAL).status_code == 422
+    assert c.delete(f"/api/tracks/{tid}/materials/nope", headers=LOCAL).status_code == 404
+
+    r = c.delete(f"/api/tracks/{tid}/materials/{hotel['id']}", headers=LOCAL)
+    assert r.status_code == 200 and r.json()["trip_materials"] == []
+    assert next(q for q in r.json()["requirements"] if q["id"] == "r-hotel")["state"] == "missing"
+    assert "r-hotel" not in (yaml.safe_load((root / "tracks" / f"{tid}.yaml").read_text(encoding="utf-8")).get("matches") or {})
+    trash = sorted(p.name for p in (root / ".trash" / "materials").iterdir())
+    assert any(n.endswith(f"-{hotel['id']}.yaml") for n in trash) and any(n.endswith(".pdf") for n in trash)
+    assert not (root / "index" / "records" / f"{hotel['id']}.yaml").exists()
+
+
+# ---- 第 4 步：这件事的文件夹 ----
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    h = tmp_path / "home"
+    visa = h / "Desktop" / "澳洲签证"
+    (visa / "酒店").mkdir(parents=True)
+    (visa / "a" / "b").mkdir(parents=True)
+    (visa / ".hidden").mkdir()
+    put_file(visa, "Invitation letter.txt", b"Invitation from Example University, 1-5 October 2026")
+    put_file(visa, "护照首页.jpg", b"\xff\xd8")
+    put_file(visa, "酒店/Hotel booking.pdf", b"%PDF x")
+    put_file(visa, "a/b/too-deep.pdf", b"%PDF x")
+    put_file(visa, ".hidden/secret.txt", b"x")
+    put_file(visa, ".DS_Store", b"x")
+    put_file(visa, "notes.heic", b"x")
+    monkeypatch.setattr(app_module.Path, "home", classmethod(lambda cls: h))
+    return h, visa
+
+
+def test_folder_validation(env, home):
+    c, root, tid = env
+    h, visa = home
+    url = f"/api/tracks/{tid}/folder"
+    for bad in [str(h), str(h / "Desktop"), str(h / "nope"), "relative/path", str(root), str(app_module.REPO_ROOT / "docs")]:
+        assert c.put(url, headers=LOCAL, json={"path": bad}).status_code == 422, bad
+    v = c.put(url, headers=LOCAL, json={"path": str(visa)}).json()
+    assert v["folder"] == str(visa.resolve()) and v["folder_missing"] is False
+    assert c.put(url, headers=LOCAL, json={"path": None}).json()["folder"] is None
+
+
+def test_folder_files_listed_and_read(env, home, monkeypatch):
+    c, root, tid = env
+    _, visa = home
+    v = c.put(f"/api/tracks/{tid}/folder", headers=LOCAL, json={"path": str(visa)}).json()
+    files = {m["id"]: m for m in v["trip_materials"] if m.get("folder")}
+    assert set(files) == {"f:Invitation letter.txt", "f:护照首页.jpg", "f:酒店/Hotel booking.pdf"}
+    assert files["f:Invitation letter.txt"]["one_off"] and files["f:酒店/Hotel booking.pdf"]["one_off"]
+    assert files["f:酒店/Hotel booking.pdf"]["sublabel"] == "酒店"
+    assert not files["f:护照首页.jpg"]["one_off"] and not files["f:护照首页.jpg"]["own"]
+
+    monkeypatch.setenv(activity.KIND_ENV, "trip_extract")
+    assert "Example University" in tools.read_track_material(tid, "f:Invitation letter.txt")["text"]
+    for bad in ["f:../secret.txt", "f:a/b/too-deep.pdf", "f:.hidden/secret.txt"]:
+        with pytest.raises(ValueError, match="不是这件办事的材料"):
+            tools.read_track_material(tid, bad)
+    # 页面上勾了文件夹里的文件，可以发起整理任务
+    assert c.post("/api/agent/jobs", headers=LOCAL, json={"kind": "trip_extract", "input": "x",
+                  "context": {"track_id": tid, "materials": ["f:../secret.txt"]}}).status_code == 422
+
+    visa.rename(visa.with_name("改了名"))
+    v = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()
+    assert v["folder_missing"] is True and not any(m.get("folder") for m in v["trip_materials"])
+
+
+def test_folder_choose_is_mac_only(env, monkeypatch):
+    c, _, tid = env
+    monkeypatch.setattr("sys.platform", "linux")
+    assert c.post(f"/api/tracks/{tid}/folder/choose", headers=LOCAL).status_code == 501

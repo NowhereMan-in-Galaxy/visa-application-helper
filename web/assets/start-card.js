@@ -1,0 +1,172 @@
+// 办事页最上面的"开始清单"（specs/007-trip-info 第 3 步）：回答问题 → 放进这次行程的材料 → 整理这次行程。
+// 有「这次行程」、没办完、没做完也没跳过时代替「下一步」卡片。guides.js 调用：
+//   window.StartCard.render(v, {el, upload(path, formData), remove(recordId), setFolder(path|null), chooseFolder(),
+//                               redraw(view), jump(id), openTrip()})
+// 返回 null 表示这次不显示（调用方照常画「下一步」）。
+(function () {
+  "use strict";
+
+  function skipKey(v) { return "pa-start-skip-" + v.id; }
+
+  function skipped(v) {
+    try { return localStorage.getItem(skipKey(v)) === "1"; } catch (e) { return false; }
+  }
+
+  function steps(v) {
+    var unanswered = v.facts.filter(function (f) { return f.asked && f.value === null; }).length;
+    var reqById = {};
+    v.requirements.forEach(function (r) { reqById[r.id] = r; });
+    var sources = v.trip_sources.map(function (id) { return reqById[id]; }).filter(Boolean);
+    var have = function (r) { return r.state === "ready" || r.state === "unconfirmed"; };
+    // 传一份就算完成：攻略里很多材料是"保险起见"准备的，不必都传
+    var matsDone = v.trip_materials.length > 0;
+    return {
+      unanswered: unanswered,
+      sources: sources,
+      have: have,
+      done: [unanswered === 0, matsDone, !!(v.trip.purpose && v.trip.arrival_date)],
+    };
+  }
+
+  // 点了直接选文件，选完就传
+  function filePicker(el, label, onFile) {
+    var input = el("input", { type: "file", hidden: true, accept: ".pdf,.txt,.md,.docx,.png,.jpg,.jpeg,.webp" });
+    var btn = el("button", { type: "button", class: "linkish", text: label, onclick: function () { input.click(); } });
+    input.addEventListener("change", function () {
+      if (!input.files.length) return;
+      btn.disabled = true;
+      btn.textContent = "上传中…";
+      onFile(input.files[0]).catch(function () { btn.disabled = false; btn.textContent = label; });
+    });
+    return el("span", null, btn, input);
+  }
+
+  function render(v, deps) {
+    var el = deps.el;
+    if (!v.trip_groups || !v.trip_groups.length || v.completed || skipped(v)) return null;
+    var st = steps(v);
+    var doneCount = st.done.filter(Boolean).length;
+    if (doneCount === 3) return null;
+
+    function row(i, title, body, onTitle) {
+      var head = onTitle
+        ? el("button", { type: "button", class: "linkish start-title", text: title, onclick: onTitle })
+        : el("span", { class: "start-title", text: title });
+      return el("li", { class: "start-row" + (st.done[i] ? " done" : "") },
+        el("span", { class: "start-mark", text: st.done[i] ? "✓" : String(i + 1) }),
+        el("div", { class: "start-main" }, head, body));
+    }
+
+    function upload(path, fd) {
+      return deps.upload(path, fd).then(deps.redraw);
+    }
+
+    // 只属于这件办事的材料可以移除（点两次）；长期材料在「我的资料」里管理
+    var own = {};
+    v.trip_materials.forEach(function (m) { if (m.own) own[m.id] = m; });
+    var shown = {};
+    function removeBtn(id) {
+      var btn = el("button", { type: "button", class: "linkish muted", text: "移除" });
+      btn.addEventListener("click", function () {
+        if (btn.dataset.armed !== "1") { btn.dataset.armed = "1"; btn.textContent = "再点一次"; return; }
+        btn.disabled = true;
+        deps.remove(id).then(deps.redraw).catch(function () { btn.disabled = false; });
+      });
+      return btn;
+    }
+    function haveItem(name, id) {
+      if (id) shown[id] = true;
+      return el("span", { class: "start-mat have" }, el("span", { text: name + " ✓" }), id && own[id] ? removeBtn(id) : null);
+    }
+
+    var mats = el("div", { class: "start-mats" },
+      st.sources.map(function (r) {
+        if (st.have(r)) {
+          var mine = r.records.filter(function (x) { return own[x.id]; })[0];
+          return haveItem(r.name, mine ? mine.id : null);
+        }
+        return el("span", { class: "start-mat" }, el("span", { text: r.name }), filePicker(el, "上传", function (file) {
+          var fd = new FormData();
+          fd.set("file", file);
+          fd.set("keep", "false");
+          return upload("/api/tracks/" + encodeURIComponent(v.id) + "/requirements/" + encodeURIComponent(r.id) + "/upload", fd);
+        }));
+      }),
+      // "＋ 其他"传的、或别处传的只属于这件事的材料
+      v.trip_materials.filter(function (m) { return m.own && !shown[m.id]; }).map(function (m) { return haveItem(m.type, m.id); }),
+      otherUpload(el, v, upload)
+    );
+
+    var skip = el("button", { type: "button", class: "linkish muted start-skip", text: "跳过", onclick: function () {
+      try { localStorage.setItem(skipKey(v), "1"); } catch (e) { /* 存不了就只是这次不显示 */ }
+      deps.redraw(v);
+    } });
+
+    return el("section", { class: "next-card start-card" },
+      el("div", { class: "start-head" },
+        el("div", { class: "label", text: "开始办之前" }),
+        el("small", { class: "muted", text: doneCount + " / 3" })),
+      el("ol", { class: "start-list" },
+        row(0, st.unanswered ? "回答几个问题（还有 " + st.unanswered + " 个）" : "回答几个问题", null,
+          st.done[0] ? null : function () { deps.jump("facts"); }),
+        row(1, "先放进和这次行程强相关的材料", el("div", { class: "start-body" },
+          el("small", { class: "muted", text: "邀请函、订单里的日期和地址，填官网时都用得上" }), folderLine(el, v, deps), mats)),
+        row(2, "整理这次行程", st.done[2] ? null : el("button", { type: "button", class: "primary start-go", text: "让 Agent 整理", onclick: deps.openTrip }))
+      ),
+      skip
+    );
+  }
+
+  // 这件事的文件夹（第 4 步）：Mac 上弹出系统选择窗口；别的系统（501）改为输入路径
+  function folderLine(el, v, deps) {
+    function pathForm() {
+      var input = el("input", { type: "text", placeholder: "~/Desktop/澳洲签证", "aria-label": "文件夹路径", value: v.folder || null });
+      var form = el("form", { class: "start-folder-form" }, input, el("button", { type: "submit", text: "关联" }));
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        if (input.value.trim()) deps.setFolder(input.value.trim()).then(deps.redraw).catch(function () {});
+      });
+      return form;
+    }
+    var line = el("div", { class: "start-folder" });
+    function choose() {
+      deps.chooseFolder().then(function (res) {
+        if (res && res.cancelled) return;
+        deps.redraw(res);
+      }).catch(function (e) {
+        if (e && e.status === 501) { line.innerHTML = ""; line.append(pathForm()); }
+      });
+    }
+    if (!v.folder) {
+      line.append(el("button", { type: "button", class: "start-folder-pick", text: "📁 选这件事的文件夹", onclick: choose }));
+      return line;
+    }
+    var name = v.folder.replace(/\/+$/, "").split("/").pop();
+    var count = v.trip_materials.filter(function (m) { return m.folder; }).length;
+    line.append(
+      el("span", { title: v.folder, text: "📁 " + name + (v.folder_missing ? " · 找不到了" : " · " + count + " 个文件") }),
+      el("button", { type: "button", class: "linkish", text: "换", onclick: choose }),
+      el("button", { type: "button", class: "linkish muted", text: "不关联", onclick: function () {
+        deps.setFolder(null).then(deps.redraw).catch(function () {});
+      } })
+    );
+    return line;
+  }
+
+  // "＋ 其他"：攻略没列的行程材料（邀请函、会议通知……），填个名字再选文件
+  function otherUpload(el, v, upload) {
+    var name = el("input", { type: "text", maxlength: "30", placeholder: "邀请函、会议通知……", "aria-label": "材料名" });
+    var box = el("span", { class: "start-other", hidden: true }, name, filePicker(el, "选文件", function (file) {
+      var fd = new FormData();
+      fd.set("file", file);
+      fd.set("name", name.value.trim() || file.name.replace(/\.[^.]+$/, ""));
+      return upload("/api/tracks/" + encodeURIComponent(v.id) + "/trip-files", fd);
+    }));
+    var toggle = el("button", { type: "button", class: "linkish", text: "＋ 其他", onclick: function () {
+      box.hidden = false; toggle.hidden = true; name.focus();
+    } });
+    return el("span", { class: "start-mat" }, toggle, box);
+  }
+
+  window.StartCard = { render: render };
+})();

@@ -223,6 +223,7 @@ def read_track_material(
 
     from agent_tools.activity import KIND_ENV
     from core.material_text import MaterialReadError, read_material
+    from core.trip import FOLDER_PREFIX
 
     if os.environ.get(KIND_ENV) != "trip_extract":
         raise ValueError("read_track_material 只在「让 Agent 整理行程」的任务里用")
@@ -233,6 +234,12 @@ def read_track_material(
     view = _load_track_view(track, community_dir, materials_index_dir, date.today())
     if record_id not in {m["id"] for m in view.trip_materials}:
         raise ValueError(f"{record_id} 不是这件办事的材料，不能读")
+    if record_id.startswith(FOLDER_PREFIX):  # 这件事的文件夹里的文件（spec 007 第 4 步），read_material 会检查落在文件夹里面
+        rel = record_id[len(FOLDER_PREFIX):]
+        try:
+            return {"type": rel, **read_material(Path(track.folder), rel)}
+        except MaterialReadError as e:
+            raise ValueError(str(e)) from e
     record = next(r for r in load_material_records(materials_index_dir) if r.id == record_id)
     try:
         return {"type": record.type, **read_material(materials_root, record.file_ref)}

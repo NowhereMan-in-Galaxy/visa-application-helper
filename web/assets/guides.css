@@ -273,16 +273,14 @@ form.pit-add input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid 
 form.pit-add button { padding: 4px 10px; font-size: 12px; }
 .state-optional { background: #ececec; color: var(--muted); }
 
-/* ---- 个人调整：⋯ 菜单 / 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏（specs/002-guide-to-track/tasks-parallel-3.md 任务 F） ---- */
+/* ---- 个人调整：操作（平铺）/ 备注 / 改名 / 删除确认 / 加步骤 / 加材料 / 已隐藏（specs/002-guide-to-track/tasks-parallel-3.md 任务 F） ---- */
 .step-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .badge.custom { border-color: var(--green); color: var(--green); }
 
 .menu-wrap { position: relative; flex: none; }
-.kebab { border: 1px solid var(--line); padding: 2px 8px; font-size: 14px; line-height: 1; background: var(--paper-2); }
-.menu { position: absolute; top: 100%; right: 0; z-index: 5; display: grid; min-width: 130px; background: var(--paper-2); border: 1px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
-.menu-item { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line-soft); padding: 8px 12px; font-size: 13px; background: var(--paper-2); }
-.menu-item:last-child { border-bottom: 0; }
-.menu-item:hover { background: #eef0e4; }
+.menu-inline { display: flex; gap: 10px; }
+.menu-item { border: 0; padding: 0; background: none; font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; white-space: nowrap; }
+.menu-item:hover { color: var(--ink); }
 .menu-item.danger { color: var(--danger); }
 .mat-top .menu-wrap { margin-left: auto; }
 
@@ -404,3 +402,26 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .trip-cell .linkish { justify-self: start; }
 @media (max-width: 640px) { .trip-grid { grid-template-columns: 1fr; } }
 
+
+/* 开始清单（spec 007 第 3 步） */
+.start-head { display: flex; justify-content: space-between; align-items: baseline; }
+.start-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.start-row { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.start-mark { width: 20px; height: 20px; border: 1px solid var(--ink); border-radius: 50%; font-size: 11px; display: grid; place-items: center; }
+.start-row.done .start-mark { background: var(--green); border-color: var(--green); color: #fff; }
+.start-row.done .start-title { color: var(--muted); }
+.start-main { display: grid; gap: 6px; min-width: 0; }
+.start-title { font-size: 15px; font-weight: 600; justify-self: start; }
+.start-list button.start-title { color: var(--ink); font-size: 15px; font-weight: 600; padding: 0; }
+.start-mats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.start-mat { display: inline-flex; gap: 6px; align-items: center; }
+.start-mat.have { color: var(--muted); }
+.start-other input { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); width: 150px; }
+.start-go { justify-self: start; }
+.start-body { display: grid; gap: 6px; }
+.start-mat.have .linkish { font-size: 12px; }
+.start-skip { display: block; margin: 6px 0 0 auto; font-size: 12px; }
+.start-folder { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; }
+.start-folder-pick { justify-self: start; font-size: 13px; }
+.start-folder-form { display: flex; gap: 6px; }
+.start-folder-form input { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); width: 220px; }

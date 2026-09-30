@@ -94,7 +94,7 @@ READABLE_SUFFIXES = (".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".
 def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) -> list[dict[str, Any]]:
     """这件事的材料：确认挂在这件事上的，或者只属于这件事的（for_track）；只列能读的格式。不碰文件系统。
 
-    one_off(record) 判断是不是一次性材料（默认勾上）。返回 [{id, type, sublabel, one_off}]，不含路径。
+    one_off(record) 判断是不是一次性材料（默认勾上）。返回 [{id, type, sublabel, one_off, own}]，不含路径。
     """
     matched = {i for ids in track.matches.values() for i in ids}
     out = []
@@ -103,6 +103,57 @@ def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) ->
             continue
         if not r.file_ref or not r.file_ref.lower().endswith(READABLE_SUFFIXES):
             continue
-        out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel,
-                    "one_off": r.for_track == track.id or one_off(r)})
+        own = r.for_track == track.id  # 只属于这件办事：开始清单里可以移除
+        out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel, "one_off": own or one_off(r), "own": own})
     return out
+
+
+# 开始清单里的"行程材料"（spec 007 第 3 步）：能从里面读出行程信息的材料
+TRIP_SOURCE_TYPES = {"itinerary", "flight_reservation", "hotel_reservation"}
+TRIP_SOURCE_WORDS = ("邀请", "酒店", "住宿", "机票", "航班", "行程", "会议",
+                     "invitation", "hotel", "accommodation", "flight", "itinerary", "conference")
+
+
+def trip_source_ids(requirements: list) -> list[str]:
+    """适用于这件事的行程材料需求 id：按词表类型，或材料名里有行程相关的词。"""
+    out = []
+    for r in requirements:
+        if r.state in ("not_applicable", "undecided"):
+            continue
+        name = r.name.lower()
+        if r.material_type in TRIP_SOURCE_TYPES or any(w in name for w in TRIP_SOURCE_WORDS):
+            out.append(r.id)
+    return out
+
+
+# ---- 这件事的文件夹（spec 007 第 4 步）：文件留在原处，只列出、只读 ----
+FOLDER_PREFIX = "f:"
+MAX_FOLDER_FILES = 100
+FOLDER_TRIP_WORDS = TRIP_SOURCE_WORDS + ("booking", "ticket", "schedule", "预订", "订单", "日程")
+
+
+def folder_files(folder: str | None) -> list[dict[str, Any]] | None:
+    """文件夹本身和下一层子文件夹里能读的文件，按路径排序、最多 MAX_FOLDER_FILES 个。
+
+    没关联返回 []；关联了但文件夹不在了返回 None。
+    """
+    if not folder:
+        return []
+    from pathlib import Path
+
+    base = Path(folder)
+    if not base.is_dir():
+        return None
+    found = []
+    for path in sorted(base.iterdir()):
+        if path.name.startswith("."):
+            continue
+        children = sorted(path.iterdir()) if path.is_dir() else [path]
+        for f in children:
+            if f.name.startswith(".") or not f.is_file() or not f.name.lower().endswith(READABLE_SUFFIXES):
+                continue
+            rel = f.relative_to(base).as_posix()
+            name = f.name.lower()
+            found.append({"id": FOLDER_PREFIX + rel, "type": f.name, "sublabel": path.name if path.is_dir() else None,
+                          "one_off": any(w in name for w in FOLDER_TRIP_WORDS), "own": False, "folder": True})
+    return found[:MAX_FOLDER_FILES]
