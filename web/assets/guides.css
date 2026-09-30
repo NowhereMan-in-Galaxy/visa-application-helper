@@ -392,7 +392,15 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .trip-cell { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
 .trip-cell.wide { grid-column: 1 / -1; }
 .trip-cell input, .trip-cell select, .trip-cell textarea, .trip-row input { font: inherit; font-size: 13px; color: var(--ink); padding: 5px 8px; border: 1px solid var(--line); background: #fffef9; width: 100%; box-sizing: border-box; }
-.trip-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+.trip-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.trip-row input, .trip-row select, .trip-row textarea { flex: 1 1 0; min-width: 0; }
+/* 「让 Agent 整理」（spec 007 第 2 步） */
+.trip-extract { border-top: 1px dashed var(--line); padding: 12px 20px 4px; }
+.trip-mats { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; margin-bottom: 8px; }
+.trip-mat { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.trip-extract .agent-log { max-height: 320px; padding: 0; }
+.trip-extract .agent-log:empty { display: none; }
+.trip-extract .agent-foot { border-top: 0; padding: 8px 0 10px; }
 .trip-cell .linkish { justify-self: start; }
 @media (max-width: 640px) { .trip-grid { grid-template-columns: 1fr; } }
 

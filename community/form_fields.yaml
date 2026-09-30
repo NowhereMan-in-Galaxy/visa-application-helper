@@ -16,6 +16,7 @@
 # 出现这些词，说明问的是别人的信息，不是申请人本人
 others: &others [father, mother, parent, spouse, husband, wife, partner, former, child, children, son, daughter,
   relative, sibling, brother, sister, contact person, emergency, supervisor, friend, companion,
+  inviting, inviter, host, 邀请,
   父亲, 母亲, 父, 母, 配偶, 丈夫, 妻子, 子女, 亲属, 兄弟, 姐妹, 联系人, 紧急, 上司, 同行]
 # 出现这些词，说明问的不是住址
 not_home: &not_home [mailing, 邮寄, 通讯, birth, 出生, issue, issued, issuance, 签发, employer, company, school,
@@ -270,6 +271,12 @@ fields:
   trip.arrival_city:
     match: [[arrival, arrive, arriving, entry, port of entry, 入境, 抵达], [city, port, airport, 城市, 口岸, 机场]]
     exclude: [*others, previous, last, prior, 上次, 以往, departure, 离境]
+  trip.arrival_flight:
+    match: [[arrival, arriving, arrive, inbound, outward, 去程, 入境, 抵达], [flight, flight number, flight no, carrier, train, 航班, 车次]]
+    exclude: [*others, previous, last, prior, 上次, 以往, departure, depart, return, 返程, 离境, date, 日期, city, airport, port]
+  trip.departure_flight:
+    match: [[departure, departing, depart, return, returning, outbound, 返程, 离境, 离开], [flight, flight number, flight no, carrier, train, 航班, 车次]]
+    exclude: [*others, previous, last, prior, 上次, 以往, arrival, arrive, 去程, 入境, date, 日期, city, airport, port]
   trip.stay_name:
     match: [[hotel, accommodation, place of stay, where you will stay, 酒店, 住宿, 住处], [name, 名称]]
   trip.stay_address.street:
@@ -285,8 +292,11 @@ fields:
     match: [[hotel, accommodation, where you will stay, staying, 酒店, 住宿, 住处], [country, 国家]]
   trip.stay_phone:
     match: [[hotel, accommodation, where you will stay, 酒店, 住宿, 住处], [phone, telephone, tel, 电话]]
+  trip.host_organization:
+    match: [[host, inviting, invitation, inviter, sponsor, sponsoring, 邀请], [organisation, organization, company, institution, business, 单位, 机构, 公司]]
+    exclude: [previous, 以前, phone, email, address, 电话, 邮箱, 地址, contact person, 联系人]
   trip.host_name:
-    match: [[host, inviting, invitation, inviter, contact person, sponsor, organisation inviting, organization inviting, 邀请, 联系人], [name, 姓名, 名称]]
+    match: [[host, inviting, invitation, inviter, contact person, sponsor, 邀请, 联系人], [name, 姓名, 名称]]
     exclude: [father, mother, spouse, emergency, 紧急, host name server]
   trip.host_relationship:
     match: [[host, inviting, inviter, contact person, 邀请, 联系人], [relationship, relation, 关系]]

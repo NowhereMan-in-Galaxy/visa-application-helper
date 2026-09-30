@@ -206,6 +206,40 @@ def list_tracks(
     return summaries
 
 
+def read_track_material(
+    track_id: str,
+    record_id: str,
+    *,
+    materials_root: Path | None = None,
+    community_dir: Path | None = None,
+    materials_index_dir: Path | None = None,
+) -> dict:
+    """「让 Agent 整理行程」读一份这件事的材料（spec 007 第 2 步）。
+
+    只有 trip_extract 任务能用（环境变量 PA_AGENT_KIND）；record_id 必须是这件事的材料（TrackView.trip_materials）。
+    返回 {"type", "text"} 或 {"type", "images": [(bytes, 格式)]}；读不了抛 ValueError。
+    """
+    import os
+
+    from agent_tools.activity import KIND_ENV
+    from core.material_text import MaterialReadError, read_material
+
+    if os.environ.get(KIND_ENV) != "trip_extract":
+        raise ValueError("read_track_material 只在「让 Agent 整理行程」的任务里用")
+    materials_root = _materials_root(materials_root)
+    community_dir = _community_dir(community_dir)
+    materials_index_dir = _materials_index_dir(materials_index_dir)
+    track = _load_track_or_raise(track_id, materials_root)
+    view = _load_track_view(track, community_dir, materials_index_dir, date.today())
+    if record_id not in {m["id"] for m in view.trip_materials}:
+        raise ValueError(f"{record_id} 不是这件办事的材料，不能读")
+    record = next(r for r in load_material_records(materials_index_dir) if r.id == record_id)
+    try:
+        return {"type": record.type, **read_material(materials_root, record.file_ref)}
+    except MaterialReadError as e:
+        raise ValueError(str(e)) from e
+
+
 def get_track(
     track_id: str,
     *,

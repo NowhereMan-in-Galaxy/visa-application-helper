@@ -3,6 +3,7 @@
 
 - FAKE_CLAUDE_MODE：ok（默认）/ slow（启动后一直等，用来测 409 和取消）/ error（结果是错误）/ crash（直接退出）
 - FAKE_CLAUDE_ARGV：设了就把本次收到的参数写进这个文件，测试用来检查命令行
+- FAKE_CLAUDE_KIND：设了就把环境变量 PA_AGENT_KIND 写进这个文件
 """
 
 import json
@@ -14,6 +15,10 @@ args = sys.argv[1:]
 if os.environ.get("FAKE_CLAUDE_ARGV"):
     with open(os.environ["FAKE_CLAUDE_ARGV"], "w", encoding="utf-8") as f:
         json.dump(args, f, ensure_ascii=False)
+
+if os.environ.get("FAKE_CLAUDE_KIND"):  # 记下网页任务的类型环境变量（spec 007：只有 trip_extract 能读材料）
+    with open(os.environ["FAKE_CLAUDE_KIND"], "w", encoding="utf-8") as f:
+        f.write(os.environ.get("PA_AGENT_KIND", ""))
 
 if args == ["--version"]:
     print("9.9.9 (Fake Claude)")

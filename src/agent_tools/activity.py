@@ -21,6 +21,7 @@ from core.profile_storage import preview_profile_fields, update_profile_fields
 from core.tracks import tracks_dir
 
 UI_ENV = "PA_AGENT_UI"
+KIND_ENV = "PA_AGENT_KIND"  # 网页调起的任务类型；只有 trip_extract 能读材料文件（spec 007 第 2 步）
 MAX_ACTIVITIES = 200
 
 

@@ -70,10 +70,17 @@ FILL_ASSIST_TOOLS = READ_RULES + [
                  "propose_trip_update", "submit_form_fills")
 ]
 
-TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS, "fill_assist": FILL_ASSIST_TOOLS}
+# 办事页「让 Agent 整理」（kind="trip_extract"，spec 007 第 2 步）：读用户说的话和勾选的这件事的材料，只能"提议"改行程信息。
+# 唯一能读材料文件内容的任务；不给浏览器、不给写基本信息的工具。
+TRIP_EXTRACT_TOOLS = READ_RULES + [
+    MCP_PREFIX + name for name in ("get_track", "get_guide", "read_track_material", "propose_trip_update")
+]
+
+TOOLS_BY_KIND = {"ask": ASK_TOOLS, "create_guide": CREATE_GUIDE_TOOLS, "fill_assist": FILL_ASSIST_TOOLS,
+                 "trip_extract": TRIP_EXTRACT_TOOLS}
 
 # 用量上限（CLI 报告的折合美元；订阅用户不另收费，只是防止跑飞）。读帖子 + 看图 + 整理一份攻略比问答耗得多。
-MAX_BUDGET_USD_BY_KIND = {"ask": 2.0, "create_guide": 20.0, "fill_assist": 2.0}
+MAX_BUDGET_USD_BY_KIND = {"ask": 2.0, "create_guide": 20.0, "fill_assist": 2.0, "trip_extract": 3.0}
 DEFAULT_MAX_BUDGET_USD = 5.0
 
 

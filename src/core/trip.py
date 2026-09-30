@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from core.models import Address, _describe_model, _f, _ProfilePart
 from core.profile_storage import _merge
@@ -19,6 +19,13 @@ class Companion(_ProfilePart):
     relationship: str | None = _f("关系")
 
 
+class ItineraryLeg(_ProfilePart):
+    start_date: date | None = _f("开始")
+    end_date: date | None = _f("结束")
+    city: str | None = _f("城市")
+    plan: str | None = _f("安排")
+
+
 class TripInfo(_ProfilePart):
     # purpose 目的
     purpose: str | None = _f("目的")
@@ -27,12 +34,18 @@ class TripInfo(_ProfilePart):
     arrival_date: date | None = _f("计划入境日期")
     departure_date: date | None = _f("计划离境日期")
     arrival_city: str | None = _f("入境城市")
+    # transport 交通
+    arrival_flight: str | None = _f("去程航班 / 车次")
+    departure_flight: str | None = _f("返程航班 / 车次")
+    # itinerary 行程安排（旅游签证的行程单、商务签证的日程）
+    itinerary: list[ItineraryLeg] = _f("行程安排", default=[])
     # stay 住处
     stay_name: str | None = _f("酒店 / 住处名称")
     stay_address: Address = _f("住处地址", default=Address)
     stay_phone: str | None = _f("住处电话")
     # host 邀请人 / 联系人
-    host_name: str | None = _f("姓名或机构名")
+    host_organization: str | None = _f("单位 / 机构")
+    host_name: str | None = _f("联系人姓名")
     host_relationship: str | None = _f("和你的关系")
     host_address: Address = _f("地址", default=Address)
     host_phone: str | None = _f("电话")
@@ -48,8 +61,10 @@ class TripInfo(_ProfilePart):
 TRIP_GROUPS: dict[str, tuple[str, list[str]]] = {
     "purpose": ("目的", ["purpose", "purpose_detail"]),
     "dates": ("日期", ["arrival_date", "departure_date", "arrival_city"]),
+    "transport": ("交通", ["arrival_flight", "departure_flight"]),
+    "itinerary": ("行程安排", ["itinerary"]),
     "stay": ("住处", ["stay_name", "stay_address", "stay_phone"]),
-    "host": ("邀请人 / 联系人", ["host_name", "host_relationship", "host_address", "host_phone", "host_email"]),
+    "host": ("邀请人 / 联系人", ["host_organization", "host_name", "host_relationship", "host_address", "host_phone", "host_email"]),
     "funding": ("费用", ["payer", "payer_detail"]),
     "companions": ("同行人", ["companions"]),
 }
@@ -70,3 +85,24 @@ def describe_trip_groups(keys: list[str]) -> list[dict[str, Any]]:
 def merge_trip(current: TripInfo, changes: dict) -> TripInfo:
     """只改提到的字段：对象逐键合并，列表整体替换。字段名不对、值不合法抛 pydantic ValidationError。"""
     return TripInfo.model_validate(_merge(current.model_dump(mode="json"), changes))
+
+
+# 「让 Agent 整理」能读的文件（spec 007 第 2 步）
+READABLE_SUFFIXES = (".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".webp")
+
+
+def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) -> list[dict[str, Any]]:
+    """这件事的材料：确认挂在这件事上的，或者只属于这件事的（for_track）；只列能读的格式。不碰文件系统。
+
+    one_off(record) 判断是不是一次性材料（默认勾上）。返回 [{id, type, sublabel, one_off}]，不含路径。
+    """
+    matched = {i for ids in track.matches.values() for i in ids}
+    out = []
+    for r in records:
+        if not (r.id in matched or r.for_track == track.id):
+            continue
+        if not r.file_ref or not r.file_ref.lower().endswith(READABLE_SUFFIXES):
+            continue
+        out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel,
+                    "one_off": r.for_track == track.id or one_off(r)})
+    return out
