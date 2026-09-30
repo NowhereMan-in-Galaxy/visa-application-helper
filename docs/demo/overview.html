@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- README 的流程总览图：笔记 → 攻略 → 材料 → 官网。截图来自 docs/screenshots/（虚构资料），笔记卡片是虚构的。
+     重拍：在仓库根目录 `uv run python -m http.server 8002`，打开 http://127.0.0.1:8002/docs/demo/overview.html，截 #board。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>有条有理 · 流程总览</title>
+<style>
+  :root { --paper: #f4f1e8; --ink: #2b2f26; --muted: #6f7466; --green: #4f6146; --line: #d8d3c4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e5da; font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; color: var(--ink); }
+  #board { width: 1440px; margin: 0 auto; padding: 34px 40px 30px; background: var(--paper); }
+  .top { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+  .top b { font-size: 26px; letter-spacing: 1px; }
+  .top span { font-size: 16px; color: var(--muted); }
+  .flow { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr 34px 1fr; align-items: start; }
+  .arrow { align-self: center; margin-top: -50px; text-align: center; color: var(--green); font-size: 26px; font-weight: 700; }
+  .step .num { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: #fff; font-size: 13px; font-weight: 700; margin-right: 8px; }
+  .step h3 { font-size: 17px; margin: 14px 0 4px; display: flex; align-items: center; }
+  .step p { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 0; }
+  .win { height: 250px; border: 1px solid #c9c3b3; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 10px 24px rgba(60, 55, 40, .16); }
+  .bar { height: 22px; background: #ece8dd; border-bottom: 1px solid #d6d0c1; display: flex; gap: 6px; align-items: center; padding-left: 10px; }
+  .bar i { width: 8px; height: 8px; border-radius: 50%; background: #cfc8b6; }
+  .shot { height: 228px; background-repeat: no-repeat; }
+  /* 虚构的笔记卡片 */
+  .notes { position: relative; height: 250px; }
+  .note { position: absolute; width: 200px; background: #fff; border-radius: 10px; box-shadow: 0 8px 20px rgba(60, 55, 40, .18); overflow: hidden; }
+  .note .img { height: 92px; }
+  .note .t { font-size: 12.5px; font-weight: 600; padding: 8px 10px 4px; line-height: 1.4; }
+  .note .m { font-size: 11px; color: #9a9a9a; padding: 0 10px 9px; display: flex; justify-content: space-between; }
+  .n1 { left: 0; top: 34px; transform: rotate(-6deg); } .n1 .img { background: linear-gradient(135deg, #f2c9b7, #e8a48e); }
+  .n2 { left: 62px; top: 10px; transform: rotate(3deg); } .n2 .img { background: linear-gradient(135deg, #b9d3e8, #86a9cf); }
+  .n3 { left: 118px; top: 44px; transform: rotate(8deg); } .n3 .img { background: linear-gradient(135deg, #cfe0bf, #9dbb86); }
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="top"><b>有条有理</b><span>从收藏的笔记，到填好的官网表格</span></div>
+  <div class="flow">
+    <div class="step">
+      <div class="notes">
+        <div class="note n1"><div class="img"></div><div class="t">申根签证材料清单｜在职党亲测</div><div class="m"><span>示例笔记</span><span>♡ 收藏</span></div></div>
+        <div class="note n2"><div class="img"></div><div class="t">法签递签全流程，避坑看这篇</div><div class="m"><span>示例笔记</span><span>♡ 收藏</span></div></div>
+        <div class="note n3"><div class="img"></div><div class="t">行程单和酒店订单怎么准备</div><div class="m"><span>示例笔记</span><span>♡ 收藏</span></div></div>
+      </div>
+      <h3><span class="num">1</span>贴几条收藏的笔记</h3>
+      <p>Agent 读帖子，说法冲突的地方单独标出来</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="win"><div class="bar"><i></i><i></i><i></i></div><div class="shot" style="background-image:url(../screenshots/guide.png); background-size: 200%; background-position: 24% 58%"></div></div>
+      <h3><span class="num">2</span>整理成一份攻略</h3>
+      <p>先问你几个问题，只留下和你有关的步骤和材料</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="win"><div class="bar"><i></i><i></i><i></i></div><div class="shot" style="background-image:url(../screenshots/materials.png); background-size: 175%; background-position: 32% 48%"></div></div>
+      <h3><span class="num">3</span>材料只录一次</h3>
+      <p>已有的材料自动对上，过期的提醒你；出行记录也一直在</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="win"><div class="bar"><i></i><i></i><i></i></div><div class="shot" style="background-image:url(../screenshots/fill.png); background-size: 140%; background-position: 0 0"></div></div>
+      <h3><span class="num">4</span>官网表格自动填</h3>
+      <p>插件填认得的格子，剩下的交给 Agent；提交由你来</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
