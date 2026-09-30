@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from core.guides import DEFAULT_EXPORT_PATTERN, Condition, Guide, Requirement, Step
 from core.material_types import Vocabulary
 from core.models import MaterialRecord, MaterialStatus
-from core.trip import TripInfo, describe_trip_groups, trip_group_keys, trip_materials
+from core.trip import TripInfo, describe_trip_groups, trip_group_keys, trip_materials, trip_source_ids
 from core.status import compute_status
 from core.windows import reminders as _reminders, window_view
 
@@ -321,6 +321,8 @@ class TrackView(BaseModel):
     trip_groups: list[dict] = []
     # 「让 Agent 整理」可以勾选读的材料 [{id, type, sublabel, one_off}]（spec 007 第 2 步）
     trip_materials: list[dict] = []
+    # 开始清单里要上传的"行程材料"需求 id（spec 007 第 3 步）
+    trip_sources: list[str] = []
     # 被隐藏的步骤和材料 [{kind: "step"|"requirement", id, title}]，界面上用来"恢复"
     hidden_items: list[dict] = []
     # 以后"开始可以办"或"截止"的日子 [{date, kind: opens|closes, step, title}]，按日期排序（spec §3c）
@@ -562,6 +564,7 @@ def compute_track_view(
         trip_materials=trip_materials(
             track, [r for r in records if not r.id.startswith(EXAMPLE_PREFIX)],
             lambda r: not _default_keep(_record_type(r, vocab), vocab)),
+        trip_sources=trip_source_ids(req_views),
         hidden_items=[
             {"kind": "step", "id": s.id, "title": s.title} for s in guide.steps if s.id in hidden_steps
         ] + [

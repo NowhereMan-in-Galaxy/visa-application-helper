@@ -106,3 +106,21 @@ def trip_materials(track: Any, records: list, one_off: Callable[[Any], bool]) ->
         out.append({"id": r.id, "type": r.type, "sublabel": r.sublabel,
                     "one_off": r.for_track == track.id or one_off(r)})
     return out
+
+
+# 开始清单里的"行程材料"（spec 007 第 3 步）：能从里面读出行程信息的材料
+TRIP_SOURCE_TYPES = {"itinerary", "flight_reservation", "hotel_reservation"}
+TRIP_SOURCE_WORDS = ("邀请", "酒店", "住宿", "机票", "航班", "行程", "会议",
+                     "invitation", "hotel", "accommodation", "flight", "itinerary", "conference")
+
+
+def trip_source_ids(requirements: list) -> list[str]:
+    """适用于这件事的行程材料需求 id：按词表类型，或材料名里有行程相关的词。"""
+    out = []
+    for r in requirements:
+        if r.state in ("not_applicable", "undecided"):
+            continue
+        name = r.name.lower()
+        if r.material_type in TRIP_SOURCE_TYPES or any(w in name for w in TRIP_SOURCE_WORDS):
+            out.append(r.id)
+    return out

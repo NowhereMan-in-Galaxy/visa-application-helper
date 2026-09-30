@@ -143,13 +143,13 @@
     function save(change) { expanded[v.id] = true; deps.save(v, change); }
 
     if (!open) {
-      return el("section", { class: "panel facts-summary" },
+      return el("section", { class: "panel facts-summary", id: "trip" },
         el("span", { class: "muted", text: "这次行程：" }),
         el("span", { text: summary(v) || "已填 " + filled + " 项" }),
         el("button", { type: "button", class: "linkish", text: "修改", onclick: function () { toggle(true); } })
       );
     }
-    return el("section", { class: "panel trip" },
+    return el("section", { class: "panel trip", id: "trip" },
       el("div", { class: "panel-head" },
         el("h2", { text: "这次行程" }),
         filled ? el("button", { type: "button", class: "linkish", text: "收起", onclick: function () { toggle(false); } }) : null
@@ -164,5 +164,8 @@
     );
   }
 
-  window.TripPanel = { render: render };
+  // 开始清单的"让 Agent 整理"：展开这一块（spec 007 第 3 步）
+  function open(id) { expanded[id] = true; }
+
+  window.TripPanel = { render: render, open: open };
 })();

@@ -199,3 +199,41 @@ def test_trip_proposal_event_carries_track_id(env):
     activity.propose_trip_update(root, tid, {"purpose": "Business"})
     (ev,) = [e for e in jobs.side_events(root, state) if e[0] == "proposal"]
     assert ev[1]["group"] == "trip" and ev[1]["track_id"] == tid
+
+
+# ---- 第 3 步：开始清单 ----
+
+def test_trip_sources_pick_trip_materials():
+    from types import SimpleNamespace as R
+    from core.trip import trip_source_ids
+    reqs = [R(id="a", name="行程单", material_type="itinerary", state="missing"),
+            R(id="b", name="房东邀请信（住朋友家）", material_type=None, state="missing"),
+            R(id="c", name="Hotel booking", material_type=None, state="ready"),
+            R(id="d", name="护照", material_type="passport", state="missing"),
+            R(id="e", name="机票预订单", material_type="flight_reservation", state="not_applicable"),
+            R(id="f", name="会议邀请函", material_type=None, state="undecided")]
+    assert trip_source_ids(reqs) == ["a", "b", "c"]
+
+
+def test_schengen_track_lists_trip_sources(env):
+    c, _, tid = env
+    v = c.get(f"/api/tracks/{tid}", headers=LOCAL).json()
+    names = {r["id"]: r["name"] for r in v["requirements"]}
+    assert {names[i] for i in v["trip_sources"]} >= {"行程单", "机票预订单", "酒店预订单"}
+    assert "护照" not in {names[i] for i in v["trip_sources"]}
+
+
+def test_trip_files_upload(env):
+    c, root, tid = env
+    url = f"/api/tracks/{tid}/trip-files"
+    r = c.post(url, headers=LOCAL, data={"name": "会议邀请函"}, files={"file": ("invite.pdf", b"%PDF x", "application/pdf")})
+    assert r.status_code == 200
+    mats = r.json()["trip_materials"]
+    assert [(m["type"], m["one_off"]) for m in mats] == [("会议邀请函", True)]
+    (rec,) = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in (root / "index" / "records").glob("*.yaml")]
+    assert rec["for_track"] == tid and rec["category"] == "other"
+    assert (root / rec["file_ref"]).is_file()
+    assert c.post(url, headers=LOCAL, data={"name": " "}, files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 422
+    assert c.post(url, headers=LOCAL, data={"name": "x"}, files={"file": ("a.exe", b"x", "application/octet-stream")}).status_code == 422
+    assert c.post("/api/tracks/no-such/trip-files", headers=LOCAL, data={"name": "x"},
+                  files={"file": ("a.pdf", b"x", "application/pdf")}).status_code == 404

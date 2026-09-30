@@ -871,8 +871,24 @@
 
     var main = el("div");
 
-    // --- 下一步 ---
-    if (!readonly) main.append(overviewCard(v, stepById));
+    // --- 下一步（刚开始办时先显示"开始清单"，spec 007 第 3 步）---
+    if (!readonly) main.append((window.StartCard && window.StartCard.render(v, {
+      el: el,
+      upload: function (path, fd) {
+        showError("");
+        return uploadRequest(path, fd).then(function (nv) { return loadMyRecords().then(function () { return nv; }); })
+          .catch(function (e) { showError(e.message); throw e; });
+      },
+      redraw: drawTrack,
+      jump: jumpTo,
+      openTrip: function () {
+        if (window.TripPanel) window.TripPanel.open(v.id);
+        drawTrack(v);
+        jumpTo("trip");
+        var box = document.querySelector("#trip .trip-extract textarea");
+        if (box) box.focus({ preventScroll: true });
+      },
+    })) || overviewCard(v, stepById));
 
     // --- 问题 ---
     var asked = v.facts.filter(function (f) { return f.asked; });
@@ -894,7 +910,7 @@
       main.append(
         el(
           "section",
-          { class: "panel" },
+          { class: "panel", id: "facts" },
           el(
             "div",
             { class: "panel-head" },

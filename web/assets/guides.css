@@ -404,3 +404,20 @@ details.done-panel:not([open]) > summary { border-bottom: 0; }
 .trip-cell .linkish { justify-self: start; }
 @media (max-width: 640px) { .trip-grid { grid-template-columns: 1fr; } }
 
+
+/* 开始清单（spec 007 第 3 步） */
+.start-head { display: flex; justify-content: space-between; align-items: baseline; }
+.start-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.start-row { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.start-mark { width: 20px; height: 20px; border: 1px solid var(--ink); border-radius: 50%; font-size: 11px; display: grid; place-items: center; }
+.start-row.done .start-mark { background: var(--green); border-color: var(--green); color: #fff; }
+.start-row.done .start-title { color: var(--muted); }
+.start-main { display: grid; gap: 6px; min-width: 0; }
+.start-title { font-size: 15px; font-weight: 600; justify-self: start; }
+.start-list button.start-title { color: var(--ink); font-size: 15px; font-weight: 600; padding: 0; }
+.start-mats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.start-mat { display: inline-flex; gap: 6px; align-items: center; }
+.start-mat.have { color: var(--muted); }
+.start-other input { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); width: 150px; }
+.start-go { justify-self: start; }
+.start-skip { display: block; margin: 6px 0 0 auto; font-size: 12px; }

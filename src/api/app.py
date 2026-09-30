@@ -1208,6 +1208,25 @@ async def upload_for_requirement(
     return _track_view(track)
 
 
+@app.post("/api/tracks/{track_id}/trip-files", response_model=TrackView)
+async def upload_trip_file(track_id: str, file: UploadFile = File(...), name: str = Form(...)) -> TrackView:
+    """开始清单的"＋ 其他"（spec 007 第 3 步）：攻略没列的行程材料（例如邀请函），只属于这件办事。"""
+    from core.trip import READABLE_SUFFIXES
+
+    track = _load_track_or_404(track_id)
+    name = name.strip()
+    if not 1 <= len(name) <= 30:
+        raise HTTPException(status_code=422, detail="材料名写 1–30 个字")
+    if not (file.filename or "").lower().endswith(READABLE_SUFFIXES):
+        raise HTTPException(status_code=422, detail="只能传 PDF、Word、文本或图片（png / jpg / webp）")
+    await _create_material(
+        belongs_to=None, category=MaterialCategory.OTHER, type_=name, obtained_date=date.today(), sublabel=None,
+        validity_days=None, recommended_update_interval_days=None, recommended_update_day_of_month=None,
+        file=file, for_track=track.id,
+    )
+    return _track_view(track)
+
+
 def _resolve_export_dir(text: str) -> Path:
     """校验用户给的导出位置：必须是已经存在的文件夹；不能在仓库里面（材料根目录除外），
     免得把个人材料复制进会被提交、甚至公开的目录（例如 community/）。"""
